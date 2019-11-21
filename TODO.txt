@@ -1,0 +1,6 @@
+P1 Feed time in from JS
+P1 Save to local storage
+P1 Styling
+P1 code refactor
+
+P1 Period parsing

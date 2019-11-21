@@ -1,0 +1,7 @@
+.task-todo {
+  font-weight: bold;
+}
+
+.task-done {
+  text-decoration: line-through;
+}
