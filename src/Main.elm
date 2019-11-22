@@ -13,6 +13,7 @@ import Platform.Cmd exposing (batch)
 import Json.Encode as E
 import Json.Decode exposing (Decoder, field, string, int)
 import Animation exposing (px)
+import Animation.Messenger
 
 -- Setup
 
@@ -62,7 +63,7 @@ type alias NewTaskModel =
     { description : String
     , tag : String
     , period : String
-    , style : Animation.State
+    , style : Animation.Messenger.State Msg
     }
 
 emptyNewTaskModel = NewTaskModel "" "" "" (Animation.style [ Animation.opacity 0 ])
@@ -110,6 +111,7 @@ type Msg
     | ChangeTag String
     | ChangePeriod String
     | Animate Animation.Msg
+    | ClearNewTask
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -144,7 +146,15 @@ update msg model =
                             { model 
                             | tasks = model.tasks ++ [newTask model.time model.uid m]
                             , uid = model.uid + 1
-                            , newTaskModel = Nothing
+                            , newTaskModel = 
+                                Just { m 
+                                | style = Animation.interrupt
+                                    [ Animation.to 
+                                        [ Animation.opacity 0.0 ]
+                                        , Animation.Messenger.send (ClearNewTask)
+                                    ]
+                                    m.style
+                                }
                             }
                             Cmd.none
                         )
@@ -166,6 +176,7 @@ update msg model =
                     (\m -> {m | style =  Animation.update animMsg m.style}) 
                     model.newTaskModel) }
             , Cmd.none)
+        ClearNewTask -> ({model | newTaskModel = Nothing}, Cmd.none)
         ChangeDescription desc ->
             let
                 newTaskModel = model.newTaskModel
