@@ -149,6 +149,8 @@ type Msg
     | ChangeDescriptionEdit EditTaskModel String
     | ChangeTagEdit EditTaskModel String
     | ChangePeriodEdit EditTaskModel String
+    | Edit EditTaskModel
+    | Delete EditTaskModel
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -211,6 +213,53 @@ update msg model =
                     })
                     model.modalModel
                 }
+                Cmd.none
+        Delete editTaskModel ->
+            store
+                ({ model 
+                    |   tasks = List.filter (\t -> t.id /= editTaskModel.id) model.tasks
+                    ,   modalModel = Maybe.map
+                            (\m -> { m | bgStyle = Animation.interrupt
+                                                    [ Animation.to [ Animation.opacity 0.0 ]
+                                                    , Animation.Messenger.send (ClearModal)
+                                                    ]
+                                                    m.bgStyle
+                                                , contentStyle = Animation.interrupt
+                                                    [ Animation.to [ Animation.top (px -200) ]
+                                                    ]
+                                                    m.contentStyle
+                            })
+                            model.modalModel
+                })
+                Cmd.none
+        Edit editTaskModel ->
+            store
+                (let
+                    updateTask task =
+                        if task.id == editTaskModel.id then
+                            {task 
+                            |   description = editTaskModel.description
+                            , tag = editTaskModel.tag
+                            , period = getPeriodMillis editTaskModel 
+                            }
+                        else
+                            task 
+                in
+                    { model
+                    | tasks = List.map updateTask model.tasks
+                    , modalModel = Maybe.map
+                    (\m -> { m | bgStyle = Animation.interrupt
+                                            [ Animation.to [ Animation.opacity 0.0 ]
+                                            , Animation.Messenger.send (ClearModal)
+                                            ]
+                                            m.bgStyle
+                                        , contentStyle = Animation.interrupt
+                                            [ Animation.to [ Animation.top (px -200) ]
+                                            ]
+                                            m.contentStyle
+                    })
+                    model.modalModel
+                    })
                 Cmd.none
         OpenModal modal ->
             let
@@ -313,7 +362,7 @@ viewTask time task =
                 [ class "task-view" ]
                 [ button 
                     [ class "task-edit"
-                    , onClick (OpenModal (EditTask (EditTaskModel task.description task.tag "" task.id)))
+                    , onClick (OpenModal (EditTask (EditTaskModel task.description task.tag (millisPeriodToString task.period) task.id)))
                     ]
                     [ text "..." ]
                 , button 
@@ -354,6 +403,15 @@ maybeModalView model =
             )
         Nothing -> (span [] [])
 
+taskInputsView model descChange tagChange periodChange
+    = [ input 
+                [ placeholder "Description", value model.description, onInput descChange ] []
+            , input
+                [ placeholder "Tag", value model.tag, list "tag-list", onInput tagChange ] []
+            , input 
+                [ placeholder "Period", value model.period, list "period-list", onInput periodChange ] []
+    ]
+
 -- TODO clean up
 editTaskView : EditTaskModel -> List Task -> Html Msg
 editTaskView editTaskModel tasks =
@@ -362,7 +420,6 @@ editTaskView editTaskModel tasks =
         findUnit = Result.withDefault 
                 1
                 (Parser.run Parser.int editTaskModel.period)
-        addS unit str = if (unit > 1) then String.fromInt unit ++ " " ++ str ++ "s" else str   
         periodOptions unit period =
             [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
             , option [value (addS unit "Hour")] [text (addS unit "Hour")]
@@ -371,30 +428,32 @@ editTaskView editTaskModel tasks =
             , option [value (addS unit "Month")] [text (addS unit "Month")]
             ]
     in
-        div [class "new-view" ]
-            [ input 
-                [ placeholder "Description", value editTaskModel.description, onInput (ChangeDescriptionEdit editTaskModel) ] []
-            , input 
-                [ placeholder "Tag", value editTaskModel.tag, list "tag-list", onInput (ChangeTagEdit editTaskModel) ] []
-            , input 
-                [ placeholder "Period", value editTaskModel.period, list "period-list", onInput (ChangePeriodEdit editTaskModel) ] []
-            , button [ onClick (CloseModal) ] [text "Save"]
-            , button [ onClick (CloseModal) ] [text "Cancel"]
+        div [class "modal-view" ]
+            (taskInputsView editTaskModel
+                (ChangeDescriptionEdit editTaskModel)
+                (ChangeTagEdit editTaskModel)
+                (ChangePeriodEdit editTaskModel) ++
+            [div
+                [class "modal-view-buttons"]
+                [ button [ onClick (Edit editTaskModel) ] [text "Save"]
+                , button [ onClick (Delete editTaskModel) ] [text "Delete"]
+                , button [ onClick (CloseModal) ] [text "Cancel"]
+                ]
             , datalist
                 [id "tag-list"]
                 (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
             , datalist
                 [id "period-list"]
                 ((periodOptions findUnit editTaskModel.period) ++ (periodOptions (findUnit + 1) editTaskModel.period))
-            ] 
+            ])
+
 newTaskView : NewTaskModel -> List Task -> Html Msg
 newTaskView newTaskModel tasks =
     let
         tagOption tag = option [value tag] [text tag]
         findUnit = Result.withDefault 
                 1
-                (Parser.run Parser.int newTaskModel.period)
-        addS unit str = if (unit > 1) then String.fromInt unit ++ " " ++ str ++ "s" else str   
+                (Parser.run Parser.int newTaskModel.period)   
         periodOptions unit period =
             [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
             , option [value (addS unit "Hour")] [text (addS unit "Hour")]
@@ -403,22 +462,24 @@ newTaskView newTaskModel tasks =
             , option [value (addS unit "Month")] [text (addS unit "Month")]
             ]
     in
-        div [class "new-view" ]
-            [ input 
-                [ placeholder "Description", value newTaskModel.description, onInput (ChangeDescription newTaskModel) ] []
-            , input 
-                [ placeholder "Tag", value newTaskModel.tag, list "tag-list", onInput (ChangeTag newTaskModel) ] []
-            , input 
-                [ placeholder "Period", value newTaskModel.period, list "period-list", onInput (ChangePeriod newTaskModel) ] []
-            , button [ onClick (Add newTaskModel) ] [text "Add"]
-            , button [ onClick (CloseModal) ] [text "Cancel"]
+        div
+            [class "modal-view" ]
+            ((taskInputsView newTaskModel
+                (ChangeDescription newTaskModel)
+                (ChangeTag newTaskModel)
+                (ChangePeriod newTaskModel)) ++
+            [div
+                [class "modal-view-buttons"]
+                [ button [ onClick (Add newTaskModel) ] [text "Add"]
+                , button [ onClick (CloseModal) ] [text "Cancel"]
+                ]
             , datalist
                 [id "tag-list"]
                 (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
             , datalist
                 [id "period-list"]
                 ((periodOptions findUnit newTaskModel.period) ++ (periodOptions (findUnit + 1) newTaskModel.period))
-            ] 
+            ]) 
 
 -- HELPERS
 
@@ -443,22 +504,56 @@ type alias Period =
     { amount : Int
     , unit: PeriodUnit
     }
+
+addS : Int -> String -> String
+addS unit str 
+    = String.fromInt unit
+    ++ " "
+    ++ if (unit > 1) then str ++ "s" else str
+
+periodUnitToMillis : PeriodUnit -> Int
+periodUnitToMillis periodUnit =
+    case periodUnit of
+        Minute -> (60*1000)
+        Hour -> (60*60*1000)
+        Day -> (24*60*60*1000)
+        Week -> (7*24*60*60*1000)
+        Month -> (28*24*60*60*1000)
+
 periodToMillis : Period -> Int
 periodToMillis period =
-    case (period.unit) of
-        Minute -> (60*1000*period.amount)
-        Hour -> (60*60*1000*period.amount)
-        Day -> (24*60*60*1000*period.amount)
-        Week -> (7*24*60*60*1000*period.amount)
-        Month -> (28*24*60*60*1000*period.amount)
+    (periodUnitToMillis period.unit) * period.amount
+
+millisPeriodToString : Int -> String
+millisPeriodToString millis =
+    let
+        months = millis//periodUnitToMillis(Month)
+        weeks = millis//periodUnitToMillis(Week)
+        hours = millis//periodUnitToMillis(Hour)
+        days = millis//periodUnitToMillis(Day)
+        minutes = millis//periodUnitToMillis(Minute)
+    in
+        if months >= 1 then
+            addS months "Month"
+        else if weeks >= 1 then
+            addS weeks "Week"
+        else if days >= 1 then
+            addS days "Day"
+        else if hours >= 1 then
+            addS hours "hour"
+        else if weeks >= 1 then
+            addS minutes "Minute"
+        else
+            "1 Minute"
+
 
 periodUnitParser : Parser PeriodUnit
 periodUnitParser = Parser.oneOf
-    [   succeed Week |. Parser.token "week"
-        , succeed Month |. Parser.token "month"
-        , succeed Minute |. Parser.token "minute"
-        , succeed Hour |. Parser.token "hour"
-        , succeed Day |. Parser.token "day"
+    [   succeed Week |. Parser.oneOf [Parser.token "week", Parser.token "weeks"] 
+        , succeed Month |. Parser.oneOf [Parser.token "month", Parser.token "months"]
+        , succeed Minute |. Parser.oneOf [Parser.token "minute", Parser.token "minutes"]
+        , succeed Hour |. Parser.oneOf [Parser.token "hour", Parser.token "hours"]
+        , succeed Day |. Parser.oneOf [Parser.token "day", Parser.token "days"]
     ]
 periodParser : Parser Period
 periodParser =

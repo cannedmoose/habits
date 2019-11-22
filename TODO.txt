@@ -1,5 +1,3 @@
-P1 Translate from millis -> period string
-P1 Hook up edit
 P1 add delete button
 P1 Options modal
 P1 make 1 * default for periods instead of *

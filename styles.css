@@ -84,7 +84,11 @@ video {
   border: 0;
   vertical-align: baseline;
   font: inherit;
-  font-size: 1em;
+}
+
+button,
+input {
+  font-size: 100%;
 }
 
 @font-face {
@@ -140,11 +144,6 @@ html {
   text-decoration: line-through;
 }
 
-.new-view {
-  display: flex;
-  flex-direction: column;
-}
-
 /* The Modal (background) */
 .modal {
   position: fixed; /* Stay in place */
@@ -162,4 +161,33 @@ html {
 .modal-content {
   position: relative; /* Stay in place */
   background-color: #ffffff;
+}
+
+.modal-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-view input,
+.modal-view button {
+  border: none;
+  background: white;
+}
+
+.modal-view label {
+  border-bottom: 0.5px solid #add8e6;
+}
+
+.modal-view input {
+  border-bottom: 0.5px dotted #add8e6;
+}
+
+.modal-view button {
+  color: #cc0000;
+  text-decoration: underline #cc0000;
+}
+
+modal-view-buttons {
+  display: flex;
+  flex-direction: row;
 }

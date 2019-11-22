@@ -5971,6 +5971,552 @@ var author$project$Main$ModalModel = F3(
 var author$project$Main$NewTask = function (a) {
 	return {$: 'NewTask', a: a};
 };
+var author$project$Main$Day = {$: 'Day'};
+var author$project$Main$Period = F2(
+	function (amount, unit) {
+		return {amount: amount, unit: unit};
+	});
+var author$project$Main$Hour = {$: 'Hour'};
+var author$project$Main$Minute = {$: 'Minute'};
+var author$project$Main$Month = {$: 'Month'};
+var author$project$Main$Week = {$: 'Week'};
+var elm$core$Basics$always = F2(
+	function (a, _n0) {
+		return a;
+	});
+var elm$parser$Parser$Advanced$Bad = F2(
+	function (a, b) {
+		return {$: 'Bad', a: a, b: b};
+	});
+var elm$parser$Parser$Advanced$Good = F3(
+	function (a, b, c) {
+		return {$: 'Good', a: a, b: b, c: c};
+	});
+var elm$parser$Parser$Advanced$Parser = function (a) {
+	return {$: 'Parser', a: a};
+};
+var elm$parser$Parser$Advanced$map2 = F3(
+	function (func, _n0, _n1) {
+		var parseA = _n0.a;
+		var parseB = _n1.a;
+		return elm$parser$Parser$Advanced$Parser(
+			function (s0) {
+				var _n2 = parseA(s0);
+				if (_n2.$ === 'Bad') {
+					var p = _n2.a;
+					var x = _n2.b;
+					return A2(elm$parser$Parser$Advanced$Bad, p, x);
+				} else {
+					var p1 = _n2.a;
+					var a = _n2.b;
+					var s1 = _n2.c;
+					var _n3 = parseB(s1);
+					if (_n3.$ === 'Bad') {
+						var p2 = _n3.a;
+						var x = _n3.b;
+						return A2(elm$parser$Parser$Advanced$Bad, p1 || p2, x);
+					} else {
+						var p2 = _n3.a;
+						var b = _n3.b;
+						var s2 = _n3.c;
+						return A3(
+							elm$parser$Parser$Advanced$Good,
+							p1 || p2,
+							A2(func, a, b),
+							s2);
+					}
+				}
+			});
+	});
+var elm$parser$Parser$Advanced$ignorer = F2(
+	function (keepParser, ignoreParser) {
+		return A3(elm$parser$Parser$Advanced$map2, elm$core$Basics$always, keepParser, ignoreParser);
+	});
+var elm$parser$Parser$ignorer = elm$parser$Parser$Advanced$ignorer;
+var elm$parser$Parser$Advanced$Empty = {$: 'Empty'};
+var elm$parser$Parser$Advanced$Append = F2(
+	function (a, b) {
+		return {$: 'Append', a: a, b: b};
+	});
+var elm$parser$Parser$Advanced$oneOfHelp = F3(
+	function (s0, bag, parsers) {
+		oneOfHelp:
+		while (true) {
+			if (!parsers.b) {
+				return A2(elm$parser$Parser$Advanced$Bad, false, bag);
+			} else {
+				var parse = parsers.a.a;
+				var remainingParsers = parsers.b;
+				var _n1 = parse(s0);
+				if (_n1.$ === 'Good') {
+					var step = _n1;
+					return step;
+				} else {
+					var step = _n1;
+					var p = step.a;
+					var x = step.b;
+					if (p) {
+						return step;
+					} else {
+						var $temp$s0 = s0,
+							$temp$bag = A2(elm$parser$Parser$Advanced$Append, bag, x),
+							$temp$parsers = remainingParsers;
+						s0 = $temp$s0;
+						bag = $temp$bag;
+						parsers = $temp$parsers;
+						continue oneOfHelp;
+					}
+				}
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$oneOf = function (parsers) {
+	return elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			return A3(elm$parser$Parser$Advanced$oneOfHelp, s, elm$parser$Parser$Advanced$Empty, parsers);
+		});
+};
+var elm$parser$Parser$oneOf = elm$parser$Parser$Advanced$oneOf;
+var elm$parser$Parser$Advanced$succeed = function (a) {
+	return elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			return A3(elm$parser$Parser$Advanced$Good, false, a, s);
+		});
+};
+var elm$parser$Parser$succeed = elm$parser$Parser$Advanced$succeed;
+var elm$parser$Parser$Expecting = function (a) {
+	return {$: 'Expecting', a: a};
+};
+var elm$parser$Parser$Advanced$Token = F2(
+	function (a, b) {
+		return {$: 'Token', a: a, b: b};
+	});
+var elm$parser$Parser$toToken = function (str) {
+	return A2(
+		elm$parser$Parser$Advanced$Token,
+		str,
+		elm$parser$Parser$Expecting(str));
+};
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var elm$core$Basics$not = _Basics_not;
+var elm$parser$Parser$Advanced$AddRight = F2(
+	function (a, b) {
+		return {$: 'AddRight', a: a, b: b};
+	});
+var elm$parser$Parser$Advanced$DeadEnd = F4(
+	function (row, col, problem, contextStack) {
+		return {col: col, contextStack: contextStack, problem: problem, row: row};
+	});
+var elm$parser$Parser$Advanced$fromState = F2(
+	function (s, x) {
+		return A2(
+			elm$parser$Parser$Advanced$AddRight,
+			elm$parser$Parser$Advanced$Empty,
+			A4(elm$parser$Parser$Advanced$DeadEnd, s.row, s.col, x, s.context));
+	});
+var elm$parser$Parser$Advanced$isSubString = _Parser_isSubString;
+var elm$parser$Parser$Advanced$token = function (_n0) {
+	var str = _n0.a;
+	var expecting = _n0.b;
+	var progress = !elm$core$String$isEmpty(str);
+	return elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			var _n1 = A5(elm$parser$Parser$Advanced$isSubString, str, s.offset, s.row, s.col, s.src);
+			var newOffset = _n1.a;
+			var newRow = _n1.b;
+			var newCol = _n1.c;
+			return _Utils_eq(newOffset, -1) ? A2(
+				elm$parser$Parser$Advanced$Bad,
+				false,
+				A2(elm$parser$Parser$Advanced$fromState, s, expecting)) : A3(
+				elm$parser$Parser$Advanced$Good,
+				progress,
+				_Utils_Tuple0,
+				{col: newCol, context: s.context, indent: s.indent, offset: newOffset, row: newRow, src: s.src});
+		});
+};
+var elm$parser$Parser$token = function (str) {
+	return elm$parser$Parser$Advanced$token(
+		elm$parser$Parser$toToken(str));
+};
+var author$project$Main$periodUnitParser = elm$parser$Parser$oneOf(
+	_List_fromArray(
+		[
+			A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$succeed(author$project$Main$Week),
+			elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						elm$parser$Parser$token('week'),
+						elm$parser$Parser$token('weeks')
+					]))),
+			A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$succeed(author$project$Main$Month),
+			elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						elm$parser$Parser$token('month'),
+						elm$parser$Parser$token('months')
+					]))),
+			A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$succeed(author$project$Main$Minute),
+			elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						elm$parser$Parser$token('minute'),
+						elm$parser$Parser$token('minutes')
+					]))),
+			A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$succeed(author$project$Main$Hour),
+			elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						elm$parser$Parser$token('hour'),
+						elm$parser$Parser$token('hours')
+					]))),
+			A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$succeed(author$project$Main$Day),
+			elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						elm$parser$Parser$token('day'),
+						elm$parser$Parser$token('days')
+					])))
+		]));
+var elm$parser$Parser$ExpectingInt = {$: 'ExpectingInt'};
+var elm$parser$Parser$Advanced$consumeBase = _Parser_consumeBase;
+var elm$parser$Parser$Advanced$consumeBase16 = _Parser_consumeBase16;
+var elm$core$String$toFloat = _String_toFloat;
+var elm$parser$Parser$Advanced$bumpOffset = F2(
+	function (newOffset, s) {
+		return {col: s.col + (newOffset - s.offset), context: s.context, indent: s.indent, offset: newOffset, row: s.row, src: s.src};
+	});
+var elm$parser$Parser$Advanced$chompBase10 = _Parser_chompBase10;
+var elm$parser$Parser$Advanced$isAsciiCode = _Parser_isAsciiCode;
+var elm$parser$Parser$Advanced$consumeExp = F2(
+	function (offset, src) {
+		if (A3(elm$parser$Parser$Advanced$isAsciiCode, 101, offset, src) || A3(elm$parser$Parser$Advanced$isAsciiCode, 69, offset, src)) {
+			var eOffset = offset + 1;
+			var expOffset = (A3(elm$parser$Parser$Advanced$isAsciiCode, 43, eOffset, src) || A3(elm$parser$Parser$Advanced$isAsciiCode, 45, eOffset, src)) ? (eOffset + 1) : eOffset;
+			var newOffset = A2(elm$parser$Parser$Advanced$chompBase10, expOffset, src);
+			return _Utils_eq(expOffset, newOffset) ? (-newOffset) : newOffset;
+		} else {
+			return offset;
+		}
+	});
+var elm$parser$Parser$Advanced$consumeDotAndExp = F2(
+	function (offset, src) {
+		return A3(elm$parser$Parser$Advanced$isAsciiCode, 46, offset, src) ? A2(
+			elm$parser$Parser$Advanced$consumeExp,
+			A2(elm$parser$Parser$Advanced$chompBase10, offset + 1, src),
+			src) : A2(elm$parser$Parser$Advanced$consumeExp, offset, src);
+	});
+var elm$parser$Parser$Advanced$finalizeInt = F5(
+	function (invalid, handler, startOffset, _n0, s) {
+		var endOffset = _n0.a;
+		var n = _n0.b;
+		if (handler.$ === 'Err') {
+			var x = handler.a;
+			return A2(
+				elm$parser$Parser$Advanced$Bad,
+				true,
+				A2(elm$parser$Parser$Advanced$fromState, s, x));
+		} else {
+			var toValue = handler.a;
+			return _Utils_eq(startOffset, endOffset) ? A2(
+				elm$parser$Parser$Advanced$Bad,
+				_Utils_cmp(s.offset, startOffset) < 0,
+				A2(elm$parser$Parser$Advanced$fromState, s, invalid)) : A3(
+				elm$parser$Parser$Advanced$Good,
+				true,
+				toValue(n),
+				A2(elm$parser$Parser$Advanced$bumpOffset, endOffset, s));
+		}
+	});
+var elm$parser$Parser$Advanced$fromInfo = F4(
+	function (row, col, x, context) {
+		return A2(
+			elm$parser$Parser$Advanced$AddRight,
+			elm$parser$Parser$Advanced$Empty,
+			A4(elm$parser$Parser$Advanced$DeadEnd, row, col, x, context));
+	});
+var elm$parser$Parser$Advanced$finalizeFloat = F6(
+	function (invalid, expecting, intSettings, floatSettings, intPair, s) {
+		var intOffset = intPair.a;
+		var floatOffset = A2(elm$parser$Parser$Advanced$consumeDotAndExp, intOffset, s.src);
+		if (floatOffset < 0) {
+			return A2(
+				elm$parser$Parser$Advanced$Bad,
+				true,
+				A4(elm$parser$Parser$Advanced$fromInfo, s.row, s.col - (floatOffset + s.offset), invalid, s.context));
+		} else {
+			if (_Utils_eq(s.offset, floatOffset)) {
+				return A2(
+					elm$parser$Parser$Advanced$Bad,
+					false,
+					A2(elm$parser$Parser$Advanced$fromState, s, expecting));
+			} else {
+				if (_Utils_eq(intOffset, floatOffset)) {
+					return A5(elm$parser$Parser$Advanced$finalizeInt, invalid, intSettings, s.offset, intPair, s);
+				} else {
+					if (floatSettings.$ === 'Err') {
+						var x = floatSettings.a;
+						return A2(
+							elm$parser$Parser$Advanced$Bad,
+							true,
+							A2(elm$parser$Parser$Advanced$fromState, s, invalid));
+					} else {
+						var toValue = floatSettings.a;
+						var _n1 = elm$core$String$toFloat(
+							A3(elm$core$String$slice, s.offset, floatOffset, s.src));
+						if (_n1.$ === 'Nothing') {
+							return A2(
+								elm$parser$Parser$Advanced$Bad,
+								true,
+								A2(elm$parser$Parser$Advanced$fromState, s, invalid));
+						} else {
+							var n = _n1.a;
+							return A3(
+								elm$parser$Parser$Advanced$Good,
+								true,
+								toValue(n),
+								A2(elm$parser$Parser$Advanced$bumpOffset, floatOffset, s));
+						}
+					}
+				}
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$number = function (c) {
+	return elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			if (A3(elm$parser$Parser$Advanced$isAsciiCode, 48, s.offset, s.src)) {
+				var zeroOffset = s.offset + 1;
+				var baseOffset = zeroOffset + 1;
+				return A3(elm$parser$Parser$Advanced$isAsciiCode, 120, zeroOffset, s.src) ? A5(
+					elm$parser$Parser$Advanced$finalizeInt,
+					c.invalid,
+					c.hex,
+					baseOffset,
+					A2(elm$parser$Parser$Advanced$consumeBase16, baseOffset, s.src),
+					s) : (A3(elm$parser$Parser$Advanced$isAsciiCode, 111, zeroOffset, s.src) ? A5(
+					elm$parser$Parser$Advanced$finalizeInt,
+					c.invalid,
+					c.octal,
+					baseOffset,
+					A3(elm$parser$Parser$Advanced$consumeBase, 8, baseOffset, s.src),
+					s) : (A3(elm$parser$Parser$Advanced$isAsciiCode, 98, zeroOffset, s.src) ? A5(
+					elm$parser$Parser$Advanced$finalizeInt,
+					c.invalid,
+					c.binary,
+					baseOffset,
+					A3(elm$parser$Parser$Advanced$consumeBase, 2, baseOffset, s.src),
+					s) : A6(
+					elm$parser$Parser$Advanced$finalizeFloat,
+					c.invalid,
+					c.expecting,
+					c._int,
+					c._float,
+					_Utils_Tuple2(zeroOffset, 0),
+					s)));
+			} else {
+				return A6(
+					elm$parser$Parser$Advanced$finalizeFloat,
+					c.invalid,
+					c.expecting,
+					c._int,
+					c._float,
+					A3(elm$parser$Parser$Advanced$consumeBase, 10, s.offset, s.src),
+					s);
+			}
+		});
+};
+var elm$parser$Parser$Advanced$int = F2(
+	function (expecting, invalid) {
+		return elm$parser$Parser$Advanced$number(
+			{
+				binary: elm$core$Result$Err(invalid),
+				expecting: expecting,
+				_float: elm$core$Result$Err(invalid),
+				hex: elm$core$Result$Err(invalid),
+				_int: elm$core$Result$Ok(elm$core$Basics$identity),
+				invalid: invalid,
+				octal: elm$core$Result$Err(invalid)
+			});
+	});
+var elm$parser$Parser$int = A2(elm$parser$Parser$Advanced$int, elm$parser$Parser$ExpectingInt, elm$parser$Parser$ExpectingInt);
+var elm$parser$Parser$Advanced$keeper = F2(
+	function (parseFunc, parseArg) {
+		return A3(elm$parser$Parser$Advanced$map2, elm$core$Basics$apL, parseFunc, parseArg);
+	});
+var elm$parser$Parser$keeper = elm$parser$Parser$Advanced$keeper;
+var elm$parser$Parser$Advanced$isSubChar = _Parser_isSubChar;
+var elm$parser$Parser$Advanced$chompWhileHelp = F5(
+	function (isGood, offset, row, col, s0) {
+		chompWhileHelp:
+		while (true) {
+			var newOffset = A3(elm$parser$Parser$Advanced$isSubChar, isGood, offset, s0.src);
+			if (_Utils_eq(newOffset, -1)) {
+				return A3(
+					elm$parser$Parser$Advanced$Good,
+					_Utils_cmp(s0.offset, offset) < 0,
+					_Utils_Tuple0,
+					{col: col, context: s0.context, indent: s0.indent, offset: offset, row: row, src: s0.src});
+			} else {
+				if (_Utils_eq(newOffset, -2)) {
+					var $temp$isGood = isGood,
+						$temp$offset = offset + 1,
+						$temp$row = row + 1,
+						$temp$col = 1,
+						$temp$s0 = s0;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					s0 = $temp$s0;
+					continue chompWhileHelp;
+				} else {
+					var $temp$isGood = isGood,
+						$temp$offset = newOffset,
+						$temp$row = row,
+						$temp$col = col + 1,
+						$temp$s0 = s0;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					s0 = $temp$s0;
+					continue chompWhileHelp;
+				}
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$chompWhile = function (isGood) {
+	return elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			return A5(elm$parser$Parser$Advanced$chompWhileHelp, isGood, s.offset, s.row, s.col, s);
+		});
+};
+var elm$parser$Parser$Advanced$spaces = elm$parser$Parser$Advanced$chompWhile(
+	function (c) {
+		return _Utils_eq(
+			c,
+			_Utils_chr(' ')) || (_Utils_eq(
+			c,
+			_Utils_chr('\n')) || _Utils_eq(
+			c,
+			_Utils_chr('\r')));
+	});
+var elm$parser$Parser$spaces = elm$parser$Parser$Advanced$spaces;
+var author$project$Main$periodParser = A2(
+	elm$parser$Parser$keeper,
+	A2(
+		elm$parser$Parser$keeper,
+		elm$parser$Parser$succeed(author$project$Main$Period),
+		A2(
+			elm$parser$Parser$ignorer,
+			elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						elm$parser$Parser$int,
+						elm$parser$Parser$succeed(1)
+					])),
+			elm$parser$Parser$spaces)),
+	author$project$Main$periodUnitParser);
+var author$project$Main$periodUnitToMillis = function (periodUnit) {
+	switch (periodUnit.$) {
+		case 'Minute':
+			return 60 * 1000;
+		case 'Hour':
+			return (60 * 60) * 1000;
+		case 'Day':
+			return ((24 * 60) * 60) * 1000;
+		case 'Week':
+			return (((7 * 24) * 60) * 60) * 1000;
+		default:
+			return (((28 * 24) * 60) * 60) * 1000;
+	}
+};
+var author$project$Main$periodToMillis = function (period) {
+	return author$project$Main$periodUnitToMillis(period.unit) * period.amount;
+};
+var elm$core$String$toLower = _String_toLower;
+var elm$parser$Parser$DeadEnd = F3(
+	function (row, col, problem) {
+		return {col: col, problem: problem, row: row};
+	});
+var elm$parser$Parser$problemToDeadEnd = function (p) {
+	return A3(elm$parser$Parser$DeadEnd, p.row, p.col, p.problem);
+};
+var elm$parser$Parser$Advanced$bagToList = F2(
+	function (bag, list) {
+		bagToList:
+		while (true) {
+			switch (bag.$) {
+				case 'Empty':
+					return list;
+				case 'AddRight':
+					var bag1 = bag.a;
+					var x = bag.b;
+					var $temp$bag = bag1,
+						$temp$list = A2(elm$core$List$cons, x, list);
+					bag = $temp$bag;
+					list = $temp$list;
+					continue bagToList;
+				default:
+					var bag1 = bag.a;
+					var bag2 = bag.b;
+					var $temp$bag = bag1,
+						$temp$list = A2(elm$parser$Parser$Advanced$bagToList, bag2, list);
+					bag = $temp$bag;
+					list = $temp$list;
+					continue bagToList;
+			}
+		}
+	});
+var elm$parser$Parser$Advanced$run = F2(
+	function (_n0, src) {
+		var parse = _n0.a;
+		var _n1 = parse(
+			{col: 1, context: _List_Nil, indent: 1, offset: 0, row: 1, src: src});
+		if (_n1.$ === 'Good') {
+			var value = _n1.b;
+			return elm$core$Result$Ok(value);
+		} else {
+			var bag = _n1.b;
+			return elm$core$Result$Err(
+				A2(elm$parser$Parser$Advanced$bagToList, bag, _List_Nil));
+		}
+	});
+var elm$parser$Parser$run = F2(
+	function (parser, source) {
+		var _n0 = A2(elm$parser$Parser$Advanced$run, parser, source);
+		if (_n0.$ === 'Ok') {
+			var a = _n0.a;
+			return elm$core$Result$Ok(a);
+		} else {
+			var problems = _n0.a;
+			return elm$core$Result$Err(
+				A2(elm$core$List$map, elm$parser$Parser$problemToDeadEnd, problems));
+		}
+	});
+var author$project$Main$getPeriodMillis = function (model) {
+	return author$project$Main$periodToMillis(
+		A2(
+			elm$core$Result$withDefault,
+			A2(author$project$Main$Period, 1, author$project$Main$Day),
+			A2(
+				elm$parser$Parser$run,
+				author$project$Main$periodParser,
+				elm$core$String$toLower(model.period))));
+};
 var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
 	return {$: 'Spring', a: a};
 };
@@ -6456,7 +7002,6 @@ var mdgriffith$elm_style_animation$Animation$setDefaultInterpolation = function 
 		},
 		prop);
 };
-var elm$core$Basics$not = _Basics_not;
 var elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -6638,9 +7183,6 @@ var author$project$Main$initalBgStyle = mdgriffith$elm_style_animation$Animation
 		[
 			mdgriffith$elm_style_animation$Animation$opacity(0)
 		]));
-var elm$core$Basics$negate = function (n) {
-	return -n;
-};
 var mdgriffith$elm_style_animation$Animation$Length = F2(
 	function (a, b) {
 		return {$: 'Length', a: a, b: b};
@@ -6707,521 +7249,6 @@ var author$project$Main$initalContentStyle = mdgriffith$elm_style_animation$Anim
 			mdgriffith$elm_style_animation$Animation$top(
 			mdgriffith$elm_style_animation$Animation$px(-800))
 		]));
-var author$project$Main$Day = {$: 'Day'};
-var author$project$Main$Period = F2(
-	function (amount, unit) {
-		return {amount: amount, unit: unit};
-	});
-var author$project$Main$Hour = {$: 'Hour'};
-var author$project$Main$Minute = {$: 'Minute'};
-var author$project$Main$Month = {$: 'Month'};
-var author$project$Main$Week = {$: 'Week'};
-var elm$core$Basics$always = F2(
-	function (a, _n0) {
-		return a;
-	});
-var elm$parser$Parser$Advanced$Bad = F2(
-	function (a, b) {
-		return {$: 'Bad', a: a, b: b};
-	});
-var elm$parser$Parser$Advanced$Good = F3(
-	function (a, b, c) {
-		return {$: 'Good', a: a, b: b, c: c};
-	});
-var elm$parser$Parser$Advanced$Parser = function (a) {
-	return {$: 'Parser', a: a};
-};
-var elm$parser$Parser$Advanced$map2 = F3(
-	function (func, _n0, _n1) {
-		var parseA = _n0.a;
-		var parseB = _n1.a;
-		return elm$parser$Parser$Advanced$Parser(
-			function (s0) {
-				var _n2 = parseA(s0);
-				if (_n2.$ === 'Bad') {
-					var p = _n2.a;
-					var x = _n2.b;
-					return A2(elm$parser$Parser$Advanced$Bad, p, x);
-				} else {
-					var p1 = _n2.a;
-					var a = _n2.b;
-					var s1 = _n2.c;
-					var _n3 = parseB(s1);
-					if (_n3.$ === 'Bad') {
-						var p2 = _n3.a;
-						var x = _n3.b;
-						return A2(elm$parser$Parser$Advanced$Bad, p1 || p2, x);
-					} else {
-						var p2 = _n3.a;
-						var b = _n3.b;
-						var s2 = _n3.c;
-						return A3(
-							elm$parser$Parser$Advanced$Good,
-							p1 || p2,
-							A2(func, a, b),
-							s2);
-					}
-				}
-			});
-	});
-var elm$parser$Parser$Advanced$ignorer = F2(
-	function (keepParser, ignoreParser) {
-		return A3(elm$parser$Parser$Advanced$map2, elm$core$Basics$always, keepParser, ignoreParser);
-	});
-var elm$parser$Parser$ignorer = elm$parser$Parser$Advanced$ignorer;
-var elm$parser$Parser$Advanced$Empty = {$: 'Empty'};
-var elm$parser$Parser$Advanced$Append = F2(
-	function (a, b) {
-		return {$: 'Append', a: a, b: b};
-	});
-var elm$parser$Parser$Advanced$oneOfHelp = F3(
-	function (s0, bag, parsers) {
-		oneOfHelp:
-		while (true) {
-			if (!parsers.b) {
-				return A2(elm$parser$Parser$Advanced$Bad, false, bag);
-			} else {
-				var parse = parsers.a.a;
-				var remainingParsers = parsers.b;
-				var _n1 = parse(s0);
-				if (_n1.$ === 'Good') {
-					var step = _n1;
-					return step;
-				} else {
-					var step = _n1;
-					var p = step.a;
-					var x = step.b;
-					if (p) {
-						return step;
-					} else {
-						var $temp$s0 = s0,
-							$temp$bag = A2(elm$parser$Parser$Advanced$Append, bag, x),
-							$temp$parsers = remainingParsers;
-						s0 = $temp$s0;
-						bag = $temp$bag;
-						parsers = $temp$parsers;
-						continue oneOfHelp;
-					}
-				}
-			}
-		}
-	});
-var elm$parser$Parser$Advanced$oneOf = function (parsers) {
-	return elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			return A3(elm$parser$Parser$Advanced$oneOfHelp, s, elm$parser$Parser$Advanced$Empty, parsers);
-		});
-};
-var elm$parser$Parser$oneOf = elm$parser$Parser$Advanced$oneOf;
-var elm$parser$Parser$Advanced$succeed = function (a) {
-	return elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			return A3(elm$parser$Parser$Advanced$Good, false, a, s);
-		});
-};
-var elm$parser$Parser$succeed = elm$parser$Parser$Advanced$succeed;
-var elm$parser$Parser$Expecting = function (a) {
-	return {$: 'Expecting', a: a};
-};
-var elm$parser$Parser$Advanced$Token = F2(
-	function (a, b) {
-		return {$: 'Token', a: a, b: b};
-	});
-var elm$parser$Parser$toToken = function (str) {
-	return A2(
-		elm$parser$Parser$Advanced$Token,
-		str,
-		elm$parser$Parser$Expecting(str));
-};
-var elm$parser$Parser$Advanced$AddRight = F2(
-	function (a, b) {
-		return {$: 'AddRight', a: a, b: b};
-	});
-var elm$parser$Parser$Advanced$DeadEnd = F4(
-	function (row, col, problem, contextStack) {
-		return {col: col, contextStack: contextStack, problem: problem, row: row};
-	});
-var elm$parser$Parser$Advanced$fromState = F2(
-	function (s, x) {
-		return A2(
-			elm$parser$Parser$Advanced$AddRight,
-			elm$parser$Parser$Advanced$Empty,
-			A4(elm$parser$Parser$Advanced$DeadEnd, s.row, s.col, x, s.context));
-	});
-var elm$parser$Parser$Advanced$isSubString = _Parser_isSubString;
-var elm$parser$Parser$Advanced$token = function (_n0) {
-	var str = _n0.a;
-	var expecting = _n0.b;
-	var progress = !elm$core$String$isEmpty(str);
-	return elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			var _n1 = A5(elm$parser$Parser$Advanced$isSubString, str, s.offset, s.row, s.col, s.src);
-			var newOffset = _n1.a;
-			var newRow = _n1.b;
-			var newCol = _n1.c;
-			return _Utils_eq(newOffset, -1) ? A2(
-				elm$parser$Parser$Advanced$Bad,
-				false,
-				A2(elm$parser$Parser$Advanced$fromState, s, expecting)) : A3(
-				elm$parser$Parser$Advanced$Good,
-				progress,
-				_Utils_Tuple0,
-				{col: newCol, context: s.context, indent: s.indent, offset: newOffset, row: newRow, src: s.src});
-		});
-};
-var elm$parser$Parser$token = function (str) {
-	return elm$parser$Parser$Advanced$token(
-		elm$parser$Parser$toToken(str));
-};
-var author$project$Main$periodUnitParser = elm$parser$Parser$oneOf(
-	_List_fromArray(
-		[
-			A2(
-			elm$parser$Parser$ignorer,
-			elm$parser$Parser$succeed(author$project$Main$Week),
-			elm$parser$Parser$token('week')),
-			A2(
-			elm$parser$Parser$ignorer,
-			elm$parser$Parser$succeed(author$project$Main$Month),
-			elm$parser$Parser$token('month')),
-			A2(
-			elm$parser$Parser$ignorer,
-			elm$parser$Parser$succeed(author$project$Main$Minute),
-			elm$parser$Parser$token('minute')),
-			A2(
-			elm$parser$Parser$ignorer,
-			elm$parser$Parser$succeed(author$project$Main$Hour),
-			elm$parser$Parser$token('hour')),
-			A2(
-			elm$parser$Parser$ignorer,
-			elm$parser$Parser$succeed(author$project$Main$Day),
-			elm$parser$Parser$token('day'))
-		]));
-var elm$parser$Parser$ExpectingInt = {$: 'ExpectingInt'};
-var elm$parser$Parser$Advanced$consumeBase = _Parser_consumeBase;
-var elm$parser$Parser$Advanced$consumeBase16 = _Parser_consumeBase16;
-var elm$core$String$toFloat = _String_toFloat;
-var elm$parser$Parser$Advanced$bumpOffset = F2(
-	function (newOffset, s) {
-		return {col: s.col + (newOffset - s.offset), context: s.context, indent: s.indent, offset: newOffset, row: s.row, src: s.src};
-	});
-var elm$parser$Parser$Advanced$chompBase10 = _Parser_chompBase10;
-var elm$parser$Parser$Advanced$isAsciiCode = _Parser_isAsciiCode;
-var elm$parser$Parser$Advanced$consumeExp = F2(
-	function (offset, src) {
-		if (A3(elm$parser$Parser$Advanced$isAsciiCode, 101, offset, src) || A3(elm$parser$Parser$Advanced$isAsciiCode, 69, offset, src)) {
-			var eOffset = offset + 1;
-			var expOffset = (A3(elm$parser$Parser$Advanced$isAsciiCode, 43, eOffset, src) || A3(elm$parser$Parser$Advanced$isAsciiCode, 45, eOffset, src)) ? (eOffset + 1) : eOffset;
-			var newOffset = A2(elm$parser$Parser$Advanced$chompBase10, expOffset, src);
-			return _Utils_eq(expOffset, newOffset) ? (-newOffset) : newOffset;
-		} else {
-			return offset;
-		}
-	});
-var elm$parser$Parser$Advanced$consumeDotAndExp = F2(
-	function (offset, src) {
-		return A3(elm$parser$Parser$Advanced$isAsciiCode, 46, offset, src) ? A2(
-			elm$parser$Parser$Advanced$consumeExp,
-			A2(elm$parser$Parser$Advanced$chompBase10, offset + 1, src),
-			src) : A2(elm$parser$Parser$Advanced$consumeExp, offset, src);
-	});
-var elm$parser$Parser$Advanced$finalizeInt = F5(
-	function (invalid, handler, startOffset, _n0, s) {
-		var endOffset = _n0.a;
-		var n = _n0.b;
-		if (handler.$ === 'Err') {
-			var x = handler.a;
-			return A2(
-				elm$parser$Parser$Advanced$Bad,
-				true,
-				A2(elm$parser$Parser$Advanced$fromState, s, x));
-		} else {
-			var toValue = handler.a;
-			return _Utils_eq(startOffset, endOffset) ? A2(
-				elm$parser$Parser$Advanced$Bad,
-				_Utils_cmp(s.offset, startOffset) < 0,
-				A2(elm$parser$Parser$Advanced$fromState, s, invalid)) : A3(
-				elm$parser$Parser$Advanced$Good,
-				true,
-				toValue(n),
-				A2(elm$parser$Parser$Advanced$bumpOffset, endOffset, s));
-		}
-	});
-var elm$parser$Parser$Advanced$fromInfo = F4(
-	function (row, col, x, context) {
-		return A2(
-			elm$parser$Parser$Advanced$AddRight,
-			elm$parser$Parser$Advanced$Empty,
-			A4(elm$parser$Parser$Advanced$DeadEnd, row, col, x, context));
-	});
-var elm$parser$Parser$Advanced$finalizeFloat = F6(
-	function (invalid, expecting, intSettings, floatSettings, intPair, s) {
-		var intOffset = intPair.a;
-		var floatOffset = A2(elm$parser$Parser$Advanced$consumeDotAndExp, intOffset, s.src);
-		if (floatOffset < 0) {
-			return A2(
-				elm$parser$Parser$Advanced$Bad,
-				true,
-				A4(elm$parser$Parser$Advanced$fromInfo, s.row, s.col - (floatOffset + s.offset), invalid, s.context));
-		} else {
-			if (_Utils_eq(s.offset, floatOffset)) {
-				return A2(
-					elm$parser$Parser$Advanced$Bad,
-					false,
-					A2(elm$parser$Parser$Advanced$fromState, s, expecting));
-			} else {
-				if (_Utils_eq(intOffset, floatOffset)) {
-					return A5(elm$parser$Parser$Advanced$finalizeInt, invalid, intSettings, s.offset, intPair, s);
-				} else {
-					if (floatSettings.$ === 'Err') {
-						var x = floatSettings.a;
-						return A2(
-							elm$parser$Parser$Advanced$Bad,
-							true,
-							A2(elm$parser$Parser$Advanced$fromState, s, invalid));
-					} else {
-						var toValue = floatSettings.a;
-						var _n1 = elm$core$String$toFloat(
-							A3(elm$core$String$slice, s.offset, floatOffset, s.src));
-						if (_n1.$ === 'Nothing') {
-							return A2(
-								elm$parser$Parser$Advanced$Bad,
-								true,
-								A2(elm$parser$Parser$Advanced$fromState, s, invalid));
-						} else {
-							var n = _n1.a;
-							return A3(
-								elm$parser$Parser$Advanced$Good,
-								true,
-								toValue(n),
-								A2(elm$parser$Parser$Advanced$bumpOffset, floatOffset, s));
-						}
-					}
-				}
-			}
-		}
-	});
-var elm$parser$Parser$Advanced$number = function (c) {
-	return elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			if (A3(elm$parser$Parser$Advanced$isAsciiCode, 48, s.offset, s.src)) {
-				var zeroOffset = s.offset + 1;
-				var baseOffset = zeroOffset + 1;
-				return A3(elm$parser$Parser$Advanced$isAsciiCode, 120, zeroOffset, s.src) ? A5(
-					elm$parser$Parser$Advanced$finalizeInt,
-					c.invalid,
-					c.hex,
-					baseOffset,
-					A2(elm$parser$Parser$Advanced$consumeBase16, baseOffset, s.src),
-					s) : (A3(elm$parser$Parser$Advanced$isAsciiCode, 111, zeroOffset, s.src) ? A5(
-					elm$parser$Parser$Advanced$finalizeInt,
-					c.invalid,
-					c.octal,
-					baseOffset,
-					A3(elm$parser$Parser$Advanced$consumeBase, 8, baseOffset, s.src),
-					s) : (A3(elm$parser$Parser$Advanced$isAsciiCode, 98, zeroOffset, s.src) ? A5(
-					elm$parser$Parser$Advanced$finalizeInt,
-					c.invalid,
-					c.binary,
-					baseOffset,
-					A3(elm$parser$Parser$Advanced$consumeBase, 2, baseOffset, s.src),
-					s) : A6(
-					elm$parser$Parser$Advanced$finalizeFloat,
-					c.invalid,
-					c.expecting,
-					c._int,
-					c._float,
-					_Utils_Tuple2(zeroOffset, 0),
-					s)));
-			} else {
-				return A6(
-					elm$parser$Parser$Advanced$finalizeFloat,
-					c.invalid,
-					c.expecting,
-					c._int,
-					c._float,
-					A3(elm$parser$Parser$Advanced$consumeBase, 10, s.offset, s.src),
-					s);
-			}
-		});
-};
-var elm$parser$Parser$Advanced$int = F2(
-	function (expecting, invalid) {
-		return elm$parser$Parser$Advanced$number(
-			{
-				binary: elm$core$Result$Err(invalid),
-				expecting: expecting,
-				_float: elm$core$Result$Err(invalid),
-				hex: elm$core$Result$Err(invalid),
-				_int: elm$core$Result$Ok(elm$core$Basics$identity),
-				invalid: invalid,
-				octal: elm$core$Result$Err(invalid)
-			});
-	});
-var elm$parser$Parser$int = A2(elm$parser$Parser$Advanced$int, elm$parser$Parser$ExpectingInt, elm$parser$Parser$ExpectingInt);
-var elm$parser$Parser$Advanced$keeper = F2(
-	function (parseFunc, parseArg) {
-		return A3(elm$parser$Parser$Advanced$map2, elm$core$Basics$apL, parseFunc, parseArg);
-	});
-var elm$parser$Parser$keeper = elm$parser$Parser$Advanced$keeper;
-var elm$parser$Parser$Advanced$isSubChar = _Parser_isSubChar;
-var elm$parser$Parser$Advanced$chompWhileHelp = F5(
-	function (isGood, offset, row, col, s0) {
-		chompWhileHelp:
-		while (true) {
-			var newOffset = A3(elm$parser$Parser$Advanced$isSubChar, isGood, offset, s0.src);
-			if (_Utils_eq(newOffset, -1)) {
-				return A3(
-					elm$parser$Parser$Advanced$Good,
-					_Utils_cmp(s0.offset, offset) < 0,
-					_Utils_Tuple0,
-					{col: col, context: s0.context, indent: s0.indent, offset: offset, row: row, src: s0.src});
-			} else {
-				if (_Utils_eq(newOffset, -2)) {
-					var $temp$isGood = isGood,
-						$temp$offset = offset + 1,
-						$temp$row = row + 1,
-						$temp$col = 1,
-						$temp$s0 = s0;
-					isGood = $temp$isGood;
-					offset = $temp$offset;
-					row = $temp$row;
-					col = $temp$col;
-					s0 = $temp$s0;
-					continue chompWhileHelp;
-				} else {
-					var $temp$isGood = isGood,
-						$temp$offset = newOffset,
-						$temp$row = row,
-						$temp$col = col + 1,
-						$temp$s0 = s0;
-					isGood = $temp$isGood;
-					offset = $temp$offset;
-					row = $temp$row;
-					col = $temp$col;
-					s0 = $temp$s0;
-					continue chompWhileHelp;
-				}
-			}
-		}
-	});
-var elm$parser$Parser$Advanced$chompWhile = function (isGood) {
-	return elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			return A5(elm$parser$Parser$Advanced$chompWhileHelp, isGood, s.offset, s.row, s.col, s);
-		});
-};
-var elm$parser$Parser$Advanced$spaces = elm$parser$Parser$Advanced$chompWhile(
-	function (c) {
-		return _Utils_eq(
-			c,
-			_Utils_chr(' ')) || (_Utils_eq(
-			c,
-			_Utils_chr('\n')) || _Utils_eq(
-			c,
-			_Utils_chr('\r')));
-	});
-var elm$parser$Parser$spaces = elm$parser$Parser$Advanced$spaces;
-var author$project$Main$periodParser = A2(
-	elm$parser$Parser$keeper,
-	A2(
-		elm$parser$Parser$keeper,
-		elm$parser$Parser$succeed(author$project$Main$Period),
-		A2(
-			elm$parser$Parser$ignorer,
-			elm$parser$Parser$oneOf(
-				_List_fromArray(
-					[
-						elm$parser$Parser$int,
-						elm$parser$Parser$succeed(1)
-					])),
-			elm$parser$Parser$spaces)),
-	author$project$Main$periodUnitParser);
-var author$project$Main$periodToMillis = function (period) {
-	var _n0 = period.unit;
-	switch (_n0.$) {
-		case 'Minute':
-			return (60 * 1000) * period.amount;
-		case 'Hour':
-			return ((60 * 60) * 1000) * period.amount;
-		case 'Day':
-			return (((24 * 60) * 60) * 1000) * period.amount;
-		case 'Week':
-			return ((((7 * 24) * 60) * 60) * 1000) * period.amount;
-		default:
-			return ((((28 * 24) * 60) * 60) * 1000) * period.amount;
-	}
-};
-var elm$core$String$toLower = _String_toLower;
-var elm$parser$Parser$DeadEnd = F3(
-	function (row, col, problem) {
-		return {col: col, problem: problem, row: row};
-	});
-var elm$parser$Parser$problemToDeadEnd = function (p) {
-	return A3(elm$parser$Parser$DeadEnd, p.row, p.col, p.problem);
-};
-var elm$parser$Parser$Advanced$bagToList = F2(
-	function (bag, list) {
-		bagToList:
-		while (true) {
-			switch (bag.$) {
-				case 'Empty':
-					return list;
-				case 'AddRight':
-					var bag1 = bag.a;
-					var x = bag.b;
-					var $temp$bag = bag1,
-						$temp$list = A2(elm$core$List$cons, x, list);
-					bag = $temp$bag;
-					list = $temp$list;
-					continue bagToList;
-				default:
-					var bag1 = bag.a;
-					var bag2 = bag.b;
-					var $temp$bag = bag1,
-						$temp$list = A2(elm$parser$Parser$Advanced$bagToList, bag2, list);
-					bag = $temp$bag;
-					list = $temp$list;
-					continue bagToList;
-			}
-		}
-	});
-var elm$parser$Parser$Advanced$run = F2(
-	function (_n0, src) {
-		var parse = _n0.a;
-		var _n1 = parse(
-			{col: 1, context: _List_Nil, indent: 1, offset: 0, row: 1, src: src});
-		if (_n1.$ === 'Good') {
-			var value = _n1.b;
-			return elm$core$Result$Ok(value);
-		} else {
-			var bag = _n1.b;
-			return elm$core$Result$Err(
-				A2(elm$parser$Parser$Advanced$bagToList, bag, _List_Nil));
-		}
-	});
-var elm$parser$Parser$run = F2(
-	function (parser, source) {
-		var _n0 = A2(elm$parser$Parser$Advanced$run, parser, source);
-		if (_n0.$ === 'Ok') {
-			var a = _n0.a;
-			return elm$core$Result$Ok(a);
-		} else {
-			var problems = _n0.a;
-			return elm$core$Result$Err(
-				A2(elm$core$List$map, elm$parser$Parser$problemToDeadEnd, problems));
-		}
-	});
-var author$project$Main$getPeriodMillis = function (model) {
-	return author$project$Main$periodToMillis(
-		A2(
-			elm$core$Result$withDefault,
-			A2(author$project$Main$Period, 1, author$project$Main$Day),
-			A2(
-				elm$parser$Parser$run,
-				author$project$Main$periodParser,
-				elm$core$String$toLower(model.period))));
-};
 var author$project$Main$newTask = F3(
 	function (time, uid, model) {
 		return {
@@ -7323,6 +7350,7 @@ var author$project$Main$store = F2(
 						{tasks: model.tasks, uid: model.uid})
 					])));
 	});
+var elm$core$Basics$neq = _Utils_notEqual;
 var elm$core$Maybe$map = F2(
 	function (f, maybe) {
 		if (maybe.$ === 'Just') {
@@ -7409,7 +7437,6 @@ var mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
 var mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
 	return mdgriffith$elm_style_animation$Animation$Model$Send(msg);
 };
-var elm$core$Basics$neq = _Utils_notEqual;
 var elm$core$List$partition = F2(
 	function (pred, list) {
 		var step = F2(
@@ -9068,6 +9095,108 @@ var author$project$Main$update = F2(
 							uid: model.uid + 1
 						}),
 					elm$core$Platform$Cmd$none);
+			case 'Delete':
+				var editTaskModel = msg.a;
+				return A2(
+					author$project$Main$store,
+					_Utils_update(
+						model,
+						{
+							modalModel: A2(
+								elm$core$Maybe$map,
+								function (m) {
+									return _Utils_update(
+										m,
+										{
+											bgStyle: A2(
+												mdgriffith$elm_style_animation$Animation$interrupt,
+												_List_fromArray(
+													[
+														mdgriffith$elm_style_animation$Animation$to(
+														_List_fromArray(
+															[
+																mdgriffith$elm_style_animation$Animation$opacity(0.0)
+															])),
+														mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
+													]),
+												m.bgStyle),
+											contentStyle: A2(
+												mdgriffith$elm_style_animation$Animation$interrupt,
+												_List_fromArray(
+													[
+														mdgriffith$elm_style_animation$Animation$to(
+														_List_fromArray(
+															[
+																mdgriffith$elm_style_animation$Animation$top(
+																mdgriffith$elm_style_animation$Animation$px(-200))
+															]))
+													]),
+												m.contentStyle)
+										});
+								},
+								model.modalModel),
+							tasks: A2(
+								elm$core$List$filter,
+								function (t) {
+									return !_Utils_eq(t.id, editTaskModel.id);
+								},
+								model.tasks)
+						}),
+					elm$core$Platform$Cmd$none);
+			case 'Edit':
+				var editTaskModel = msg.a;
+				return A2(
+					author$project$Main$store,
+					function () {
+						var updateTask = function (task) {
+							return _Utils_eq(task.id, editTaskModel.id) ? _Utils_update(
+								task,
+								{
+									description: editTaskModel.description,
+									period: author$project$Main$getPeriodMillis(editTaskModel),
+									tag: editTaskModel.tag
+								}) : task;
+						};
+						return _Utils_update(
+							model,
+							{
+								modalModel: A2(
+									elm$core$Maybe$map,
+									function (m) {
+										return _Utils_update(
+											m,
+											{
+												bgStyle: A2(
+													mdgriffith$elm_style_animation$Animation$interrupt,
+													_List_fromArray(
+														[
+															mdgriffith$elm_style_animation$Animation$to(
+															_List_fromArray(
+																[
+																	mdgriffith$elm_style_animation$Animation$opacity(0.0)
+																])),
+															mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
+														]),
+													m.bgStyle),
+												contentStyle: A2(
+													mdgriffith$elm_style_animation$Animation$interrupt,
+													_List_fromArray(
+														[
+															mdgriffith$elm_style_animation$Animation$to(
+															_List_fromArray(
+																[
+																	mdgriffith$elm_style_animation$Animation$top(
+																	mdgriffith$elm_style_animation$Animation$px(-200))
+																]))
+														]),
+													m.contentStyle)
+											});
+									},
+									model.modalModel),
+								tasks: A2(elm$core$List$map, updateTask, model.tasks)
+							});
+					}(),
+					elm$core$Platform$Cmd$none);
 			case 'OpenModal':
 				var modal = msg.a;
 				var modalModel = A3(
@@ -9281,26 +9410,18 @@ var author$project$Main$ChangeTagEdit = F2(
 	function (a, b) {
 		return {$: 'ChangeTagEdit', a: a, b: b};
 	});
-var elm$core$Set$Set_elm_builtin = function (a) {
-	return {$: 'Set_elm_builtin', a: a};
+var author$project$Main$Delete = function (a) {
+	return {$: 'Delete', a: a};
 };
-var elm$core$Set$empty = elm$core$Set$Set_elm_builtin(elm$core$Dict$empty);
-var elm$core$Set$insert = F2(
-	function (key, _n0) {
-		var dict = _n0.a;
-		return elm$core$Set$Set_elm_builtin(
-			A3(elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+var author$project$Main$Edit = function (a) {
+	return {$: 'Edit', a: a};
+};
+var author$project$Main$addS = F2(
+	function (unit, str) {
+		return elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
 	});
-var elm$core$Set$fromList = function (list) {
-	return A3(elm$core$List$foldl, elm$core$Set$insert, elm$core$Set$empty, list);
-};
-var elm$html$Html$button = _VirtualDom_node('button');
-var elm$html$Html$datalist = _VirtualDom_node('datalist');
-var elm$html$Html$div = _VirtualDom_node('div');
 var elm$html$Html$input = _VirtualDom_node('input');
-var elm$html$Html$option = _VirtualDom_node('option');
-var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
-var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
+var elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
 var elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
 		return A2(
@@ -9308,34 +9429,15 @@ var elm$html$Html$Attributes$stringProperty = F2(
 			key,
 			elm$json$Json$Encode$string(string));
 	});
-var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
-var elm$html$Html$Attributes$id = elm$html$Html$Attributes$stringProperty('id');
-var elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
 var elm$html$Html$Attributes$placeholder = elm$html$Html$Attributes$stringProperty('placeholder');
 var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
-var elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			elm$virtual_dom$VirtualDom$on,
-			event,
-			elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		elm$html$Html$Events$on,
-		'click',
-		elm$json$Json$Decode$succeed(msg));
-};
 var elm$html$Html$Events$alwaysStop = function (x) {
 	return _Utils_Tuple2(x, true);
 };
 var elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
 	return {$: 'MayStopPropagation', a: a};
 };
+var elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
 var elm$html$Html$Events$stopPropagationOn = F2(
 	function (event, decoder) {
 		return A2(
@@ -9361,6 +9463,78 @@ var elm$html$Html$Events$onInput = function (tagger) {
 			elm$html$Html$Events$alwaysStop,
 			A2(elm$json$Json$Decode$map, tagger, elm$html$Html$Events$targetValue)));
 };
+var author$project$Main$taskInputsView = F4(
+	function (model, descChange, tagChange, periodChange) {
+		return _List_fromArray(
+			[
+				A2(
+				elm$html$Html$input,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$placeholder('Description'),
+						elm$html$Html$Attributes$value(model.description),
+						elm$html$Html$Events$onInput(descChange)
+					]),
+				_List_Nil),
+				A2(
+				elm$html$Html$input,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$placeholder('Tag'),
+						elm$html$Html$Attributes$value(model.tag),
+						elm$html$Html$Attributes$list('tag-list'),
+						elm$html$Html$Events$onInput(tagChange)
+					]),
+				_List_Nil),
+				A2(
+				elm$html$Html$input,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$placeholder('Period'),
+						elm$html$Html$Attributes$value(model.period),
+						elm$html$Html$Attributes$list('period-list'),
+						elm$html$Html$Events$onInput(periodChange)
+					]),
+				_List_Nil)
+			]);
+	});
+var elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var elm$core$Set$empty = elm$core$Set$Set_elm_builtin(elm$core$Dict$empty);
+var elm$core$Set$insert = F2(
+	function (key, _n0) {
+		var dict = _n0.a;
+		return elm$core$Set$Set_elm_builtin(
+			A3(elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var elm$core$Set$fromList = function (list) {
+	return A3(elm$core$List$foldl, elm$core$Set$insert, elm$core$Set$empty, list);
+};
+var elm$html$Html$button = _VirtualDom_node('button');
+var elm$html$Html$datalist = _VirtualDom_node('datalist');
+var elm$html$Html$div = _VirtualDom_node('div');
+var elm$html$Html$option = _VirtualDom_node('option');
+var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
+var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
+var elm$html$Html$Attributes$id = elm$html$Html$Attributes$stringProperty('id');
+var elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			elm$virtual_dom$VirtualDom$on,
+			event,
+			elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		elm$html$Html$Events$on,
+		'click',
+		elm$json$Json$Decode$succeed(msg));
+};
 var author$project$Main$editTaskView = F2(
 	function (editTaskModel, tasks) {
 		var tagOption = function (tag) {
@@ -9375,14 +9549,6 @@ var author$project$Main$editTaskView = F2(
 						elm$html$Html$text(tag)
 					]));
 		};
-		var findUnit = A2(
-			elm$core$Result$withDefault,
-			1,
-			A2(elm$parser$Parser$run, elm$parser$Parser$int, editTaskModel.period));
-		var addS = F2(
-			function (unit, str) {
-				return (unit > 1) ? (elm$core$String$fromInt(unit) + (' ' + (str + 's'))) : str;
-			});
 		var periodOptions = F2(
 			function (unit, period) {
 				return _List_fromArray(
@@ -9392,150 +9558,150 @@ var author$project$Main$editTaskView = F2(
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Minute'))
+								A2(author$project$Main$addS, unit, 'Minute'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Minute'))
+								A2(author$project$Main$addS, unit, 'Minute'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Hour'))
+								A2(author$project$Main$addS, unit, 'Hour'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Hour'))
+								A2(author$project$Main$addS, unit, 'Hour'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Day'))
+								A2(author$project$Main$addS, unit, 'Day'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Day'))
+								A2(author$project$Main$addS, unit, 'Day'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Week'))
+								A2(author$project$Main$addS, unit, 'Week'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Week'))
+								A2(author$project$Main$addS, unit, 'Week'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Month'))
+								A2(author$project$Main$addS, unit, 'Month'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Month'))
+								A2(author$project$Main$addS, unit, 'Month'))
 							]))
 					]);
 			});
+		var findUnit = A2(
+			elm$core$Result$withDefault,
+			1,
+			A2(elm$parser$Parser$run, elm$parser$Parser$int, editTaskModel.period));
 		return A2(
 			elm$html$Html$div,
 			_List_fromArray(
 				[
-					elm$html$Html$Attributes$class('new-view')
+					elm$html$Html$Attributes$class('modal-view')
 				]),
-			_List_fromArray(
-				[
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Description'),
-							elm$html$Html$Attributes$value(editTaskModel.description),
-							elm$html$Html$Events$onInput(
-							author$project$Main$ChangeDescriptionEdit(editTaskModel))
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Tag'),
-							elm$html$Html$Attributes$value(editTaskModel.tag),
-							elm$html$Html$Attributes$list('tag-list'),
-							elm$html$Html$Events$onInput(
-							author$project$Main$ChangeTagEdit(editTaskModel))
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Period'),
-							elm$html$Html$Attributes$value(editTaskModel.period),
-							elm$html$Html$Attributes$list('period-list'),
-							elm$html$Html$Events$onInput(
-							author$project$Main$ChangePeriodEdit(editTaskModel))
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$button,
-					_List_fromArray(
-						[
-							elm$html$Html$Events$onClick(author$project$Main$CloseModal)
-						]),
-					_List_fromArray(
-						[
-							elm$html$Html$text('Save')
-						])),
-					A2(
-					elm$html$Html$button,
-					_List_fromArray(
-						[
-							elm$html$Html$Events$onClick(author$project$Main$CloseModal)
-						]),
-					_List_fromArray(
-						[
-							elm$html$Html$text('Cancel')
-						])),
-					A2(
-					elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$id('tag-list')
-						]),
-					A2(
-						elm$core$List$map,
-						tagOption,
-						elm$core$Set$toList(
-							elm$core$Set$fromList(
+			_Utils_ap(
+				A4(
+					author$project$Main$taskInputsView,
+					editTaskModel,
+					author$project$Main$ChangeDescriptionEdit(editTaskModel),
+					author$project$Main$ChangeTagEdit(editTaskModel),
+					author$project$Main$ChangePeriodEdit(editTaskModel)),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('modal-view-buttons')
+							]),
+						_List_fromArray(
+							[
 								A2(
-									elm$core$List$map,
-									function ($) {
-										return $.tag;
-									},
-									tasks))))),
-					A2(
-					elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$id('period-list')
-						]),
-					_Utils_ap(
-						A2(periodOptions, findUnit, editTaskModel.period),
-						A2(periodOptions, findUnit + 1, editTaskModel.period)))
-				]));
+								elm$html$Html$button,
+								_List_fromArray(
+									[
+										elm$html$Html$Events$onClick(
+										author$project$Main$Edit(editTaskModel))
+									]),
+								_List_fromArray(
+									[
+										elm$html$Html$text('Save')
+									])),
+								A2(
+								elm$html$Html$button,
+								_List_fromArray(
+									[
+										elm$html$Html$Events$onClick(
+										author$project$Main$Delete(editTaskModel))
+									]),
+								_List_fromArray(
+									[
+										elm$html$Html$text('Delete')
+									])),
+								A2(
+								elm$html$Html$button,
+								_List_fromArray(
+									[
+										elm$html$Html$Events$onClick(author$project$Main$CloseModal)
+									]),
+								_List_fromArray(
+									[
+										elm$html$Html$text('Cancel')
+									]))
+							])),
+						A2(
+						elm$html$Html$datalist,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$id('tag-list')
+							]),
+						A2(
+							elm$core$List$map,
+							tagOption,
+							elm$core$Set$toList(
+								elm$core$Set$fromList(
+									A2(
+										elm$core$List$map,
+										function ($) {
+											return $.tag;
+										},
+										tasks))))),
+						A2(
+						elm$html$Html$datalist,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$id('period-list')
+							]),
+						_Utils_ap(
+							A2(periodOptions, findUnit, editTaskModel.period),
+							A2(periodOptions, findUnit + 1, editTaskModel.period)))
+					])));
 	});
 var author$project$Main$Add = function (a) {
 	return {$: 'Add', a: a};
@@ -9566,14 +9732,6 @@ var author$project$Main$newTaskView = F2(
 						elm$html$Html$text(tag)
 					]));
 		};
-		var findUnit = A2(
-			elm$core$Result$withDefault,
-			1,
-			A2(elm$parser$Parser$run, elm$parser$Parser$int, newTaskModel.period));
-		var addS = F2(
-			function (unit, str) {
-				return (unit > 1) ? (elm$core$String$fromInt(unit) + (' ' + (str + 's'))) : str;
-			});
 		var periodOptions = F2(
 			function (unit, period) {
 				return _List_fromArray(
@@ -9583,151 +9741,139 @@ var author$project$Main$newTaskView = F2(
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Minute'))
+								A2(author$project$Main$addS, unit, 'Minute'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Minute'))
+								A2(author$project$Main$addS, unit, 'Minute'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Hour'))
+								A2(author$project$Main$addS, unit, 'Hour'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Hour'))
+								A2(author$project$Main$addS, unit, 'Hour'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Day'))
+								A2(author$project$Main$addS, unit, 'Day'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Day'))
+								A2(author$project$Main$addS, unit, 'Day'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Week'))
+								A2(author$project$Main$addS, unit, 'Week'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Week'))
+								A2(author$project$Main$addS, unit, 'Week'))
 							])),
 						A2(
 						elm$html$Html$option,
 						_List_fromArray(
 							[
 								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Month'))
+								A2(author$project$Main$addS, unit, 'Month'))
 							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								A2(addS, unit, 'Month'))
+								A2(author$project$Main$addS, unit, 'Month'))
 							]))
 					]);
 			});
+		var findUnit = A2(
+			elm$core$Result$withDefault,
+			1,
+			A2(elm$parser$Parser$run, elm$parser$Parser$int, newTaskModel.period));
 		return A2(
 			elm$html$Html$div,
 			_List_fromArray(
 				[
-					elm$html$Html$Attributes$class('new-view')
+					elm$html$Html$Attributes$class('modal-view')
 				]),
-			_List_fromArray(
-				[
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Description'),
-							elm$html$Html$Attributes$value(newTaskModel.description),
-							elm$html$Html$Events$onInput(
-							author$project$Main$ChangeDescription(newTaskModel))
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Tag'),
-							elm$html$Html$Attributes$value(newTaskModel.tag),
-							elm$html$Html$Attributes$list('tag-list'),
-							elm$html$Html$Events$onInput(
-							author$project$Main$ChangeTag(newTaskModel))
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Period'),
-							elm$html$Html$Attributes$value(newTaskModel.period),
-							elm$html$Html$Attributes$list('period-list'),
-							elm$html$Html$Events$onInput(
-							author$project$Main$ChangePeriod(newTaskModel))
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$button,
-					_List_fromArray(
-						[
-							elm$html$Html$Events$onClick(
-							author$project$Main$Add(newTaskModel))
-						]),
-					_List_fromArray(
-						[
-							elm$html$Html$text('Add')
-						])),
-					A2(
-					elm$html$Html$button,
-					_List_fromArray(
-						[
-							elm$html$Html$Events$onClick(author$project$Main$CloseModal)
-						]),
-					_List_fromArray(
-						[
-							elm$html$Html$text('Cancel')
-						])),
-					A2(
-					elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$id('tag-list')
-						]),
-					A2(
-						elm$core$List$map,
-						tagOption,
-						elm$core$Set$toList(
-							elm$core$Set$fromList(
+			_Utils_ap(
+				A4(
+					author$project$Main$taskInputsView,
+					newTaskModel,
+					author$project$Main$ChangeDescription(newTaskModel),
+					author$project$Main$ChangeTag(newTaskModel),
+					author$project$Main$ChangePeriod(newTaskModel)),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('modal-view-buttons')
+							]),
+						_List_fromArray(
+							[
 								A2(
-									elm$core$List$map,
-									function ($) {
-										return $.tag;
-									},
-									tasks))))),
-					A2(
-					elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$id('period-list')
-						]),
-					_Utils_ap(
-						A2(periodOptions, findUnit, newTaskModel.period),
-						A2(periodOptions, findUnit + 1, newTaskModel.period)))
-				]));
+								elm$html$Html$button,
+								_List_fromArray(
+									[
+										elm$html$Html$Events$onClick(
+										author$project$Main$Add(newTaskModel))
+									]),
+								_List_fromArray(
+									[
+										elm$html$Html$text('Add')
+									])),
+								A2(
+								elm$html$Html$button,
+								_List_fromArray(
+									[
+										elm$html$Html$Events$onClick(author$project$Main$CloseModal)
+									]),
+								_List_fromArray(
+									[
+										elm$html$Html$text('Cancel')
+									]))
+							])),
+						A2(
+						elm$html$Html$datalist,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$id('tag-list')
+							]),
+						A2(
+							elm$core$List$map,
+							tagOption,
+							elm$core$Set$toList(
+								elm$core$Set$fromList(
+									A2(
+										elm$core$List$map,
+										function ($) {
+											return $.tag;
+										},
+										tasks))))),
+						A2(
+						elm$html$Html$datalist,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$id('period-list')
+							]),
+						_Utils_ap(
+							A2(periodOptions, findUnit, newTaskModel.period),
+							A2(periodOptions, findUnit + 1, newTaskModel.period)))
+					])));
 	});
 var elm$html$Html$span = _VirtualDom_node('span');
 var elm$virtual_dom$VirtualDom$Custom = function (a) {
@@ -10381,6 +10527,14 @@ var author$project$Main$EditTaskModel = F4(
 	function (description, tag, period, id) {
 		return {description: description, id: id, period: period, tag: tag};
 	});
+var author$project$Main$millisPeriodToString = function (millis) {
+	var weeks = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Week)) | 0;
+	var months = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Month)) | 0;
+	var minutes = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Minute)) | 0;
+	var hours = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Hour)) | 0;
+	var days = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Day)) | 0;
+	return (months >= 1) ? A2(author$project$Main$addS, months, 'Month') : ((weeks >= 1) ? A2(author$project$Main$addS, weeks, 'Week') : ((days >= 1) ? A2(author$project$Main$addS, days, 'Day') : ((hours >= 1) ? A2(author$project$Main$addS, hours, 'hour') : ((weeks >= 1) ? A2(author$project$Main$addS, minutes, 'Minute') : '1 Minute'))));
+};
 var elm$html$Html$li = _VirtualDom_node('li');
 var author$project$Main$viewTask = F2(
 	function (time, task) {
@@ -10406,7 +10560,12 @@ var author$project$Main$viewTask = F2(
 									elm$html$Html$Events$onClick(
 									author$project$Main$OpenModal(
 										author$project$Main$EditTask(
-											A4(author$project$Main$EditTaskModel, task.description, task.tag, '', task.id))))
+											A4(
+												author$project$Main$EditTaskModel,
+												task.description,
+												task.tag,
+												author$project$Main$millisPeriodToString(task.period),
+												task.id))))
 								]),
 							_List_fromArray(
 								[
