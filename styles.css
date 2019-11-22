@@ -83,12 +83,12 @@ video {
   padding: 0;
   border: 0;
   vertical-align: baseline;
-  font: inherit;
 }
 
 button,
 input {
   font-size: 100%;
+  font: inherit;
 }
 
 @font-face {
@@ -103,7 +103,7 @@ input {
 }
 
 html {
-  font: 1.5em/1.5 "Quicksand";
+  font: 1.5em/1.5 "Quicksand", -apple-system;
   color: rgb(37, 37, 37);
   font-weight: medium;
 }
@@ -127,6 +127,10 @@ html {
 
 .task-edit {
   border-right: 0.5px solid #add8e6;
+}
+
+.main {
+  border-bottom: 0.5px solid #add8e6;
 }
 
 .task-button {

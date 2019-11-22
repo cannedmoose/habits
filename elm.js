@@ -5960,7 +5960,6 @@ var author$project$Main$subscriptions = function (model) {
 				author$project$Main$animationSubscription(model)
 			]));
 };
-var author$project$Main$ClearModal = {$: 'ClearModal'};
 var author$project$Main$EditTask = function (a) {
 	return {$: 'EditTask', a: a};
 };
@@ -5970,6 +5969,233 @@ var author$project$Main$ModalModel = F3(
 	});
 var author$project$Main$NewTask = function (a) {
 	return {$: 'NewTask', a: a};
+};
+var author$project$Main$ClearModal = {$: 'ClearModal'};
+var author$project$Main$rgba = F4(
+	function (r, g, b, a) {
+		return {alpha: a, blue: b, green: g, red: r};
+	});
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
+	return {$: 'Spring', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$initMotion = F2(
+	function (position, unit) {
+		return {
+			interpolation: mdgriffith$elm_style_animation$Animation$Model$Spring(
+				{damping: 26, stiffness: 170}),
+			interpolationOverride: elm$core$Maybe$Nothing,
+			position: position,
+			target: position,
+			unit: unit,
+			velocity: 0
+		};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
+	function (a, b, c, d, e) {
+		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
+	});
+var mdgriffith$elm_style_animation$Animation$customColor = F2(
+	function (name, _n0) {
+		var red = _n0.red;
+		var green = _n0.green;
+		var blue = _n0.blue;
+		var alpha = _n0.alpha;
+		return A5(
+			mdgriffith$elm_style_animation$Animation$Model$ColorProperty,
+			name,
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, red, ''),
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, green, ''),
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, blue, ''),
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, alpha, ''));
+	});
+var mdgriffith$elm_style_animation$Animation$backgroundColor = function (c) {
+	return A2(mdgriffith$elm_style_animation$Animation$customColor, 'background-color', c);
+};
+var elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
+		}
+	});
+var elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return elm$core$Maybe$Just(x);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
+var elm$time$Time$posixToMillis = function (_n0) {
+	var millis = _n0.a;
+	return millis;
+};
+var mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
+	var _n0 = elm$core$List$head(steps);
+	if (_n0.$ === 'Nothing') {
+		return _Utils_Tuple2(
+			elm$time$Time$millisToPosix(0),
+			_List_Nil);
+	} else {
+		var step = _n0.a;
+		if (step.$ === 'Wait') {
+			var till = step.a;
+			var _n2 = mdgriffith$elm_style_animation$Animation$extractInitialWait(
+				A2(elm$core$List$drop, 1, steps));
+			var additionalTime = _n2.a;
+			var remainingSteps = _n2.b;
+			return _Utils_Tuple2(
+				elm$time$Time$millisToPosix(
+					elm$time$Time$posixToMillis(till) + elm$time$Time$posixToMillis(additionalTime)),
+				remainingSteps);
+		} else {
+			return _Utils_Tuple2(
+				elm$time$Time$millisToPosix(0),
+				steps);
+		}
+	}
+};
+var mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
+	return {$: 'Animation', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$interrupt = F2(
+	function (steps, _n0) {
+		var model = _n0.a;
+		return mdgriffith$elm_style_animation$Animation$Model$Animation(
+			_Utils_update(
+				model,
+				{
+					interruption: A2(
+						elm$core$List$cons,
+						mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
+						model.interruption),
+					running: true
+				}));
+	});
+var mdgriffith$elm_style_animation$Animation$Length = F2(
+	function (a, b) {
+		return {$: 'Length', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
+var mdgriffith$elm_style_animation$Animation$px = function (myPx) {
+	return A2(mdgriffith$elm_style_animation$Animation$Length, myPx, mdgriffith$elm_style_animation$Animation$Px);
+};
+var mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
+	return {$: 'To', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$to = function (props) {
+	return mdgriffith$elm_style_animation$Animation$Model$To(props);
+};
+var mdgriffith$elm_style_animation$Animation$Model$Property = F2(
+	function (a, b) {
+		return {$: 'Property', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$length = F3(
+	function (name, val, unit) {
+		return A2(
+			mdgriffith$elm_style_animation$Animation$Model$Property,
+			name,
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
+	});
+var mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
+	switch (unit.$) {
+		case 'NoUnit':
+			return '';
+		case 'Px':
+			return 'px';
+		case 'Percent':
+			return '%';
+		case 'Rem':
+			return 'rem';
+		case 'Em':
+			return 'em';
+		case 'Ex':
+			return 'ex';
+		case 'Ch':
+			return 'ch';
+		case 'Vh':
+			return 'vh';
+		case 'Vw':
+			return 'vw';
+		case 'Vmin':
+			return 'vmin';
+		case 'Vmax':
+			return 'vmax';
+		case 'Mm':
+			return 'mm';
+		case 'Cm':
+			return 'cm';
+		case 'In':
+			return 'in';
+		case 'Pt':
+			return 'pt';
+		default:
+			return 'pc';
+	}
+};
+var mdgriffith$elm_style_animation$Animation$top = function (_n0) {
+	var val = _n0.a;
+	var len = _n0.b;
+	return A3(
+		mdgriffith$elm_style_animation$Animation$length,
+		'top',
+		val,
+		mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
+	return {$: 'Send', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
+	return mdgriffith$elm_style_animation$Animation$Model$Send(msg);
+};
+var author$project$Main$closeModal = function (m) {
+	return _Utils_update(
+		m,
+		{
+			bgStyle: A2(
+				mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								mdgriffith$elm_style_animation$Animation$backgroundColor(
+								A4(author$project$Main$rgba, 0, 0, 0, 0.0))
+							])),
+						mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
+					]),
+				m.bgStyle),
+			contentStyle: A2(
+				mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								mdgriffith$elm_style_animation$Animation$top(
+								mdgriffith$elm_style_animation$Animation$px(-300))
+							]))
+					]),
+				m.contentStyle)
+		});
 };
 var author$project$Main$Day = {$: 'Day'};
 var author$project$Main$Period = F2(
@@ -6096,9 +6322,6 @@ var elm$parser$Parser$toToken = function (str) {
 		elm$parser$Parser$Advanced$Token,
 		str,
 		elm$parser$Parser$Expecting(str));
-};
-var elm$core$Basics$negate = function (n) {
-	return -n;
 };
 var elm$core$Basics$not = _Basics_not;
 var elm$parser$Parser$Advanced$AddRight = F2(
@@ -6517,38 +6740,6 @@ var author$project$Main$getPeriodMillis = function (model) {
 				author$project$Main$periodParser,
 				elm$core$String$toLower(model.period))));
 };
-var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
-	return {$: 'Spring', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$initMotion = F2(
-	function (position, unit) {
-		return {
-			interpolation: mdgriffith$elm_style_animation$Animation$Model$Spring(
-				{damping: 26, stiffness: 170}),
-			interpolationOverride: elm$core$Maybe$Nothing,
-			position: position,
-			target: position,
-			unit: unit,
-			velocity: 0
-		};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$Property = F2(
-	function (a, b) {
-		return {$: 'Property', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$custom = F3(
-	function (name, value, unit) {
-		return A2(
-			mdgriffith$elm_style_animation$Animation$Model$Property,
-			name,
-			A2(mdgriffith$elm_style_animation$Animation$initMotion, value, unit));
-	});
-var mdgriffith$elm_style_animation$Animation$opacity = function (val) {
-	return A3(mdgriffith$elm_style_animation$Animation$custom, 'opacity', val, '');
-};
-var mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
-	return {$: 'Animation', a: a};
-};
 var mdgriffith$elm_style_animation$Animation$initialState = function (current) {
 	return mdgriffith$elm_style_animation$Animation$Model$Animation(
 		{
@@ -6609,10 +6800,6 @@ var mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty = fu
 var mdgriffith$elm_style_animation$Animation$Model$AngleProperty = F2(
 	function (a, b) {
 		return {$: 'AngleProperty', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
-	function (a, b, c, d, e) {
-		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
 	});
 var mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
 	function (a, b) {
@@ -7013,15 +7200,6 @@ var elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
-var elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return elm$core$Maybe$Just(x);
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
-};
 var elm$core$List$sortBy = _List_sortBy;
 var elm$core$List$sort = function (xs) {
 	return A2(elm$core$List$sortBy, elm$core$Basics$identity, xs);
@@ -7181,68 +7359,9 @@ var mdgriffith$elm_style_animation$Animation$style = function (props) {
 var author$project$Main$initalBgStyle = mdgriffith$elm_style_animation$Animation$style(
 	_List_fromArray(
 		[
-			mdgriffith$elm_style_animation$Animation$opacity(0)
+			mdgriffith$elm_style_animation$Animation$backgroundColor(
+			A4(author$project$Main$rgba, 0, 0, 0, 0.0))
 		]));
-var mdgriffith$elm_style_animation$Animation$Length = F2(
-	function (a, b) {
-		return {$: 'Length', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
-var mdgriffith$elm_style_animation$Animation$px = function (myPx) {
-	return A2(mdgriffith$elm_style_animation$Animation$Length, myPx, mdgriffith$elm_style_animation$Animation$Px);
-};
-var mdgriffith$elm_style_animation$Animation$length = F3(
-	function (name, val, unit) {
-		return A2(
-			mdgriffith$elm_style_animation$Animation$Model$Property,
-			name,
-			A2(mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
-	});
-var mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
-	switch (unit.$) {
-		case 'NoUnit':
-			return '';
-		case 'Px':
-			return 'px';
-		case 'Percent':
-			return '%';
-		case 'Rem':
-			return 'rem';
-		case 'Em':
-			return 'em';
-		case 'Ex':
-			return 'ex';
-		case 'Ch':
-			return 'ch';
-		case 'Vh':
-			return 'vh';
-		case 'Vw':
-			return 'vw';
-		case 'Vmin':
-			return 'vmin';
-		case 'Vmax':
-			return 'vmax';
-		case 'Mm':
-			return 'mm';
-		case 'Cm':
-			return 'cm';
-		case 'In':
-			return 'in';
-		case 'Pt':
-			return 'pt';
-		default:
-			return 'pc';
-	}
-};
-var mdgriffith$elm_style_animation$Animation$top = function (_n0) {
-	var val = _n0.a;
-	var len = _n0.b;
-	return A3(
-		mdgriffith$elm_style_animation$Animation$length,
-		'top',
-		val,
-		mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
-};
 var author$project$Main$initalContentStyle = mdgriffith$elm_style_animation$Animation$style(
 	_List_fromArray(
 		[
@@ -7361,82 +7480,6 @@ var elm$core$Maybe$map = F2(
 			return elm$core$Maybe$Nothing;
 		}
 	});
-var elm$time$Time$posixToMillis = function (_n0) {
-	var millis = _n0.a;
-	return millis;
-};
-var elm$core$List$drop = F2(
-	function (n, list) {
-		drop:
-		while (true) {
-			if (n <= 0) {
-				return list;
-			} else {
-				if (!list.b) {
-					return list;
-				} else {
-					var x = list.a;
-					var xs = list.b;
-					var $temp$n = n - 1,
-						$temp$list = xs;
-					n = $temp$n;
-					list = $temp$list;
-					continue drop;
-				}
-			}
-		}
-	});
-var mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
-	var _n0 = elm$core$List$head(steps);
-	if (_n0.$ === 'Nothing') {
-		return _Utils_Tuple2(
-			elm$time$Time$millisToPosix(0),
-			_List_Nil);
-	} else {
-		var step = _n0.a;
-		if (step.$ === 'Wait') {
-			var till = step.a;
-			var _n2 = mdgriffith$elm_style_animation$Animation$extractInitialWait(
-				A2(elm$core$List$drop, 1, steps));
-			var additionalTime = _n2.a;
-			var remainingSteps = _n2.b;
-			return _Utils_Tuple2(
-				elm$time$Time$millisToPosix(
-					elm$time$Time$posixToMillis(till) + elm$time$Time$posixToMillis(additionalTime)),
-				remainingSteps);
-		} else {
-			return _Utils_Tuple2(
-				elm$time$Time$millisToPosix(0),
-				steps);
-		}
-	}
-};
-var mdgriffith$elm_style_animation$Animation$interrupt = F2(
-	function (steps, _n0) {
-		var model = _n0.a;
-		return mdgriffith$elm_style_animation$Animation$Model$Animation(
-			_Utils_update(
-				model,
-				{
-					interruption: A2(
-						elm$core$List$cons,
-						mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
-						model.interruption),
-					running: true
-				}));
-	});
-var mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
-	return {$: 'To', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$to = function (props) {
-	return mdgriffith$elm_style_animation$Animation$Model$To(props);
-};
-var mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
-	return {$: 'Send', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
-	return mdgriffith$elm_style_animation$Animation$Model$Send(msg);
-};
 var elm$core$List$partition = F2(
 	function (pred, list) {
 		var step = F2(
@@ -8999,47 +9042,13 @@ var author$project$Main$update = F2(
 						}),
 					elm$core$Platform$Cmd$none);
 			case 'CloseModal':
-				var modalModel = model.modalModel;
-				if (modalModel.$ === 'Just') {
-					var modal = modalModel.a;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{
-								modalModel: elm$core$Maybe$Just(
-									_Utils_update(
-										modal,
-										{
-											bgStyle: A2(
-												mdgriffith$elm_style_animation$Animation$interrupt,
-												_List_fromArray(
-													[
-														mdgriffith$elm_style_animation$Animation$to(
-														_List_fromArray(
-															[
-																mdgriffith$elm_style_animation$Animation$opacity(0.0)
-															])),
-														mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
-													]),
-												modal.bgStyle),
-											contentStyle: A2(
-												mdgriffith$elm_style_animation$Animation$interrupt,
-												_List_fromArray(
-													[
-														mdgriffith$elm_style_animation$Animation$to(
-														_List_fromArray(
-															[
-																mdgriffith$elm_style_animation$Animation$top(
-																mdgriffith$elm_style_animation$Animation$px(-200))
-															]))
-													]),
-												modal.contentStyle)
-										}))
-							}),
-						elm$core$Platform$Cmd$none);
-				} else {
-					return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
-				}
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							modalModel: A2(elm$core$Maybe$map, author$project$Main$closeModal, model.modalModel)
+						}),
+					elm$core$Platform$Cmd$none);
 			case 'ClearModal':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -9053,39 +9062,7 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							modalModel: A2(
-								elm$core$Maybe$map,
-								function (m) {
-									return _Utils_update(
-										m,
-										{
-											bgStyle: A2(
-												mdgriffith$elm_style_animation$Animation$interrupt,
-												_List_fromArray(
-													[
-														mdgriffith$elm_style_animation$Animation$to(
-														_List_fromArray(
-															[
-																mdgriffith$elm_style_animation$Animation$opacity(0.0)
-															])),
-														mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
-													]),
-												m.bgStyle),
-											contentStyle: A2(
-												mdgriffith$elm_style_animation$Animation$interrupt,
-												_List_fromArray(
-													[
-														mdgriffith$elm_style_animation$Animation$to(
-														_List_fromArray(
-															[
-																mdgriffith$elm_style_animation$Animation$top(
-																mdgriffith$elm_style_animation$Animation$px(-200))
-															]))
-													]),
-												m.contentStyle)
-										});
-								},
-								model.modalModel),
+							modalModel: A2(elm$core$Maybe$map, author$project$Main$closeModal, model.modalModel),
 							tasks: _Utils_ap(
 								model.tasks,
 								_List_fromArray(
@@ -9102,39 +9079,7 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							modalModel: A2(
-								elm$core$Maybe$map,
-								function (m) {
-									return _Utils_update(
-										m,
-										{
-											bgStyle: A2(
-												mdgriffith$elm_style_animation$Animation$interrupt,
-												_List_fromArray(
-													[
-														mdgriffith$elm_style_animation$Animation$to(
-														_List_fromArray(
-															[
-																mdgriffith$elm_style_animation$Animation$opacity(0.0)
-															])),
-														mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
-													]),
-												m.bgStyle),
-											contentStyle: A2(
-												mdgriffith$elm_style_animation$Animation$interrupt,
-												_List_fromArray(
-													[
-														mdgriffith$elm_style_animation$Animation$to(
-														_List_fromArray(
-															[
-																mdgriffith$elm_style_animation$Animation$top(
-																mdgriffith$elm_style_animation$Animation$px(-200))
-															]))
-													]),
-												m.contentStyle)
-										});
-								},
-								model.modalModel),
+							modalModel: A2(elm$core$Maybe$map, author$project$Main$closeModal, model.modalModel),
 							tasks: A2(
 								elm$core$List$filter,
 								function (t) {
@@ -9160,39 +9105,7 @@ var author$project$Main$update = F2(
 						return _Utils_update(
 							model,
 							{
-								modalModel: A2(
-									elm$core$Maybe$map,
-									function (m) {
-										return _Utils_update(
-											m,
-											{
-												bgStyle: A2(
-													mdgriffith$elm_style_animation$Animation$interrupt,
-													_List_fromArray(
-														[
-															mdgriffith$elm_style_animation$Animation$to(
-															_List_fromArray(
-																[
-																	mdgriffith$elm_style_animation$Animation$opacity(0.0)
-																])),
-															mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
-														]),
-													m.bgStyle),
-												contentStyle: A2(
-													mdgriffith$elm_style_animation$Animation$interrupt,
-													_List_fromArray(
-														[
-															mdgriffith$elm_style_animation$Animation$to(
-															_List_fromArray(
-																[
-																	mdgriffith$elm_style_animation$Animation$top(
-																	mdgriffith$elm_style_animation$Animation$px(-200))
-																]))
-														]),
-													m.contentStyle)
-											});
-									},
-									model.modalModel),
+								modalModel: A2(elm$core$Maybe$map, author$project$Main$closeModal, model.modalModel),
 								tasks: A2(elm$core$List$map, updateTask, model.tasks)
 							});
 					}(),
@@ -9209,7 +9122,8 @@ var author$project$Main$update = F2(
 								mdgriffith$elm_style_animation$Animation$to(
 								_List_fromArray(
 									[
-										mdgriffith$elm_style_animation$Animation$opacity(1.0)
+										mdgriffith$elm_style_animation$Animation$backgroundColor(
+										A4(author$project$Main$rgba, 0, 0, 0, 0.4))
 									]))
 							]),
 						author$project$Main$initalBgStyle),
@@ -9234,15 +9148,15 @@ var author$project$Main$update = F2(
 					elm$core$Platform$Cmd$none);
 			case 'Animate':
 				var animMsg = msg.a;
-				var _n2 = model.modalModel;
-				if (_n2.$ === 'Just') {
-					var m = _n2.a;
-					var _n3 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.contentStyle);
-					var newContentStyle = _n3.a;
-					var cmd2 = _n3.b;
-					var _n4 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.bgStyle);
-					var newBGStyle = _n4.a;
-					var cmd1 = _n4.b;
+				var _n1 = model.modalModel;
+				if (_n1.$ === 'Just') {
+					var m = _n1.a;
+					var _n2 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.contentStyle);
+					var newContentStyle = _n2.a;
+					var cmd2 = _n2.b;
+					var _n3 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.bgStyle);
+					var newBGStyle = _n3.a;
+					var cmd1 = _n3.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
@@ -9421,6 +9335,9 @@ var author$project$Main$addS = F2(
 		return elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
 	});
 var elm$html$Html$input = _VirtualDom_node('input');
+var elm$html$Html$label = _VirtualDom_node('label');
+var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
 var elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
 var elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
@@ -9468,6 +9385,13 @@ var author$project$Main$taskInputsView = F4(
 		return _List_fromArray(
 			[
 				A2(
+				elm$html$Html$label,
+				_List_Nil,
+				_List_fromArray(
+					[
+						elm$html$Html$text('I want to')
+					])),
+				A2(
 				elm$html$Html$input,
 				_List_fromArray(
 					[
@@ -9476,6 +9400,13 @@ var author$project$Main$taskInputsView = F4(
 						elm$html$Html$Events$onInput(descChange)
 					]),
 				_List_Nil),
+				A2(
+				elm$html$Html$label,
+				_List_Nil,
+				_List_fromArray(
+					[
+						elm$html$Html$text('Tag')
+					])),
 				A2(
 				elm$html$Html$input,
 				_List_fromArray(
@@ -9486,6 +9417,13 @@ var author$project$Main$taskInputsView = F4(
 						elm$html$Html$Events$onInput(tagChange)
 					]),
 				_List_Nil),
+				A2(
+				elm$html$Html$label,
+				_List_Nil,
+				_List_fromArray(
+					[
+						elm$html$Html$text('Repeated every')
+					])),
 				A2(
 				elm$html$Html$input,
 				_List_fromArray(
@@ -9515,8 +9453,6 @@ var elm$html$Html$button = _VirtualDom_node('button');
 var elm$html$Html$datalist = _VirtualDom_node('datalist');
 var elm$html$Html$div = _VirtualDom_node('div');
 var elm$html$Html$option = _VirtualDom_node('option');
-var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
-var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
 var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
 var elm$html$Html$Attributes$id = elm$html$Html$Attributes$stringProperty('id');
 var elm$virtual_dom$VirtualDom$Normal = function (a) {

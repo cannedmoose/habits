@@ -15,6 +15,13 @@ import Json.Decode exposing (Decoder, field, string, int)
 import Animation exposing (px)
 import Animation.Messenger
 
+rgba r g b a=
+    { red = r
+    , green = g
+    , blue = b
+    , alpha = a
+    }
+
 -- Setup
 
 type alias Flags = {time : Int, model : Json.Decode.Value}
@@ -95,7 +102,7 @@ subscriptions model =
 -- MODAL
 
 bgStyleClose = 
-    [ Animation.to [ Animation.opacity 0.0 ]
+    [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ]
     , Animation.Messenger.send (ClearModal)
     ]
 
@@ -129,7 +136,7 @@ type alias NewTaskModel =
     , period : String
     }
 
-initalBgStyle = (Animation.style [ Animation.opacity 0 ])
+initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
 initalContentStyle = (Animation.style [ Animation.top (px -800) ])
 emptyNewTaskModel = NewTaskModel "" "" ""
 
@@ -151,6 +158,18 @@ type Msg
     | ChangePeriodEdit EditTaskModel String
     | Edit EditTaskModel
     | Delete EditTaskModel
+
+closeModal m =
+    { m | bgStyle = Animation.interrupt
+        [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
+        , Animation.Messenger.send (ClearModal)
+        ]
+        m.bgStyle
+        , contentStyle = Animation.interrupt
+        [ Animation.to [ Animation.top (px -300) ]
+        ]
+        m.contentStyle
+    }
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -176,60 +195,21 @@ update msg model =
                 { model | tasks = List.map updateTask model.tasks }
                 Cmd.none
         CloseModal ->
-            let
-                modalModel = model.modalModel
-            in
-                case modalModel of
-                    Just modal -> 
-                        ({model | modalModel = 
-                                        Just { modal 
-                                        | bgStyle = Animation.interrupt
-                                            [ Animation.to [ Animation.opacity 0.0 ]
-                                            , Animation.Messenger.send (ClearModal)
-                                            ]
-                                            modal.bgStyle
-                                        , contentStyle = Animation.interrupt
-                                            [ Animation.to [ Animation.top (px -200) ]
-                                            ]
-                                            modal.contentStyle
-                                        }}, Cmd.none)
-                    Nothing -> (model, Cmd.none)
+            ({model | modalModel = Maybe.map closeModal model.modalModel}, Cmd.none)
         ClearModal -> ({model | modalModel = Nothing}, Cmd.none)
         Add newTaskModel ->
             store
                 { model 
                 | tasks = model.tasks ++ [newTask model.time model.uid newTaskModel]
                 , uid = model.uid + 1
-                , modalModel = Maybe.map
-                    (\m -> { m | bgStyle = Animation.interrupt
-                                            [ Animation.to [ Animation.opacity 0.0 ]
-                                            , Animation.Messenger.send (ClearModal)
-                                            ]
-                                            m.bgStyle
-                                        , contentStyle = Animation.interrupt
-                                            [ Animation.to [ Animation.top (px -200) ]
-                                            ]
-                                            m.contentStyle
-                    })
-                    model.modalModel
+                , modalModel = Maybe.map closeModal model.modalModel
                 }
                 Cmd.none
         Delete editTaskModel ->
             store
                 ({ model 
-                    |   tasks = List.filter (\t -> t.id /= editTaskModel.id) model.tasks
-                    ,   modalModel = Maybe.map
-                            (\m -> { m | bgStyle = Animation.interrupt
-                                                    [ Animation.to [ Animation.opacity 0.0 ]
-                                                    , Animation.Messenger.send (ClearModal)
-                                                    ]
-                                                    m.bgStyle
-                                                , contentStyle = Animation.interrupt
-                                                    [ Animation.to [ Animation.top (px -200) ]
-                                                    ]
-                                                    m.contentStyle
-                            })
-                            model.modalModel
+                    | tasks = List.filter (\t -> t.id /= editTaskModel.id) model.tasks
+                    , modalModel = Maybe.map closeModal model.modalModel
                 })
                 Cmd.none
         Edit editTaskModel ->
@@ -247,25 +227,14 @@ update msg model =
                 in
                     { model
                     | tasks = List.map updateTask model.tasks
-                    , modalModel = Maybe.map
-                    (\m -> { m | bgStyle = Animation.interrupt
-                                            [ Animation.to [ Animation.opacity 0.0 ]
-                                            , Animation.Messenger.send (ClearModal)
-                                            ]
-                                            m.bgStyle
-                                        , contentStyle = Animation.interrupt
-                                            [ Animation.to [ Animation.top (px -200) ]
-                                            ]
-                                            m.contentStyle
-                    })
-                    model.modalModel
+                    , modalModel = Maybe.map closeModal model.modalModel
                     })
                 Cmd.none
         OpenModal modal ->
             let
                 modalModel  = ModalModel
                     modal
-                    (Animation.interrupt [ Animation.to [ Animation.opacity 1.0 ] ] initalBgStyle)
+                    (Animation.interrupt [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.4 ) ] ] initalBgStyle)
                     (Animation.interrupt [ Animation.to [ Animation.top (px 0)] ] initalContentStyle)
             in
                 ( { model | modalModel = Just modalModel }, Cmd.none)
@@ -404,12 +373,21 @@ maybeModalView model =
         Nothing -> (span [] [])
 
 taskInputsView model descChange tagChange periodChange
-    = [ input 
-                [ placeholder "Description", value model.description, onInput descChange ] []
-            , input
-                [ placeholder "Tag", value model.tag, list "tag-list", onInput tagChange ] []
-            , input 
-                [ placeholder "Period", value model.period, list "period-list", onInput periodChange ] []
+    =   [ label
+            []
+            [text "I want to"]
+        , input 
+            [ placeholder "Description", value model.description, onInput descChange ] []
+        , label
+            []
+            [text "Tag"]
+        , input
+            [ placeholder "Tag", value model.tag, list "tag-list", onInput tagChange ] []
+        , label
+            []
+            [text "Repeated every"]
+        , input 
+            [ placeholder "Period", value model.period, list "period-list", onInput periodChange ] []
     ]
 
 -- TODO clean up

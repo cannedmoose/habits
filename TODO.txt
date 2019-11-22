@@ -1,6 +1,4 @@
-P1 add delete button
+P2 Figure out delay in modal disappear 
 P1 Options modal
-P1 make 1 * default for periods instead of *
 
-
-P1 Animate Do movements
+P1 task entry/exit/move
