@@ -15,6 +15,7 @@ import Json.Decode exposing (Decoder, field, string, int)
 import Animation exposing (px)
 import Animation.Messenger
 
+-- TODO figure out why we can't import this...
 rgba r g b a=
     { red = r
     , green = g
@@ -84,7 +85,6 @@ newTask time uid model =
 
 -- SUBSCRIPTIONS
 
--- Note just modal for now...
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
     case model.modalModel of
@@ -98,47 +98,6 @@ timeSubscription model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch [timeSubscription model, animationSubscription model]
-
--- MODAL
-
-bgStyleClose = 
-    [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ]
-    , Animation.Messenger.send (ClearModal)
-    ]
-
-type alias ModalModel =
-    { modalType : Modal
-    , bgStyle : Animation.Messenger.State Msg
-    , contentStyle : Animation.Messenger.State Msg
-    }
-
-type Modal
-    = NewTask NewTaskModel
-    | EditTask EditTaskModel
-    | Options OptionsModel
-
-type alias OptionsModel =
-    { showAll : Bool
-    , afterPeriod : String
-    , beforePeriod : String
-    }
-
-type alias EditTaskModel =
-    { description : String
-    , tag : String
-    , period : String
-    , id : Int
-    }
-
-type alias NewTaskModel =
-    { description : String
-    , tag : String
-    , period : String
-    }
-
-initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
-initalContentStyle = (Animation.style [ Animation.top (px -800) ])
-emptyNewTaskModel = NewTaskModel "" "" ""
 
 -- UPDATE
 type Msg
@@ -372,8 +331,21 @@ maybeModalView model =
             )
         Nothing -> (span [] [])
 
-taskInputsView model descChange tagChange periodChange
-    =   [ label
+taskInputsView model tasks descChange tagChange periodChange
+    = let
+        tagOption tag = option [value tag] [text tag]
+        findUnit = Result.withDefault 
+                1
+                (Parser.run Parser.int model.period)
+        periodOptions unit period =
+            [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
+            , option [value (addS unit "Hour")] [text (addS unit "Hour")]
+            , option [value (addS unit "Day")] [text (addS unit "Day")]
+            , option [value (addS unit "Week")] [text (addS unit "Week")]
+            , option [value (addS unit "Month")] [text (addS unit "Month")]
+            ]  
+    in
+        [ label
             []
             [text "I want to"]
         , input 
@@ -388,76 +360,85 @@ taskInputsView model descChange tagChange periodChange
             [text "Repeated every"]
         , input 
             [ placeholder "Period", value model.period, list "period-list", onInput periodChange ] []
-    ]
+        , datalist
+            [id "tag-list"]
+            (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
+        , datalist
+            [id "period-list"]
+            ((periodOptions findUnit model.period) ++ (periodOptions (findUnit + 1) model.period))
+        ]
 
 -- TODO clean up
 editTaskView : EditTaskModel -> List Task -> Html Msg
-editTaskView editTaskModel tasks =
-    let
-        tagOption tag = option [value tag] [text tag]
-        findUnit = Result.withDefault 
-                1
-                (Parser.run Parser.int editTaskModel.period)
-        periodOptions unit period =
-            [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
-            , option [value (addS unit "Hour")] [text (addS unit "Hour")]
-            , option [value (addS unit "Day")] [text (addS unit "Day")]
-            , option [value (addS unit "Week")] [text (addS unit "Week")]
-            , option [value (addS unit "Month")] [text (addS unit "Month")]
-            ]
-    in
-        div [class "modal-view" ]
-            (taskInputsView editTaskModel
-                (ChangeDescriptionEdit editTaskModel)
-                (ChangeTagEdit editTaskModel)
-                (ChangePeriodEdit editTaskModel) ++
-            [div
-                [class "modal-view-buttons"]
-                [ button [ onClick (Edit editTaskModel) ] [text "Save"]
-                , button [ onClick (Delete editTaskModel) ] [text "Delete"]
-                , button [ onClick (CloseModal) ] [text "Cancel"]
-                ]
-            , datalist
-                [id "tag-list"]
-                (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
-            , datalist
-                [id "period-list"]
-                ((periodOptions findUnit editTaskModel.period) ++ (periodOptions (findUnit + 1) editTaskModel.period))
-            ])
+editTaskView editTaskModel tasks
+    = div [class "modal-view" ]
+        (taskInputsView editTaskModel tasks
+            (ChangeDescriptionEdit editTaskModel)
+            (ChangeTagEdit editTaskModel)
+            (ChangePeriodEdit editTaskModel) ++
+        [div
+            [class "modal-view-buttons"]
+            [ button [ onClick (Edit editTaskModel) ] [text "Save"]
+            , button [ onClick (Delete editTaskModel) ] [text "Delete"]
+            , button [ onClick (CloseModal) ] [text "Cancel"]
+            ]])
 
 newTaskView : NewTaskModel -> List Task -> Html Msg
-newTaskView newTaskModel tasks =
-    let
-        tagOption tag = option [value tag] [text tag]
-        findUnit = Result.withDefault 
-                1
-                (Parser.run Parser.int newTaskModel.period)   
-        periodOptions unit period =
-            [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
-            , option [value (addS unit "Hour")] [text (addS unit "Hour")]
-            , option [value (addS unit "Day")] [text (addS unit "Day")]
-            , option [value (addS unit "Week")] [text (addS unit "Week")]
-            , option [value (addS unit "Month")] [text (addS unit "Month")]
+newTaskView newTaskModel tasks
+    = div
+        [class "modal-view" ]
+        ((taskInputsView newTaskModel tasks
+            (ChangeDescription newTaskModel)
+            (ChangeTag newTaskModel)
+            (ChangePeriod newTaskModel)) ++
+        [div
+            [class "modal-view-buttons"]
+            [ button [ onClick (Add newTaskModel) ] [text "Add"]
+            , button [ onClick (CloseModal) ] [text "Cancel"]
             ]
-    in
-        div
-            [class "modal-view" ]
-            ((taskInputsView newTaskModel
-                (ChangeDescription newTaskModel)
-                (ChangeTag newTaskModel)
-                (ChangePeriod newTaskModel)) ++
-            [div
-                [class "modal-view-buttons"]
-                [ button [ onClick (Add newTaskModel) ] [text "Add"]
-                , button [ onClick (CloseModal) ] [text "Cancel"]
-                ]
-            , datalist
-                [id "tag-list"]
-                (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
-            , datalist
-                [id "period-list"]
-                ((periodOptions findUnit newTaskModel.period) ++ (periodOptions (findUnit + 1) newTaskModel.period))
-            ]) 
+        ]) 
+
+-- MODAL
+
+bgStyleClose = 
+    [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ]
+    , Animation.Messenger.send (ClearModal)
+    ]
+
+type alias ModalModel =
+    { modalType : Modal
+    , bgStyle : Animation.Messenger.State Msg
+    , contentStyle : Animation.Messenger.State Msg
+    }
+
+type Modal
+    = NewTask NewTaskModel
+    | EditTask EditTaskModel
+    | Options OptionsModel
+
+type alias OptionsModel =
+    { showAll : Bool
+    , afterPeriod : String
+    , beforePeriod : String
+    }
+
+type alias EditTaskModel =
+    { description : String
+    , tag : String
+    , period : String
+    , id : Int
+    }
+
+type alias NewTaskModel =
+    { description : String
+    , tag : String
+    , period : String
+    }
+
+initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
+initalContentStyle = (Animation.style [ Animation.top (px -800) ])
+emptyNewTaskModel = NewTaskModel "" "" ""
+
 
 -- HELPERS
 
