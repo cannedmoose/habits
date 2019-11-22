@@ -1,7 +1,141 @@
-.task-todo {
-  font-weight: bold;
+html,
+body,
+div,
+span,
+applet,
+object,
+iframe,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+pre,
+a,
+abbr,
+acronym,
+address,
+big,
+cite,
+code,
+del,
+dfn,
+em,
+img,
+ins,
+kbd,
+q,
+s,
+samp,
+small,
+strike,
+strong,
+sub,
+sup,
+tt,
+var,
+b,
+u,
+i,
+center,
+dl,
+dt,
+dd,
+ol,
+ul,
+li,
+fieldset,
+form,
+label,
+legend,
+table,
+caption,
+tbody,
+tfoot,
+thead,
+tr,
+th,
+td,
+article,
+aside,
+canvas,
+details,
+embed,
+figure,
+figcaption,
+footer,
+header,
+hgroup,
+menu,
+nav,
+output,
+ruby,
+section,
+summary,
+time,
+mark,
+audio,
+video {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  vertical-align: baseline;
+  font: inherit;
+  font-size: 1em;
 }
 
-.task-done {
+@font-face {
+  font-family: Quicksand;
+  src: url(./style/Quicksand-Medium.ttf);
+  font-weight: medium;
+}
+
+@font-face {
+  font-family: Quicksand;
+  src: url(./style/Quicksand-Regular.ttf);
+}
+
+html {
+  font: 1.5em/1.5 "Quicksand";
+  color: rgb(37, 37, 37);
+  font-weight: medium;
+}
+
+.wrapper {
+  max-width: 800px;
+}
+
+.task-view {
+  display: flex;
+  flex-direction: row;
+  border-top: 0.5px solid #add8e6;
+}
+
+.add-task,
+.task-edit,
+.task-button {
+  border: none;
+  background-color: white;
+}
+
+.task-edit {
+  border-right: 0.5px solid #add8e6;
+}
+
+.task-button {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-button span {
+  display: inline-block;
+}
+
+.task-done .task-description {
   text-decoration: line-through;
 }
