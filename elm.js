@@ -4487,8 +4487,8 @@ var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString
 	return _Utils_Tuple3(newOffset, row, col);
 });
 var author$project$Main$Model = F4(
-	function (time, tasks, uid, newTaskModel) {
-		return {newTaskModel: newTaskModel, tasks: tasks, time: time, uid: uid};
+	function (time, tasks, uid, modalModel) {
+		return {modalModel: modalModel, tasks: tasks, time: time, uid: uid};
 	});
 var author$project$Main$StorageModel = F2(
 	function (tasks, uid) {
@@ -5531,14 +5531,14 @@ var mdgriffith$elm_style_animation$Animation$subscription = F2(
 			elm$browser$Browser$Events$onAnimationFrame(mdgriffith$elm_style_animation$Animation$Model$Tick)) : elm$core$Platform$Sub$none;
 	});
 var author$project$Main$animationSubscription = function (model) {
-	var _n0 = model.newTaskModel;
+	var _n0 = model.modalModel;
 	if (_n0.$ === 'Just') {
 		var m = _n0.a;
 		return A2(
 			mdgriffith$elm_style_animation$Animation$subscription,
 			author$project$Main$Animate,
 			_List_fromArray(
-				[m.style]));
+				[m.bgStyle, m.contentStyle]));
 	} else {
 		return elm$core$Platform$Sub$none;
 	}
@@ -5960,10 +5960,17 @@ var author$project$Main$subscriptions = function (model) {
 				author$project$Main$animationSubscription(model)
 			]));
 };
-var author$project$Main$NewTaskModel = F4(
-	function (description, tag, period, style) {
-		return {description: description, period: period, style: style, tag: tag};
+var author$project$Main$ClearModal = {$: 'ClearModal'};
+var author$project$Main$EditTask = function (a) {
+	return {$: 'EditTask', a: a};
+};
+var author$project$Main$ModalModel = F3(
+	function (modalType, bgStyle, contentStyle) {
+		return {bgStyle: bgStyle, contentStyle: contentStyle, modalType: modalType};
 	});
+var author$project$Main$NewTask = function (a) {
+	return {$: 'NewTask', a: a};
+};
 var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
 	return {$: 'Spring', a: a};
 };
@@ -6626,16 +6633,80 @@ var mdgriffith$elm_style_animation$Animation$style = function (props) {
 			mdgriffith$elm_style_animation$Animation$setDefaultInterpolation,
 			mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties(props)));
 };
-var author$project$Main$emptyNewTaskModel = A4(
-	author$project$Main$NewTaskModel,
-	'',
-	'',
-	'',
-	mdgriffith$elm_style_animation$Animation$style(
-		_List_fromArray(
-			[
-				mdgriffith$elm_style_animation$Animation$opacity(0)
-			])));
+var author$project$Main$initalBgStyle = mdgriffith$elm_style_animation$Animation$style(
+	_List_fromArray(
+		[
+			mdgriffith$elm_style_animation$Animation$opacity(0)
+		]));
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var mdgriffith$elm_style_animation$Animation$Length = F2(
+	function (a, b) {
+		return {$: 'Length', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
+var mdgriffith$elm_style_animation$Animation$px = function (myPx) {
+	return A2(mdgriffith$elm_style_animation$Animation$Length, myPx, mdgriffith$elm_style_animation$Animation$Px);
+};
+var mdgriffith$elm_style_animation$Animation$length = F3(
+	function (name, val, unit) {
+		return A2(
+			mdgriffith$elm_style_animation$Animation$Model$Property,
+			name,
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
+	});
+var mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
+	switch (unit.$) {
+		case 'NoUnit':
+			return '';
+		case 'Px':
+			return 'px';
+		case 'Percent':
+			return '%';
+		case 'Rem':
+			return 'rem';
+		case 'Em':
+			return 'em';
+		case 'Ex':
+			return 'ex';
+		case 'Ch':
+			return 'ch';
+		case 'Vh':
+			return 'vh';
+		case 'Vw':
+			return 'vw';
+		case 'Vmin':
+			return 'vmin';
+		case 'Vmax':
+			return 'vmax';
+		case 'Mm':
+			return 'mm';
+		case 'Cm':
+			return 'cm';
+		case 'In':
+			return 'in';
+		case 'Pt':
+			return 'pt';
+		default:
+			return 'pc';
+	}
+};
+var mdgriffith$elm_style_animation$Animation$top = function (_n0) {
+	var val = _n0.a;
+	var len = _n0.b;
+	return A3(
+		mdgriffith$elm_style_animation$Animation$length,
+		'top',
+		val,
+		mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var author$project$Main$initalContentStyle = mdgriffith$elm_style_animation$Animation$style(
+	_List_fromArray(
+		[
+			mdgriffith$elm_style_animation$Animation$top(
+			mdgriffith$elm_style_animation$Animation$px(-800))
+		]));
 var author$project$Main$Day = {$: 'Day'};
 var author$project$Main$Period = F2(
 	function (amount, unit) {
@@ -6761,9 +6832,6 @@ var elm$parser$Parser$toToken = function (str) {
 		elm$parser$Parser$Advanced$Token,
 		str,
 		elm$parser$Parser$Expecting(str));
-};
-var elm$core$Basics$negate = function (n) {
-	return -n;
 };
 var elm$parser$Parser$Advanced$AddRight = F2(
 	function (a, b) {
@@ -7334,6 +7402,12 @@ var mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
 };
 var mdgriffith$elm_style_animation$Animation$to = function (props) {
 	return mdgriffith$elm_style_animation$Animation$Model$To(props);
+};
+var mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
+	return {$: 'Send', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
+	return mdgriffith$elm_style_animation$Animation$Model$Send(msg);
 };
 var elm$core$Basics$neq = _Utils_notEqual;
 var elm$core$List$partition = F2(
@@ -8860,9 +8934,9 @@ var mdgriffith$elm_style_animation$Animation$Model$updateAnimation = F2(
 					},
 					sentMessages)));
 	});
-var mdgriffith$elm_style_animation$Animation$update = F2(
+var mdgriffith$elm_style_animation$Animation$Messenger$update = F2(
 	function (tick, animation) {
-		return A2(mdgriffith$elm_style_animation$Animation$Model$updateAnimation, tick, animation).a;
+		return A2(mdgriffith$elm_style_animation$Animation$Model$updateAnimation, tick, animation);
 	});
 var author$project$Main$update = F2(
 	function (msg, model) {
@@ -8897,113 +8971,282 @@ var author$project$Main$update = F2(
 							tasks: A2(elm$core$List$map, updateTask, model.tasks)
 						}),
 					elm$core$Platform$Cmd$none);
-			case 'Add':
-				var newTaskModel = model.newTaskModel;
-				if (newTaskModel.$ === 'Just') {
-					var m = newTaskModel.a;
-					return A2(
-						author$project$Main$store,
+			case 'CloseModal':
+				var modalModel = model.modalModel;
+				if (modalModel.$ === 'Just') {
+					var modal = modalModel.a;
+					return _Utils_Tuple2(
 						_Utils_update(
 							model,
 							{
-								newTaskModel: elm$core$Maybe$Nothing,
-								tasks: _Utils_ap(
-									model.tasks,
-									_List_fromArray(
-										[
-											A3(author$project$Main$newTask, model.time, model.uid, m)
-										])),
-								uid: model.uid + 1
+								modalModel: elm$core$Maybe$Just(
+									_Utils_update(
+										modal,
+										{
+											bgStyle: A2(
+												mdgriffith$elm_style_animation$Animation$interrupt,
+												_List_fromArray(
+													[
+														mdgriffith$elm_style_animation$Animation$to(
+														_List_fromArray(
+															[
+																mdgriffith$elm_style_animation$Animation$opacity(0.0)
+															])),
+														mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
+													]),
+												modal.bgStyle),
+											contentStyle: A2(
+												mdgriffith$elm_style_animation$Animation$interrupt,
+												_List_fromArray(
+													[
+														mdgriffith$elm_style_animation$Animation$to(
+														_List_fromArray(
+															[
+																mdgriffith$elm_style_animation$Animation$top(
+																mdgriffith$elm_style_animation$Animation$px(-200))
+															]))
+													]),
+												modal.contentStyle)
+										}))
 							}),
 						elm$core$Platform$Cmd$none);
 				} else {
 					return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
 				}
-			case 'ShowAddTask':
-				var emptyModel = author$project$Main$emptyNewTaskModel;
-				var emptyModel2 = _Utils_update(
-					emptyModel,
-					{
-						style: A2(
-							mdgriffith$elm_style_animation$Animation$interrupt,
-							_List_fromArray(
-								[
-									mdgriffith$elm_style_animation$Animation$to(
-									_List_fromArray(
-										[
-											mdgriffith$elm_style_animation$Animation$opacity(1.0)
-										]))
-								]),
-							emptyModel.style)
-					});
+			case 'ClearModal':
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{
-							newTaskModel: elm$core$Maybe$Just(emptyModel2)
-						}),
+						{modalModel: elm$core$Maybe$Nothing}),
 					elm$core$Platform$Cmd$none);
-			case 'Animate':
-				var animMsg = msg.a;
-				return _Utils_Tuple2(
+			case 'Add':
+				var newTaskModel = msg.a;
+				return A2(
+					author$project$Main$store,
 					_Utils_update(
 						model,
 						{
-							newTaskModel: A2(
+							modalModel: A2(
 								elm$core$Maybe$map,
 								function (m) {
 									return _Utils_update(
 										m,
 										{
-											style: A2(mdgriffith$elm_style_animation$Animation$update, animMsg, m.style)
+											bgStyle: A2(
+												mdgriffith$elm_style_animation$Animation$interrupt,
+												_List_fromArray(
+													[
+														mdgriffith$elm_style_animation$Animation$to(
+														_List_fromArray(
+															[
+																mdgriffith$elm_style_animation$Animation$opacity(0.0)
+															])),
+														mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$ClearModal)
+													]),
+												m.bgStyle),
+											contentStyle: A2(
+												mdgriffith$elm_style_animation$Animation$interrupt,
+												_List_fromArray(
+													[
+														mdgriffith$elm_style_animation$Animation$to(
+														_List_fromArray(
+															[
+																mdgriffith$elm_style_animation$Animation$top(
+																mdgriffith$elm_style_animation$Animation$px(-200))
+															]))
+													]),
+												m.contentStyle)
 										});
 								},
-								model.newTaskModel)
+								model.modalModel),
+							tasks: _Utils_ap(
+								model.tasks,
+								_List_fromArray(
+									[
+										A3(author$project$Main$newTask, model.time, model.uid, newTaskModel)
+									])),
+							uid: model.uid + 1
 						}),
 					elm$core$Platform$Cmd$none);
-			case 'ChangeDescription':
-				var desc = msg.a;
-				var newTaskModelUpdate = function (m) {
-					return _Utils_update(
-						m,
-						{description: desc});
-				};
-				var newTaskModel = model.newTaskModel;
+			case 'OpenModal':
+				var modal = msg.a;
+				var modalModel = A3(
+					author$project$Main$ModalModel,
+					modal,
+					A2(
+						mdgriffith$elm_style_animation$Animation$interrupt,
+						_List_fromArray(
+							[
+								mdgriffith$elm_style_animation$Animation$to(
+								_List_fromArray(
+									[
+										mdgriffith$elm_style_animation$Animation$opacity(1.0)
+									]))
+							]),
+						author$project$Main$initalBgStyle),
+					A2(
+						mdgriffith$elm_style_animation$Animation$interrupt,
+						_List_fromArray(
+							[
+								mdgriffith$elm_style_animation$Animation$to(
+								_List_fromArray(
+									[
+										mdgriffith$elm_style_animation$Animation$top(
+										mdgriffith$elm_style_animation$Animation$px(0))
+									]))
+							]),
+						author$project$Main$initalContentStyle));
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							newTaskModel: A2(elm$core$Maybe$map, newTaskModelUpdate, newTaskModel)
+							modalModel: elm$core$Maybe$Just(modalModel)
+						}),
+					elm$core$Platform$Cmd$none);
+			case 'Animate':
+				var animMsg = msg.a;
+				var _n2 = model.modalModel;
+				if (_n2.$ === 'Just') {
+					var m = _n2.a;
+					var _n3 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.contentStyle);
+					var newContentStyle = _n3.a;
+					var cmd2 = _n3.b;
+					var _n4 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.bgStyle);
+					var newBGStyle = _n4.a;
+					var cmd1 = _n4.b;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								modalModel: elm$core$Maybe$Just(
+									_Utils_update(
+										m,
+										{bgStyle: newBGStyle, contentStyle: newContentStyle}))
+							}),
+						elm$core$Platform$Cmd$batch(
+							_List_fromArray(
+								[cmd1, cmd2])));
+				} else {
+					return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
+				}
+			case 'ChangeDescription':
+				var newTaskModel = msg.a;
+				var desc = msg.b;
+				var newTaskModelUpdate = function (m) {
+					return _Utils_update(
+						m,
+						{
+							modalType: author$project$Main$NewTask(
+								_Utils_update(
+									newTaskModel,
+									{description: desc}))
+						});
+				};
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							modalModel: A2(elm$core$Maybe$map, newTaskModelUpdate, model.modalModel)
 						}),
 					elm$core$Platform$Cmd$none);
 			case 'ChangeTag':
-				var tag = msg.a;
+				var newTaskModel = msg.a;
+				var tag = msg.b;
 				var newTaskModelUpdate = function (m) {
 					return _Utils_update(
 						m,
-						{tag: tag});
+						{
+							modalType: author$project$Main$NewTask(
+								_Utils_update(
+									newTaskModel,
+									{tag: tag}))
+						});
 				};
-				var newTaskModel = model.newTaskModel;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							newTaskModel: A2(elm$core$Maybe$map, newTaskModelUpdate, newTaskModel)
+							modalModel: A2(elm$core$Maybe$map, newTaskModelUpdate, model.modalModel)
+						}),
+					elm$core$Platform$Cmd$none);
+			case 'ChangePeriod':
+				var newTaskModel = msg.a;
+				var period = msg.b;
+				var newTaskModelUpdate = function (m) {
+					return _Utils_update(
+						m,
+						{
+							modalType: author$project$Main$NewTask(
+								_Utils_update(
+									newTaskModel,
+									{period: period}))
+						});
+				};
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							modalModel: A2(elm$core$Maybe$map, newTaskModelUpdate, model.modalModel)
+						}),
+					elm$core$Platform$Cmd$none);
+			case 'ChangeDescriptionEdit':
+				var newTaskModel = msg.a;
+				var desc = msg.b;
+				var newTaskModelUpdate = function (m) {
+					return _Utils_update(
+						m,
+						{
+							modalType: author$project$Main$EditTask(
+								_Utils_update(
+									newTaskModel,
+									{description: desc}))
+						});
+				};
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							modalModel: A2(elm$core$Maybe$map, newTaskModelUpdate, model.modalModel)
+						}),
+					elm$core$Platform$Cmd$none);
+			case 'ChangeTagEdit':
+				var newTaskModel = msg.a;
+				var tag = msg.b;
+				var newTaskModelUpdate = function (m) {
+					return _Utils_update(
+						m,
+						{
+							modalType: author$project$Main$EditTask(
+								_Utils_update(
+									newTaskModel,
+									{tag: tag}))
+						});
+				};
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							modalModel: A2(elm$core$Maybe$map, newTaskModelUpdate, model.modalModel)
 						}),
 					elm$core$Platform$Cmd$none);
 			default:
-				var period = msg.a;
+				var newTaskModel = msg.a;
+				var period = msg.b;
 				var newTaskModelUpdate = function (m) {
 					return _Utils_update(
 						m,
-						{period: period});
+						{
+							modalType: author$project$Main$EditTask(
+								_Utils_update(
+									newTaskModel,
+									{period: period}))
+						});
 				};
-				var newTaskModel = model.newTaskModel;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							newTaskModel: A2(elm$core$Maybe$map, newTaskModelUpdate, newTaskModel)
+							modalModel: A2(elm$core$Maybe$map, newTaskModelUpdate, model.modalModel)
 						}),
 					elm$core$Platform$Cmd$none);
 		}
@@ -9024,16 +9267,20 @@ var author$project$Main$isRecentlyDone = F3(
 				},
 				task.lastDone));
 	});
-var author$project$Main$Add = {$: 'Add'};
-var author$project$Main$ChangeDescription = function (a) {
-	return {$: 'ChangeDescription', a: a};
-};
-var author$project$Main$ChangePeriod = function (a) {
-	return {$: 'ChangePeriod', a: a};
-};
-var author$project$Main$ChangeTag = function (a) {
-	return {$: 'ChangeTag', a: a};
-};
+var author$project$Main$CloseModal = {$: 'CloseModal'};
+var author$project$Main$NoOp = {$: 'NoOp'};
+var author$project$Main$ChangeDescriptionEdit = F2(
+	function (a, b) {
+		return {$: 'ChangeDescriptionEdit', a: a, b: b};
+	});
+var author$project$Main$ChangePeriodEdit = F2(
+	function (a, b) {
+		return {$: 'ChangePeriodEdit', a: a, b: b};
+	});
+var author$project$Main$ChangeTagEdit = F2(
+	function (a, b) {
+		return {$: 'ChangeTagEdit', a: a, b: b};
+	});
 var elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -9114,6 +9361,385 @@ var elm$html$Html$Events$onInput = function (tagger) {
 			elm$html$Html$Events$alwaysStop,
 			A2(elm$json$Json$Decode$map, tagger, elm$html$Html$Events$targetValue)));
 };
+var author$project$Main$editTaskView = F2(
+	function (editTaskModel, tasks) {
+		var tagOption = function (tag) {
+			return A2(
+				elm$html$Html$option,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$value(tag)
+					]),
+				_List_fromArray(
+					[
+						elm$html$Html$text(tag)
+					]));
+		};
+		var findUnit = A2(
+			elm$core$Result$withDefault,
+			1,
+			A2(elm$parser$Parser$run, elm$parser$Parser$int, editTaskModel.period));
+		var addS = F2(
+			function (unit, str) {
+				return (unit > 1) ? (elm$core$String$fromInt(unit) + (' ' + (str + 's'))) : str;
+			});
+		var periodOptions = F2(
+			function (unit, period) {
+				return _List_fromArray(
+					[
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Minute'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Minute'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Hour'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Hour'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Day'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Day'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Week'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Week'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Month'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Month'))
+							]))
+					]);
+			});
+		return A2(
+			elm$html$Html$div,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('new-view')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					elm$html$Html$input,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$placeholder('Description'),
+							elm$html$Html$Attributes$value(editTaskModel.description),
+							elm$html$Html$Events$onInput(
+							author$project$Main$ChangeDescriptionEdit(editTaskModel))
+						]),
+					_List_Nil),
+					A2(
+					elm$html$Html$input,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$placeholder('Tag'),
+							elm$html$Html$Attributes$value(editTaskModel.tag),
+							elm$html$Html$Attributes$list('tag-list'),
+							elm$html$Html$Events$onInput(
+							author$project$Main$ChangeTagEdit(editTaskModel))
+						]),
+					_List_Nil),
+					A2(
+					elm$html$Html$input,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$placeholder('Period'),
+							elm$html$Html$Attributes$value(editTaskModel.period),
+							elm$html$Html$Attributes$list('period-list'),
+							elm$html$Html$Events$onInput(
+							author$project$Main$ChangePeriodEdit(editTaskModel))
+						]),
+					_List_Nil),
+					A2(
+					elm$html$Html$button,
+					_List_fromArray(
+						[
+							elm$html$Html$Events$onClick(author$project$Main$CloseModal)
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text('Save')
+						])),
+					A2(
+					elm$html$Html$button,
+					_List_fromArray(
+						[
+							elm$html$Html$Events$onClick(author$project$Main$CloseModal)
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text('Cancel')
+						])),
+					A2(
+					elm$html$Html$datalist,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$id('tag-list')
+						]),
+					A2(
+						elm$core$List$map,
+						tagOption,
+						elm$core$Set$toList(
+							elm$core$Set$fromList(
+								A2(
+									elm$core$List$map,
+									function ($) {
+										return $.tag;
+									},
+									tasks))))),
+					A2(
+					elm$html$Html$datalist,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$id('period-list')
+						]),
+					_Utils_ap(
+						A2(periodOptions, findUnit, editTaskModel.period),
+						A2(periodOptions, findUnit + 1, editTaskModel.period)))
+				]));
+	});
+var author$project$Main$Add = function (a) {
+	return {$: 'Add', a: a};
+};
+var author$project$Main$ChangeDescription = F2(
+	function (a, b) {
+		return {$: 'ChangeDescription', a: a, b: b};
+	});
+var author$project$Main$ChangePeriod = F2(
+	function (a, b) {
+		return {$: 'ChangePeriod', a: a, b: b};
+	});
+var author$project$Main$ChangeTag = F2(
+	function (a, b) {
+		return {$: 'ChangeTag', a: a, b: b};
+	});
+var author$project$Main$newTaskView = F2(
+	function (newTaskModel, tasks) {
+		var tagOption = function (tag) {
+			return A2(
+				elm$html$Html$option,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$value(tag)
+					]),
+				_List_fromArray(
+					[
+						elm$html$Html$text(tag)
+					]));
+		};
+		var findUnit = A2(
+			elm$core$Result$withDefault,
+			1,
+			A2(elm$parser$Parser$run, elm$parser$Parser$int, newTaskModel.period));
+		var addS = F2(
+			function (unit, str) {
+				return (unit > 1) ? (elm$core$String$fromInt(unit) + (' ' + (str + 's'))) : str;
+			});
+		var periodOptions = F2(
+			function (unit, period) {
+				return _List_fromArray(
+					[
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Minute'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Minute'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Hour'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Hour'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Day'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Day'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Week'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Week'))
+							])),
+						A2(
+						elm$html$Html$option,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$value(
+								A2(addS, unit, 'Month'))
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text(
+								A2(addS, unit, 'Month'))
+							]))
+					]);
+			});
+		return A2(
+			elm$html$Html$div,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('new-view')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					elm$html$Html$input,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$placeholder('Description'),
+							elm$html$Html$Attributes$value(newTaskModel.description),
+							elm$html$Html$Events$onInput(
+							author$project$Main$ChangeDescription(newTaskModel))
+						]),
+					_List_Nil),
+					A2(
+					elm$html$Html$input,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$placeholder('Tag'),
+							elm$html$Html$Attributes$value(newTaskModel.tag),
+							elm$html$Html$Attributes$list('tag-list'),
+							elm$html$Html$Events$onInput(
+							author$project$Main$ChangeTag(newTaskModel))
+						]),
+					_List_Nil),
+					A2(
+					elm$html$Html$input,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$placeholder('Period'),
+							elm$html$Html$Attributes$value(newTaskModel.period),
+							elm$html$Html$Attributes$list('period-list'),
+							elm$html$Html$Events$onInput(
+							author$project$Main$ChangePeriod(newTaskModel))
+						]),
+					_List_Nil),
+					A2(
+					elm$html$Html$button,
+					_List_fromArray(
+						[
+							elm$html$Html$Events$onClick(
+							author$project$Main$Add(newTaskModel))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text('Add')
+						])),
+					A2(
+					elm$html$Html$button,
+					_List_fromArray(
+						[
+							elm$html$Html$Events$onClick(author$project$Main$CloseModal)
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text('Cancel')
+						])),
+					A2(
+					elm$html$Html$datalist,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$id('tag-list')
+						]),
+					A2(
+						elm$core$List$map,
+						tagOption,
+						elm$core$Set$toList(
+							elm$core$Set$fromList(
+								A2(
+									elm$core$List$map,
+									function ($) {
+										return $.tag;
+									},
+									tasks))))),
+					A2(
+					elm$html$Html$datalist,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$id('period-list')
+						]),
+					_Utils_ap(
+						A2(periodOptions, findUnit, newTaskModel.period),
+						A2(periodOptions, findUnit + 1, newTaskModel.period)))
+				]));
+	});
+var elm$html$Html$span = _VirtualDom_node('span');
+var elm$virtual_dom$VirtualDom$Custom = function (a) {
+	return {$: 'Custom', a: a};
+};
+var elm$html$Html$Events$custom = F2(
+	function (event, decoder) {
+		return A2(
+			elm$virtual_dom$VirtualDom$on,
+			event,
+			elm$virtual_dom$VirtualDom$Custom(decoder));
+	});
 var elm$core$List$append = F2(
 	function (xs, ys) {
 		if (!ys.b) {
@@ -9668,183 +10294,63 @@ var mdgriffith$elm_style_animation$Animation$Render$render = function (animation
 	return _Utils_ap(styleAttr, otherAttrs);
 };
 var mdgriffith$elm_style_animation$Animation$render = mdgriffith$elm_style_animation$Animation$Render$render;
-var author$project$Main$newTaskView = F2(
-	function (newTaskModel, tasks) {
-		var tagOption = function (tag) {
-			return A2(
-				elm$html$Html$option,
-				_List_fromArray(
-					[
-						elm$html$Html$Attributes$value(tag)
-					]),
-				_List_fromArray(
-					[
-						elm$html$Html$text(tag)
-					]));
-		};
-		var findUnit = A2(
-			elm$core$Result$withDefault,
-			1,
-			A2(elm$parser$Parser$run, elm$parser$Parser$int, newTaskModel.period));
-		var addS = F2(
-			function (unit, str) {
-				return (unit > 1) ? (elm$core$String$fromInt(unit) + (' ' + (str + 's'))) : str;
-			});
-		var periodOptions = F2(
-			function (unit, period) {
-				return _List_fromArray(
-					[
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Minute'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(addS, unit, 'Minute'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Hour'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(addS, unit, 'Hour'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Day'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(addS, unit, 'Day'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Week'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(addS, unit, 'Week'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(addS, unit, 'Month'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(addS, unit, 'Month'))
-							]))
-					]);
-			});
+var author$project$Main$maybeModalView = function (model) {
+	var _n0 = model.modalModel;
+	if (_n0.$ === 'Just') {
+		var modal = _n0.a;
 		return A2(
 			elm$html$Html$div,
 			_Utils_ap(
 				_List_fromArray(
 					[
-						elm$html$Html$Attributes$class('new-view')
+						elm$html$Html$Attributes$class('modal'),
+						elm$html$Html$Events$onClick(author$project$Main$CloseModal)
 					]),
-				mdgriffith$elm_style_animation$Animation$render(newTaskModel.style)),
+				mdgriffith$elm_style_animation$Animation$render(modal.bgStyle)),
 			_List_fromArray(
 				[
 					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Description'),
-							elm$html$Html$Attributes$value(newTaskModel.description),
-							elm$html$Html$Events$onInput(author$project$Main$ChangeDescription)
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Tag'),
-							elm$html$Html$Attributes$value(newTaskModel.tag),
-							elm$html$Html$Attributes$list('tag-list'),
-							elm$html$Html$Events$onInput(author$project$Main$ChangeTag)
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$input,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$placeholder('Period'),
-							elm$html$Html$Attributes$value(newTaskModel.period),
-							elm$html$Html$Attributes$list('period-list'),
-							elm$html$Html$Events$onInput(author$project$Main$ChangePeriod)
-						]),
-					_List_Nil),
-					A2(
-					elm$html$Html$button,
-					_List_fromArray(
-						[
-							elm$html$Html$Events$onClick(author$project$Main$Add)
-						]),
-					_List_fromArray(
-						[
-							elm$html$Html$text('Add')
-						])),
-					A2(
-					elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$id('tag-list')
-						]),
-					A2(
-						elm$core$List$map,
-						tagOption,
-						elm$core$Set$toList(
-							elm$core$Set$fromList(
-								A2(
-									elm$core$List$map,
-									function ($) {
-										return $.tag;
-									},
-									tasks))))),
-					A2(
-					elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$id('period-list')
-						]),
+					elm$html$Html$div,
 					_Utils_ap(
-						A2(periodOptions, findUnit, newTaskModel.period),
-						A2(periodOptions, findUnit + 1, newTaskModel.period)))
+						_List_fromArray(
+							[
+								A2(
+								elm$html$Html$Events$custom,
+								'click',
+								elm$json$Json$Decode$succeed(
+									{message: author$project$Main$NoOp, preventDefault: true, stopPropagation: true})),
+								elm$html$Html$Attributes$class('modal-content')
+							]),
+						mdgriffith$elm_style_animation$Animation$render(modal.contentStyle)),
+					_List_fromArray(
+						[
+							function () {
+							var _n1 = modal.modalType;
+							switch (_n1.$) {
+								case 'NewTask':
+									var newTaskModel = _n1.a;
+									return A2(author$project$Main$newTaskView, newTaskModel, model.tasks);
+								case 'EditTask':
+									var editTaskModel = _n1.a;
+									return A2(author$project$Main$editTaskView, editTaskModel, model.tasks);
+								default:
+									return A2(elm$html$Html$span, _List_Nil, _List_Nil);
+							}
+						}()
+						]))
 				]));
-	});
-var elm$html$Html$span = _VirtualDom_node('span');
-var author$project$Main$maybeNewTaskView = function (model) {
-	if (model.$ === 'Just') {
-		var m = model.a;
-		return author$project$Main$newTaskView(m);
 	} else {
-		return function (_n1) {
-			return A2(elm$html$Html$span, _List_Nil, _List_Nil);
-		};
+		return A2(elm$html$Html$span, _List_Nil, _List_Nil);
 	}
 };
-var author$project$Main$ShowAddTask = {$: 'ShowAddTask'};
+var author$project$Main$OpenModal = function (a) {
+	return {$: 'OpenModal', a: a};
+};
+var author$project$Main$NewTaskModel = F3(
+	function (description, tag, period) {
+		return {description: description, period: period, tag: tag};
+	});
+var author$project$Main$emptyNewTaskModel = A3(author$project$Main$NewTaskModel, '', '', '');
 var elm$html$Html$section = _VirtualDom_node('section');
 var author$project$Main$viewMenu = A2(
 	elm$html$Html$section,
@@ -9859,7 +10365,9 @@ var author$project$Main$viewMenu = A2(
 			_List_fromArray(
 				[
 					elm$html$Html$Attributes$class('add-task'),
-					elm$html$Html$Events$onClick(author$project$Main$ShowAddTask)
+					elm$html$Html$Events$onClick(
+					author$project$Main$OpenModal(
+						author$project$Main$NewTask(author$project$Main$emptyNewTaskModel)))
 				]),
 			_List_fromArray(
 				[
@@ -9869,6 +10377,10 @@ var author$project$Main$viewMenu = A2(
 var author$project$Main$Do = function (a) {
 	return {$: 'Do', a: a};
 };
+var author$project$Main$EditTaskModel = F4(
+	function (description, tag, period, id) {
+		return {description: description, id: id, period: period, tag: tag};
+	});
 var elm$html$Html$li = _VirtualDom_node('li');
 var author$project$Main$viewTask = F2(
 	function (time, task) {
@@ -9892,7 +10404,9 @@ var author$project$Main$viewTask = F2(
 								[
 									elm$html$Html$Attributes$class('task-edit'),
 									elm$html$Html$Events$onClick(
-									author$project$Main$Do(task.id))
+									author$project$Main$OpenModal(
+										author$project$Main$EditTask(
+											A4(author$project$Main$EditTaskModel, task.description, task.tag, '', task.id))))
 								]),
 							_List_fromArray(
 								[
@@ -9990,8 +10504,8 @@ var author$project$Main$view = function (model) {
 			]),
 		_List_fromArray(
 			[
+				author$project$Main$maybeModalView(model),
 				author$project$Main$viewMenu,
-				A2(author$project$Main$maybeNewTaskView, model.newTaskModel, model.tasks),
 				A2(author$project$Main$viewTasks, model.time, visibleTasks)
 			]));
 };

@@ -1,6 +1,8 @@
-P1 Feed time in from JS
-P1 Save to local storage
-P1 Styling
-P1 code refactor
+P1 Translate from millis -> period string
+P1 Hook up edit
+P1 add delete button
+P1 Options modal
+P1 make 1 * default for periods instead of *
 
-P1 Period parsing
+
+P1 Animate Do movements

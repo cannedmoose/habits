@@ -46,7 +46,7 @@ type alias Model =
   { time : Int
   , tasks : List Task
   , uid : Int
-  , newTaskModel : Maybe NewTaskModel
+  , modalModel : Maybe ModalModel
   }
 
 type alias Task =
@@ -58,15 +58,6 @@ type alias Task =
   , nextDue : Int
   , doneCount : Int
   }
-
-type alias NewTaskModel =
-    { description : String
-    , tag : String
-    , period : String
-    , style : Animation.Messenger.State Msg
-    }
-
-emptyNewTaskModel = NewTaskModel "" "" "" (Animation.style [ Animation.opacity 0 ])
 
 type alias StorageModel =
     { tasks : List Task
@@ -86,10 +77,11 @@ newTask time uid model =
 
 -- SUBSCRIPTIONS
 
+-- Note just modal for now...
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
-    case model.newTaskModel of
-        Just m -> (Animation.subscription Animate [ m.style ])
+    case model.modalModel of
+        Just m -> (Animation.subscription Animate [ m.bgStyle, m.contentStyle ])
         Nothing -> (Sub.none)
 
 timeSubscription : Model -> Sub Msg
@@ -100,18 +92,63 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch [timeSubscription model, animationSubscription model]
 
+-- MODAL
+
+bgStyleClose = 
+    [ Animation.to [ Animation.opacity 0.0 ]
+    , Animation.Messenger.send (ClearModal)
+    ]
+
+type alias ModalModel =
+    { modalType : Modal
+    , bgStyle : Animation.Messenger.State Msg
+    , contentStyle : Animation.Messenger.State Msg
+    }
+
+type Modal
+    = NewTask NewTaskModel
+    | EditTask EditTaskModel
+    | Options OptionsModel
+
+type alias OptionsModel =
+    { showAll : Bool
+    , afterPeriod : String
+    , beforePeriod : String
+    }
+
+type alias EditTaskModel =
+    { description : String
+    , tag : String
+    , period : String
+    , id : Int
+    }
+
+type alias NewTaskModel =
+    { description : String
+    , tag : String
+    , period : String
+    }
+
+initalBgStyle = (Animation.style [ Animation.opacity 0 ])
+initalContentStyle = (Animation.style [ Animation.top (px -800) ])
+emptyNewTaskModel = NewTaskModel "" "" ""
+
 -- UPDATE
 type Msg
     = NoOp
     | Tick Time.Posix
     | Do Int
-    | Add
-    | ShowAddTask
-    | ChangeDescription String
-    | ChangeTag String
-    | ChangePeriod String
+    | Add NewTaskModel
+    | OpenModal Modal
+    | CloseModal
+    | ClearModal
     | Animate Animation.Msg
-    | ClearNewTask
+    | ChangeDescription NewTaskModel String
+    | ChangeTag NewTaskModel String
+    | ChangePeriod NewTaskModel String
+    | ChangeDescriptionEdit EditTaskModel String
+    | ChangeTagEdit EditTaskModel String
+    | ChangePeriodEdit EditTaskModel String
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -136,65 +173,95 @@ update msg model =
             store
                 { model | tasks = List.map updateTask model.tasks }
                 Cmd.none
-        Add ->
+        CloseModal ->
             let
-                newTaskModel = model.newTaskModel
+                modalModel = model.modalModel
             in
-                case newTaskModel of
-                    Just m -> 
-                        ( store
-                            { model 
-                            | tasks = model.tasks ++ [newTask model.time model.uid m]
-                            , uid = model.uid + 1
-                            , newTaskModel = 
-                                Just { m 
-                                | style = Animation.interrupt
-                                    [ Animation.to 
-                                        [ Animation.opacity 0.0 ]
-                                        , Animation.Messenger.send (ClearNewTask)
-                                    ]
-                                    m.style
-                                }
-                            }
-                            Cmd.none
-                        )
+                case modalModel of
+                    Just modal -> 
+                        ({model | modalModel = 
+                                        Just { modal 
+                                        | bgStyle = Animation.interrupt
+                                            [ Animation.to [ Animation.opacity 0.0 ]
+                                            , Animation.Messenger.send (ClearModal)
+                                            ]
+                                            modal.bgStyle
+                                        , contentStyle = Animation.interrupt
+                                            [ Animation.to [ Animation.top (px -200) ]
+                                            ]
+                                            modal.contentStyle
+                                        }}, Cmd.none)
                     Nothing -> (model, Cmd.none)
-        ShowAddTask ->
+        ClearModal -> ({model | modalModel = Nothing}, Cmd.none)
+        Add newTaskModel ->
+            store
+                { model 
+                | tasks = model.tasks ++ [newTask model.time model.uid newTaskModel]
+                , uid = model.uid + 1
+                , modalModel = Maybe.map
+                    (\m -> { m | bgStyle = Animation.interrupt
+                                            [ Animation.to [ Animation.opacity 0.0 ]
+                                            , Animation.Messenger.send (ClearModal)
+                                            ]
+                                            m.bgStyle
+                                        , contentStyle = Animation.interrupt
+                                            [ Animation.to [ Animation.top (px -200) ]
+                                            ]
+                                            m.contentStyle
+                    })
+                    model.modalModel
+                }
+                Cmd.none
+        OpenModal modal ->
             let
-                emptyModel = emptyNewTaskModel
-                emptyModel2 = { emptyModel | style = Animation.interrupt
-                    [ Animation.to 
-                        [ Animation.opacity 1.0 ]
-                    ]
-                    emptyModel.style }
+                modalModel  = ModalModel
+                    modal
+                    (Animation.interrupt [ Animation.to [ Animation.opacity 1.0 ] ] initalBgStyle)
+                    (Animation.interrupt [ Animation.to [ Animation.top (px 0)] ] initalContentStyle)
             in
-                ( { model | newTaskModel = Just emptyModel2 }
-                , Cmd.none)
-        Animate animMsg -> 
-            ( { model | 
-                newTaskModel = (Maybe.map 
-                    (\m -> {m | style =  Animation.update animMsg m.style}) 
-                    model.newTaskModel) }
-            , Cmd.none)
-        ClearNewTask -> ({model | newTaskModel = Nothing}, Cmd.none)
-        ChangeDescription desc ->
+                ( { model | modalModel = Just modalModel }, Cmd.none)
+        Animate animMsg ->
+            case model.modalModel of
+                Just m -> (
+                    let
+                        ( newBGStyle, cmd1 ) =
+                                Animation.Messenger.update animMsg m.bgStyle
+                        ( newContentStyle, cmd2 ) =
+                                Animation.Messenger.update animMsg m.contentStyle
+                    in
+                        ( { model | modalModel = Just {m | bgStyle = newBGStyle, contentStyle = newContentStyle}}, Cmd.batch [cmd1, cmd2])
+                    )
+                Nothing -> (model, Cmd.none)
+        ChangeDescription newTaskModel desc ->
             let
-                newTaskModel = model.newTaskModel
-                newTaskModelUpdate m = { m | description = desc}
+                newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | description = desc}}
             in
-                ( { model | newTaskModel = Maybe.map newTaskModelUpdate newTaskModel}, Cmd.none )
-        ChangeTag tag ->
+                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+        ChangeTag newTaskModel tag ->
             let
-                newTaskModel = model.newTaskModel
-                newTaskModelUpdate m = { m | tag = tag}
+                newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | tag = tag}}
             in
-                ( { model | newTaskModel = Maybe.map newTaskModelUpdate newTaskModel}, Cmd.none )
-        ChangePeriod period ->
+                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+        ChangePeriod newTaskModel period ->
             let
-                newTaskModel = model.newTaskModel
-                newTaskModelUpdate m = { m | period = period}
+                newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | period = period}}
             in
-                ( { model | newTaskModel = Maybe.map newTaskModelUpdate newTaskModel}, Cmd.none )
+                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+        ChangeDescriptionEdit newTaskModel desc ->
+            let
+                newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | description = desc}}
+            in
+                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+        ChangeTagEdit newTaskModel tag ->
+            let
+                newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | tag = tag}}
+            in
+                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+        ChangePeriodEdit newTaskModel period ->
+            let
+                newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | period = period}}
+            in
+                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
 
 -- VIEW
 view : Model -> Html Msg
@@ -207,8 +274,8 @@ view model =
     in
         div
             [ class "wrapper" ]
-                [ viewMenu
-                , maybeNewTaskView model.newTaskModel model.tasks 
+                [ maybeModalView model
+                , viewMenu 
                 , viewTasks model.time visibleTasks
             ]
 
@@ -218,7 +285,7 @@ viewMenu =
         [ class "menu" ]
         [
             button
-                [ class "add-task", onClick (ShowAddTask) ]
+                [ class "add-task", onClick (OpenModal (NewTask emptyNewTaskModel)) ]
                 [ text "+" ]
         ]
 
@@ -246,7 +313,7 @@ viewTask time task =
                 [ class "task-view" ]
                 [ button 
                     [ class "task-edit"
-                    , onClick (Do task.id)
+                    , onClick (OpenModal (EditTask (EditTaskModel task.description task.tag "" task.id)))
                     ]
                     [ text "..." ]
                 , button 
@@ -264,12 +331,62 @@ viewTask time task =
                 ]
             ]
 
+maybeModalView : Model -> Html Msg
+maybeModalView model =
+    case model.modalModel of
+        Just modal -> (
+            div
+                ([class "modal", onClick CloseModal] ++ Animation.render modal.bgStyle)
+                [ 
+                    div ([(Html.Events.custom "click" (Json.Decode.succeed
+                            { message = NoOp
+                            , stopPropagation = True
+                            , preventDefault = True
+                            }
+                        )), class "modal-content" ] ++ Animation.render modal.contentStyle)
+                    [
+                        case modal.modalType of
+                            NewTask newTaskModel -> newTaskView newTaskModel model.tasks
+                            EditTask editTaskModel -> editTaskView editTaskModel model.tasks
+                            _ -> (span [] [])
+                    ]
+                ]
+            )
+        Nothing -> (span [] [])
+
 -- TODO clean up
-maybeNewTaskView : Maybe NewTaskModel -> List Task -> Html Msg
-maybeNewTaskView model =
-    case model of
-        Just m -> (newTaskView m)
-        Nothing -> (\_ -> (span [] []))
+editTaskView : EditTaskModel -> List Task -> Html Msg
+editTaskView editTaskModel tasks =
+    let
+        tagOption tag = option [value tag] [text tag]
+        findUnit = Result.withDefault 
+                1
+                (Parser.run Parser.int editTaskModel.period)
+        addS unit str = if (unit > 1) then String.fromInt unit ++ " " ++ str ++ "s" else str   
+        periodOptions unit period =
+            [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
+            , option [value (addS unit "Hour")] [text (addS unit "Hour")]
+            , option [value (addS unit "Day")] [text (addS unit "Day")]
+            , option [value (addS unit "Week")] [text (addS unit "Week")]
+            , option [value (addS unit "Month")] [text (addS unit "Month")]
+            ]
+    in
+        div [class "new-view" ]
+            [ input 
+                [ placeholder "Description", value editTaskModel.description, onInput (ChangeDescriptionEdit editTaskModel) ] []
+            , input 
+                [ placeholder "Tag", value editTaskModel.tag, list "tag-list", onInput (ChangeTagEdit editTaskModel) ] []
+            , input 
+                [ placeholder "Period", value editTaskModel.period, list "period-list", onInput (ChangePeriodEdit editTaskModel) ] []
+            , button [ onClick (CloseModal) ] [text "Save"]
+            , button [ onClick (CloseModal) ] [text "Cancel"]
+            , datalist
+                [id "tag-list"]
+                (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
+            , datalist
+                [id "period-list"]
+                ((periodOptions findUnit editTaskModel.period) ++ (periodOptions (findUnit + 1) editTaskModel.period))
+            ] 
 newTaskView : NewTaskModel -> List Task -> Html Msg
 newTaskView newTaskModel tasks =
     let
@@ -286,22 +403,22 @@ newTaskView newTaskModel tasks =
             , option [value (addS unit "Month")] [text (addS unit "Month")]
             ]
     in
-        div
-            ([ class "new-view" ] ++ Animation.render newTaskModel.style)
+        div [class "new-view" ]
             [ input 
-                [ placeholder "Description", value newTaskModel.description, onInput ChangeDescription ] []
+                [ placeholder "Description", value newTaskModel.description, onInput (ChangeDescription newTaskModel) ] []
             , input 
-                [ placeholder "Tag", value newTaskModel.tag, list "tag-list", onInput ChangeTag ] []
+                [ placeholder "Tag", value newTaskModel.tag, list "tag-list", onInput (ChangeTag newTaskModel) ] []
             , input 
-                [ placeholder "Period", value newTaskModel.period, list "period-list", onInput ChangePeriod ] []
-            , button [ onClick Add ] [text "Add"]
+                [ placeholder "Period", value newTaskModel.period, list "period-list", onInput (ChangePeriod newTaskModel) ] []
+            , button [ onClick (Add newTaskModel) ] [text "Add"]
+            , button [ onClick (CloseModal) ] [text "Cancel"]
             , datalist
                 [id "tag-list"]
                 (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
             , datalist
                 [id "period-list"]
                 ((periodOptions findUnit newTaskModel.period) ++ (periodOptions (findUnit + 1) newTaskModel.period))
-            ]
+            ] 
 
 -- HELPERS
 
