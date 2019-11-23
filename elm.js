@@ -4486,9 +4486,9 @@ var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString
 
 	return _Utils_Tuple3(newOffset, row, col);
 });
-var author$project$Main$Model = F4(
-	function (time, tasks, uid, modalModel) {
-		return {modalModel: modalModel, tasks: tasks, time: time, uid: uid};
+var author$project$Main$Model = F5(
+	function (time, tasks, taskSlots, uid, modalModel) {
+		return {modalModel: modalModel, taskSlots: taskSlots, tasks: tasks, time: time, uid: uid};
 	});
 var author$project$Main$StorageModel = F2(
 	function (tasks, uid) {
@@ -5021,70 +5021,226 @@ var author$project$Main$storageModelDecoder = A3(
 		'tasks',
 		elm$json$Json$Decode$list(author$project$Main$taskDecoder)),
 	A2(elm$json$Json$Decode$field, 'uid', elm$json$Json$Decode$int));
-var elm$core$Platform$Cmd$batch = _Platform_batch;
-var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
-var elm$core$Result$withDefault = F2(
-	function (def, result) {
-		if (result.$ === 'Ok') {
-			var a = result.a;
-			return a;
+var author$project$Main$isDueSoon = F3(
+	function (period, now, task) {
+		return _Utils_cmp(now + period, task.nextDue) > 0;
+	});
+var elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return elm$core$Maybe$Just(
+				f(value));
 		} else {
-			return def;
+			return elm$core$Maybe$Nothing;
 		}
 	});
-var elm$json$Json$Decode$decodeValue = _Json_run;
-var author$project$Main$init = function (flags) {
-	var model = A2(
-		elm$core$Result$withDefault,
-		A2(author$project$Main$StorageModel, _List_Nil, 0),
-		A2(
-			author$project$Main$logResultErr,
-			'Json Decode',
-			A2(elm$json$Json$Decode$decodeValue, author$project$Main$storageModelDecoder, flags.model)));
-	return _Utils_Tuple2(
-		A4(author$project$Main$Model, flags.time, model.tasks, model.uid, elm$core$Maybe$Nothing),
-		elm$core$Platform$Cmd$none);
-};
-var author$project$Main$Animate = function (a) {
-	return {$: 'Animate', a: a};
-};
-var elm$core$Platform$Sub$batch = _Platform_batch;
-var elm$core$Platform$Sub$none = elm$core$Platform$Sub$batch(_List_Nil);
-var elm$browser$Browser$AnimationManager$Time = function (a) {
-	return {$: 'Time', a: a};
-};
-var elm$browser$Browser$AnimationManager$State = F3(
-	function (subs, request, oldTime) {
-		return {oldTime: oldTime, request: request, subs: subs};
+var elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
 	});
-var elm$core$Task$succeed = _Scheduler_succeed;
-var elm$browser$Browser$AnimationManager$init = elm$core$Task$succeed(
-	A3(elm$browser$Browser$AnimationManager$State, _List_Nil, elm$core$Maybe$Nothing, 0));
-var elm$browser$Browser$External = function (a) {
-	return {$: 'External', a: a};
-};
-var elm$browser$Browser$Internal = function (a) {
-	return {$: 'Internal', a: a};
-};
-var elm$browser$Browser$Dom$NotFound = function (a) {
-	return {$: 'NotFound', a: a};
-};
-var elm$core$Basics$never = function (_n0) {
-	never:
-	while (true) {
-		var nvr = _n0.a;
-		var $temp$_n0 = nvr;
-		_n0 = $temp$_n0;
-		continue never;
-	}
-};
+var author$project$Main$isRecentlyDone = F3(
+	function (period, now, task) {
+		return A2(
+			elm$core$Maybe$withDefault,
+			false,
+			A2(
+				elm$core$Maybe$map,
+				function (t) {
+					return _Utils_cmp(now - period, t) < 0;
+				},
+				task.lastDone));
+	});
+var author$project$Main$Slot = F3(
+	function (currentTask, previousTask, style) {
+		return {currentTask: currentTask, previousTask: previousTask, style: style};
+	});
 var elm$core$Basics$identity = function (x) {
 	return x;
 };
-var elm$core$Task$Perform = function (a) {
-	return {$: 'Perform', a: a};
+var elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
+		}
+	});
+var elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return elm$core$Maybe$Just(x);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
 };
-var elm$core$Task$init = elm$core$Task$succeed(_Utils_Tuple0);
+var elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var elm$time$Time$millisToPosix = elm$time$Time$Posix;
+var elm$time$Time$posixToMillis = function (_n0) {
+	var millis = _n0.a;
+	return millis;
+};
+var mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
+	var _n0 = elm$core$List$head(steps);
+	if (_n0.$ === 'Nothing') {
+		return _Utils_Tuple2(
+			elm$time$Time$millisToPosix(0),
+			_List_Nil);
+	} else {
+		var step = _n0.a;
+		if (step.$ === 'Wait') {
+			var till = step.a;
+			var _n2 = mdgriffith$elm_style_animation$Animation$extractInitialWait(
+				A2(elm$core$List$drop, 1, steps));
+			var additionalTime = _n2.a;
+			var remainingSteps = _n2.b;
+			return _Utils_Tuple2(
+				elm$time$Time$millisToPosix(
+					elm$time$Time$posixToMillis(till) + elm$time$Time$posixToMillis(additionalTime)),
+				remainingSteps);
+		} else {
+			return _Utils_Tuple2(
+				elm$time$Time$millisToPosix(0),
+				steps);
+		}
+	}
+};
+var mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
+	return {$: 'Animation', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$interrupt = F2(
+	function (steps, _n0) {
+		var model = _n0.a;
+		return mdgriffith$elm_style_animation$Animation$Model$Animation(
+			_Utils_update(
+				model,
+				{
+					interruption: A2(
+						elm$core$List$cons,
+						mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
+						model.interruption),
+					running: true
+				}));
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
+	return {$: 'Spring', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$initMotion = F2(
+	function (position, unit) {
+		return {
+			interpolation: mdgriffith$elm_style_animation$Animation$Model$Spring(
+				{damping: 26, stiffness: 170}),
+			interpolationOverride: elm$core$Maybe$Nothing,
+			position: position,
+			target: position,
+			unit: unit,
+			velocity: 0
+		};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Property = F2(
+	function (a, b) {
+		return {$: 'Property', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$length = F3(
+	function (name, val, unit) {
+		return A2(
+			mdgriffith$elm_style_animation$Animation$Model$Property,
+			name,
+			A2(mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
+	});
+var mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
+	switch (unit.$) {
+		case 'NoUnit':
+			return '';
+		case 'Px':
+			return 'px';
+		case 'Percent':
+			return '%';
+		case 'Rem':
+			return 'rem';
+		case 'Em':
+			return 'em';
+		case 'Ex':
+			return 'ex';
+		case 'Ch':
+			return 'ch';
+		case 'Vh':
+			return 'vh';
+		case 'Vw':
+			return 'vw';
+		case 'Vmin':
+			return 'vmin';
+		case 'Vmax':
+			return 'vmax';
+		case 'Mm':
+			return 'mm';
+		case 'Cm':
+			return 'cm';
+		case 'In':
+			return 'in';
+		case 'Pt':
+			return 'pt';
+		default:
+			return 'pc';
+	}
+};
+var mdgriffith$elm_style_animation$Animation$left = function (_n0) {
+	var val = _n0.a;
+	var len = _n0.b;
+	return A3(
+		mdgriffith$elm_style_animation$Animation$length,
+		'left',
+		val,
+		mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var mdgriffith$elm_style_animation$Animation$Length = F2(
+	function (a, b) {
+		return {$: 'Length', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
+var mdgriffith$elm_style_animation$Animation$px = function (myPx) {
+	return A2(mdgriffith$elm_style_animation$Animation$Length, myPx, mdgriffith$elm_style_animation$Animation$Px);
+};
+var mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
+	return {$: 'To', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$to = function (props) {
+	return mdgriffith$elm_style_animation$Animation$Model$To(props);
+};
+var author$project$Main$slotSlideEnd = mdgriffith$elm_style_animation$Animation$interrupt(
+	_List_fromArray(
+		[
+			mdgriffith$elm_style_animation$Animation$to(
+			_List_fromArray(
+				[
+					mdgriffith$elm_style_animation$Animation$left(
+					mdgriffith$elm_style_animation$Animation$px(0))
+				]))
+		]));
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
 var elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
 		if (!ls.b) {
@@ -5154,6 +5310,834 @@ var elm$core$List$map = F2(
 			_List_Nil,
 			xs);
 	});
+var mdgriffith$elm_style_animation$Animation$initialState = function (current) {
+	return mdgriffith$elm_style_animation$Animation$Model$Animation(
+		{
+			interruption: _List_Nil,
+			running: false,
+			steps: _List_Nil,
+			style: current,
+			timing: {
+				current: elm$time$Time$millisToPosix(0),
+				dt: elm$time$Time$millisToPosix(0)
+			}
+		});
+};
+var elm$core$Basics$pi = _Basics_pi;
+var mdgriffith$elm_style_animation$Animation$Model$AtSpeed = function (a) {
+	return {$: 'AtSpeed', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$speed = function (speedValue) {
+	return mdgriffith$elm_style_animation$Animation$Model$AtSpeed(speedValue);
+};
+var mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
+	return {$: 'Easing', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty = function (prop) {
+	var linear = function (duration) {
+		return mdgriffith$elm_style_animation$Animation$Model$Easing(
+			{duration: duration, ease: elm$core$Basics$identity, progress: 1, start: 0});
+	};
+	var defaultSpring = mdgriffith$elm_style_animation$Animation$Model$Spring(
+		{damping: 26, stiffness: 170});
+	switch (prop.$) {
+		case 'ExactProperty':
+			return defaultSpring;
+		case 'ColorProperty':
+			return linear(
+				elm$time$Time$millisToPosix(400));
+		case 'ShadowProperty':
+			return defaultSpring;
+		case 'Property':
+			return defaultSpring;
+		case 'Property2':
+			return defaultSpring;
+		case 'Property3':
+			var name = prop.a;
+			return (name === 'rotate3d') ? mdgriffith$elm_style_animation$Animation$speed(
+				{perSecond: elm$core$Basics$pi}) : defaultSpring;
+		case 'Property4':
+			return defaultSpring;
+		case 'AngleProperty':
+			return mdgriffith$elm_style_animation$Animation$speed(
+				{perSecond: elm$core$Basics$pi});
+		case 'Points':
+			return defaultSpring;
+		default:
+			return defaultSpring;
+	}
+};
+var mdgriffith$elm_style_animation$Animation$Model$AngleProperty = F2(
+	function (a, b) {
+		return {$: 'AngleProperty', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
+	function (a, b, c, d, e) {
+		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
+	function (a, b) {
+		return {$: 'ExactProperty', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Path = function (a) {
+	return {$: 'Path', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Points = function (a) {
+	return {$: 'Points', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Property2 = F3(
+	function (a, b, c) {
+		return {$: 'Property2', a: a, b: b, c: c};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Property3 = F4(
+	function (a, b, c, d) {
+		return {$: 'Property3', a: a, b: b, c: c, d: d};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Property4 = F5(
+	function (a, b, c, d, e) {
+		return {$: 'Property4', a: a, b: b, c: c, d: d, e: e};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$ShadowProperty = F3(
+	function (a, b, c) {
+		return {$: 'ShadowProperty', a: a, b: b, c: c};
+	});
+var elm$core$Tuple$second = function (_n0) {
+	var y = _n0.b;
+	return y;
+};
+var mdgriffith$elm_style_animation$Animation$Model$AntiClockwiseArc = function (a) {
+	return {$: 'AntiClockwiseArc', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$ClockwiseArc = function (a) {
+	return {$: 'ClockwiseArc', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Close = {$: 'Close'};
+var mdgriffith$elm_style_animation$Animation$Model$Curve = function (a) {
+	return {$: 'Curve', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$CurveTo = function (a) {
+	return {$: 'CurveTo', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Horizontal = function (a) {
+	return {$: 'Horizontal', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$HorizontalTo = function (a) {
+	return {$: 'HorizontalTo', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Line = F2(
+	function (a, b) {
+		return {$: 'Line', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$LineTo = F2(
+	function (a, b) {
+		return {$: 'LineTo', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Move = F2(
+	function (a, b) {
+		return {$: 'Move', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$MoveTo = F2(
+	function (a, b) {
+		return {$: 'MoveTo', a: a, b: b};
+	});
+var mdgriffith$elm_style_animation$Animation$Model$Quadratic = function (a) {
+	return {$: 'Quadratic', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$QuadraticTo = function (a) {
+	return {$: 'QuadraticTo', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Smooth = function (a) {
+	return {$: 'Smooth', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$SmoothQuadratic = function (a) {
+	return {$: 'SmoothQuadratic', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$SmoothQuadraticTo = function (a) {
+	return {$: 'SmoothQuadraticTo', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$SmoothTo = function (a) {
+	return {$: 'SmoothTo', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$Vertical = function (a) {
+	return {$: 'Vertical', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$VerticalTo = function (a) {
+	return {$: 'VerticalTo', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Model$mapPathMotion = F2(
+	function (fn, cmd) {
+		var mapCoords = function (coords) {
+			return A2(
+				elm$core$List$map,
+				function (_n1) {
+					var x = _n1.a;
+					var y = _n1.b;
+					return _Utils_Tuple2(
+						fn(x),
+						fn(y));
+				},
+				coords);
+		};
+		switch (cmd.$) {
+			case 'Move':
+				var m1 = cmd.a;
+				var m2 = cmd.b;
+				return A2(
+					mdgriffith$elm_style_animation$Animation$Model$Move,
+					fn(m1),
+					fn(m2));
+			case 'MoveTo':
+				var m1 = cmd.a;
+				var m2 = cmd.b;
+				return A2(
+					mdgriffith$elm_style_animation$Animation$Model$MoveTo,
+					fn(m1),
+					fn(m2));
+			case 'Line':
+				var m1 = cmd.a;
+				var m2 = cmd.b;
+				return A2(
+					mdgriffith$elm_style_animation$Animation$Model$Line,
+					fn(m1),
+					fn(m2));
+			case 'LineTo':
+				var m1 = cmd.a;
+				var m2 = cmd.b;
+				return A2(
+					mdgriffith$elm_style_animation$Animation$Model$LineTo,
+					fn(m1),
+					fn(m2));
+			case 'Horizontal':
+				var motion = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$Horizontal(
+					fn(motion));
+			case 'HorizontalTo':
+				var motion = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$HorizontalTo(
+					fn(motion));
+			case 'Vertical':
+				var motion = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$Vertical(
+					fn(motion));
+			case 'VerticalTo':
+				var motion = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$VerticalTo(
+					fn(motion));
+			case 'Curve':
+				var control1 = cmd.a.control1;
+				var control2 = cmd.a.control2;
+				var point = cmd.a.point;
+				return mdgriffith$elm_style_animation$Animation$Model$Curve(
+					{
+						control1: _Utils_Tuple2(
+							fn(control1.a),
+							fn(control1.b)),
+						control2: _Utils_Tuple2(
+							fn(control2.a),
+							fn(control2.b)),
+						point: _Utils_Tuple2(
+							fn(point.a),
+							fn(point.b))
+					});
+			case 'CurveTo':
+				var control1 = cmd.a.control1;
+				var control2 = cmd.a.control2;
+				var point = cmd.a.point;
+				return mdgriffith$elm_style_animation$Animation$Model$CurveTo(
+					{
+						control1: _Utils_Tuple2(
+							fn(control1.a),
+							fn(control1.b)),
+						control2: _Utils_Tuple2(
+							fn(control2.a),
+							fn(control2.b)),
+						point: _Utils_Tuple2(
+							fn(point.a),
+							fn(point.b))
+					});
+			case 'Quadratic':
+				var control = cmd.a.control;
+				var point = cmd.a.point;
+				return mdgriffith$elm_style_animation$Animation$Model$Quadratic(
+					{
+						control: _Utils_Tuple2(
+							fn(control.a),
+							fn(control.b)),
+						point: _Utils_Tuple2(
+							fn(point.a),
+							fn(point.b))
+					});
+			case 'QuadraticTo':
+				var control = cmd.a.control;
+				var point = cmd.a.point;
+				return mdgriffith$elm_style_animation$Animation$Model$QuadraticTo(
+					{
+						control: _Utils_Tuple2(
+							fn(control.a),
+							fn(control.b)),
+						point: _Utils_Tuple2(
+							fn(point.a),
+							fn(point.b))
+					});
+			case 'SmoothQuadratic':
+				var coords = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$SmoothQuadratic(
+					mapCoords(coords));
+			case 'SmoothQuadraticTo':
+				var coords = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$SmoothQuadraticTo(
+					mapCoords(coords));
+			case 'Smooth':
+				var coords = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$Smooth(
+					mapCoords(coords));
+			case 'SmoothTo':
+				var coords = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$SmoothTo(
+					mapCoords(coords));
+			case 'ClockwiseArc':
+				var arc = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$ClockwiseArc(
+					function () {
+						var y = arc.y;
+						var x = arc.x;
+						var startAngle = arc.startAngle;
+						var radius = arc.radius;
+						var endAngle = arc.endAngle;
+						return _Utils_update(
+							arc,
+							{
+								endAngle: fn(endAngle),
+								radius: fn(radius),
+								startAngle: fn(startAngle),
+								x: fn(x),
+								y: fn(y)
+							});
+					}());
+			case 'AntiClockwiseArc':
+				var arc = cmd.a;
+				return mdgriffith$elm_style_animation$Animation$Model$AntiClockwiseArc(
+					function () {
+						var y = arc.y;
+						var x = arc.x;
+						var startAngle = arc.startAngle;
+						var radius = arc.radius;
+						var endAngle = arc.endAngle;
+						return _Utils_update(
+							arc,
+							{
+								endAngle: fn(endAngle),
+								radius: fn(radius),
+								startAngle: fn(startAngle),
+								x: fn(x),
+								y: fn(y)
+							});
+					}());
+			default:
+				return mdgriffith$elm_style_animation$Animation$Model$Close;
+		}
+	});
+var mdgriffith$elm_style_animation$Animation$Model$mapToMotion = F2(
+	function (fn, prop) {
+		switch (prop.$) {
+			case 'ExactProperty':
+				var name = prop.a;
+				var value = prop.b;
+				return A2(mdgriffith$elm_style_animation$Animation$Model$ExactProperty, name, value);
+			case 'ColorProperty':
+				var name = prop.a;
+				var m1 = prop.b;
+				var m2 = prop.c;
+				var m3 = prop.d;
+				var m4 = prop.e;
+				return A5(
+					mdgriffith$elm_style_animation$Animation$Model$ColorProperty,
+					name,
+					fn(m1),
+					fn(m2),
+					fn(m3),
+					fn(m4));
+			case 'ShadowProperty':
+				var name = prop.a;
+				var inset = prop.b;
+				var shadow = prop.c;
+				var size = shadow.size;
+				var red = shadow.red;
+				var offsetY = shadow.offsetY;
+				var offsetX = shadow.offsetX;
+				var green = shadow.green;
+				var blur = shadow.blur;
+				var blue = shadow.blue;
+				var alpha = shadow.alpha;
+				return A3(
+					mdgriffith$elm_style_animation$Animation$Model$ShadowProperty,
+					name,
+					inset,
+					{
+						alpha: fn(alpha),
+						blue: fn(blue),
+						blur: fn(blur),
+						green: fn(green),
+						offsetX: fn(offsetX),
+						offsetY: fn(offsetY),
+						red: fn(red),
+						size: fn(size)
+					});
+			case 'Property':
+				var name = prop.a;
+				var m1 = prop.b;
+				return A2(
+					mdgriffith$elm_style_animation$Animation$Model$Property,
+					name,
+					fn(m1));
+			case 'Property2':
+				var name = prop.a;
+				var m1 = prop.b;
+				var m2 = prop.c;
+				return A3(
+					mdgriffith$elm_style_animation$Animation$Model$Property2,
+					name,
+					fn(m1),
+					fn(m2));
+			case 'Property3':
+				var name = prop.a;
+				var m1 = prop.b;
+				var m2 = prop.c;
+				var m3 = prop.d;
+				return A4(
+					mdgriffith$elm_style_animation$Animation$Model$Property3,
+					name,
+					fn(m1),
+					fn(m2),
+					fn(m3));
+			case 'Property4':
+				var name = prop.a;
+				var m1 = prop.b;
+				var m2 = prop.c;
+				var m3 = prop.d;
+				var m4 = prop.e;
+				return A5(
+					mdgriffith$elm_style_animation$Animation$Model$Property4,
+					name,
+					fn(m1),
+					fn(m2),
+					fn(m3),
+					fn(m4));
+			case 'AngleProperty':
+				var name = prop.a;
+				var m1 = prop.b;
+				return A2(
+					mdgriffith$elm_style_animation$Animation$Model$AngleProperty,
+					name,
+					fn(m1));
+			case 'Points':
+				var ms = prop.a;
+				return mdgriffith$elm_style_animation$Animation$Model$Points(
+					A2(
+						elm$core$List$map,
+						function (_n1) {
+							var x = _n1.a;
+							var y = _n1.b;
+							return _Utils_Tuple2(
+								fn(x),
+								fn(y));
+						},
+						ms));
+			default:
+				var cmds = prop.a;
+				return mdgriffith$elm_style_animation$Animation$Model$Path(
+					A2(
+						elm$core$List$map,
+						mdgriffith$elm_style_animation$Animation$Model$mapPathMotion(fn),
+						cmds));
+		}
+	});
+var mdgriffith$elm_style_animation$Animation$setDefaultInterpolation = function (prop) {
+	var interp = mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty(prop);
+	return A2(
+		mdgriffith$elm_style_animation$Animation$Model$mapToMotion,
+		function (m) {
+			return _Utils_update(
+				m,
+				{interpolation: interp});
+		},
+		prop);
+};
+var elm$core$Basics$not = _Basics_not;
+var elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2(elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
+var elm$core$List$sortBy = _List_sortBy;
+var elm$core$List$sort = function (xs) {
+	return A2(elm$core$List$sortBy, elm$core$Basics$identity, xs);
+};
+var mdgriffith$elm_style_animation$Animation$Model$propertyName = function (prop) {
+	switch (prop.$) {
+		case 'ExactProperty':
+			var name = prop.a;
+			return name;
+		case 'ColorProperty':
+			var name = prop.a;
+			return name;
+		case 'ShadowProperty':
+			var name = prop.a;
+			return name;
+		case 'Property':
+			var name = prop.a;
+			return name;
+		case 'Property2':
+			var name = prop.a;
+			return name;
+		case 'Property3':
+			var name = prop.a;
+			return name;
+		case 'Property4':
+			var name = prop.a;
+			return name;
+		case 'AngleProperty':
+			var name = prop.a;
+			return name;
+		case 'Points':
+			return 'points';
+		default:
+			return 'path';
+	}
+};
+var mdgriffith$elm_style_animation$Animation$Render$dropWhile = F2(
+	function (predicate, list) {
+		dropWhile:
+		while (true) {
+			if (!list.b) {
+				return _List_Nil;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (predicate(x)) {
+					var $temp$predicate = predicate,
+						$temp$list = xs;
+					predicate = $temp$predicate;
+					list = $temp$list;
+					continue dropWhile;
+				} else {
+					return list;
+				}
+			}
+		}
+	});
+var mdgriffith$elm_style_animation$Animation$Render$takeWhile = function (predicate) {
+	var takeWhileMemo = F2(
+		function (memo, list) {
+			takeWhileMemo:
+			while (true) {
+				if (!list.b) {
+					return elm$core$List$reverse(memo);
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					if (predicate(x)) {
+						var $temp$memo = A2(elm$core$List$cons, x, memo),
+							$temp$list = xs;
+						memo = $temp$memo;
+						list = $temp$list;
+						continue takeWhileMemo;
+					} else {
+						return elm$core$List$reverse(memo);
+					}
+				}
+			}
+		});
+	return takeWhileMemo(_List_Nil);
+};
+var mdgriffith$elm_style_animation$Animation$Render$span = F2(
+	function (p, xs) {
+		return _Utils_Tuple2(
+			A2(mdgriffith$elm_style_animation$Animation$Render$takeWhile, p, xs),
+			A2(mdgriffith$elm_style_animation$Animation$Render$dropWhile, p, xs));
+	});
+var mdgriffith$elm_style_animation$Animation$Render$groupWhile = F2(
+	function (eq, xs_) {
+		if (!xs_.b) {
+			return _List_Nil;
+		} else {
+			var x = xs_.a;
+			var xs = xs_.b;
+			var _n1 = A2(
+				mdgriffith$elm_style_animation$Animation$Render$span,
+				eq(x),
+				xs);
+			var ys = _n1.a;
+			var zs = _n1.b;
+			return A2(
+				elm$core$List$cons,
+				A2(elm$core$List$cons, x, ys),
+				A2(mdgriffith$elm_style_animation$Animation$Render$groupWhile, eq, zs));
+		}
+	});
+var elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
+var elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
+var mdgriffith$elm_style_animation$Animation$Render$isTransformation = function (prop) {
+	return A2(
+		elm$core$List$member,
+		mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
+		_List_fromArray(
+			['rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d', 'translate', 'translate3d', 'scale', 'scale3d']));
+};
+var mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties = function (props) {
+	var _n0 = A2(
+		elm$core$List$map,
+		function (propGroup) {
+			var _n1 = elm$core$List$head(propGroup);
+			if (_n1.$ === 'Nothing') {
+				return '';
+			} else {
+				var name = _n1.a;
+				return (elm$core$List$length(propGroup) > 1) ? '' : '';
+			}
+		},
+		A2(
+			mdgriffith$elm_style_animation$Animation$Render$groupWhile,
+			elm$core$Basics$eq,
+			elm$core$List$sort(
+				A2(
+					elm$core$List$map,
+					mdgriffith$elm_style_animation$Animation$Model$propertyName,
+					A2(
+						elm$core$List$filter,
+						function (prop) {
+							return !mdgriffith$elm_style_animation$Animation$Render$isTransformation(prop);
+						},
+						props)))));
+	return props;
+};
+var mdgriffith$elm_style_animation$Animation$style = function (props) {
+	return mdgriffith$elm_style_animation$Animation$initialState(
+		A2(
+			elm$core$List$map,
+			mdgriffith$elm_style_animation$Animation$setDefaultInterpolation,
+			mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties(props)));
+};
+var author$project$Main$slotSlideStart = mdgriffith$elm_style_animation$Animation$style(
+	_List_fromArray(
+		[
+			mdgriffith$elm_style_animation$Animation$left(
+			mdgriffith$elm_style_animation$Animation$px(-800))
+		]));
+var elm$core$Maybe$map2 = F3(
+	function (func, ma, mb) {
+		if (ma.$ === 'Nothing') {
+			return elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 'Nothing') {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				return elm$core$Maybe$Just(
+					A2(func, a, b));
+			}
+		}
+	});
+var author$project$Main$marry = function (_n0) {
+	var maybeSlot = _n0.a;
+	var maybeTask = _n0.b;
+	if (maybeSlot.$ === 'Just') {
+		var slot = maybeSlot.a;
+		var sameTask = A2(
+			elm$core$Maybe$withDefault,
+			false,
+			A3(
+				elm$core$Maybe$map2,
+				F2(
+					function (a, b) {
+						return _Utils_eq(a.id, b.id);
+					}),
+				slot.currentTask,
+				maybeTask));
+		return _Utils_update(
+			slot,
+			{
+				currentTask: maybeTask,
+				previousTask: (!sameTask) ? slot.currentTask : slot.previousTask,
+				style: sameTask ? slot.style : author$project$Main$slotSlideEnd(author$project$Main$slotSlideStart)
+			});
+	} else {
+		return A3(
+			author$project$Main$Slot,
+			maybeTask,
+			elm$core$Maybe$Nothing,
+			author$project$Main$slotSlideEnd(author$project$Main$slotSlideStart));
+	}
+};
+var author$project$Main$zip = F2(
+	function (a, b) {
+		if (a.b) {
+			var aitem = a.a;
+			var arest = a.b;
+			if (b.b) {
+				var bitem = b.a;
+				var brest = b.b;
+				return _Utils_ap(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							elm$core$Maybe$Just(aitem),
+							elm$core$Maybe$Just(bitem))
+						]),
+					A2(author$project$Main$zip, arest, brest));
+			} else {
+				return _Utils_ap(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							elm$core$Maybe$Just(aitem),
+							elm$core$Maybe$Nothing)
+						]),
+					A2(author$project$Main$zip, arest, _List_Nil));
+			}
+		} else {
+			if (b.b) {
+				var bitem = b.a;
+				var brest = b.b;
+				return _Utils_ap(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							elm$core$Maybe$Nothing,
+							elm$core$Maybe$Just(bitem))
+						]),
+					A2(author$project$Main$zip, _List_Nil, brest));
+			} else {
+				return _List_Nil;
+			}
+		}
+	});
+var author$project$Main$marrySlots = F2(
+	function (slots, tasks) {
+		return A2(
+			elm$core$List$map,
+			author$project$Main$marry,
+			A2(author$project$Main$zip, slots, tasks));
+	});
+var author$project$Main$updateWithSlots = function (_n0) {
+	var model = _n0.a;
+	var cmd = _n0.b;
+	var recentlyDone = A2(author$project$Main$isRecentlyDone, ((12 * 60) * 60) * 1000, model.time);
+	var dueSoon = A2(author$project$Main$isDueSoon, ((12 * 60) * 60) * 1000, model.time);
+	var isVisible = function (task) {
+		return dueSoon(task) || recentlyDone(task);
+	};
+	var visibleTasks = A2(
+		elm$core$List$sortBy,
+		function ($) {
+			return $.nextDue;
+		},
+		A2(elm$core$List$filter, isVisible, model.tasks));
+	return _Utils_Tuple2(
+		_Utils_update(
+			model,
+			{
+				taskSlots: A2(author$project$Main$marrySlots, model.taskSlots, visibleTasks)
+			}),
+		cmd);
+};
+var elm$core$Platform$Cmd$batch = _Platform_batch;
+var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
+var elm$core$Result$withDefault = F2(
+	function (def, result) {
+		if (result.$ === 'Ok') {
+			var a = result.a;
+			return a;
+		} else {
+			return def;
+		}
+	});
+var elm$json$Json$Decode$decodeValue = _Json_run;
+var author$project$Main$init = function (flags) {
+	var model = A2(
+		elm$core$Result$withDefault,
+		A2(author$project$Main$StorageModel, _List_Nil, 0),
+		A2(
+			author$project$Main$logResultErr,
+			'Json Decode',
+			A2(elm$json$Json$Decode$decodeValue, author$project$Main$storageModelDecoder, flags.model)));
+	return author$project$Main$updateWithSlots(
+		_Utils_Tuple2(
+			A5(author$project$Main$Model, flags.time, model.tasks, _List_Nil, model.uid, elm$core$Maybe$Nothing),
+			elm$core$Platform$Cmd$none));
+};
+var author$project$Main$AnimateModal = function (a) {
+	return {$: 'AnimateModal', a: a};
+};
+var elm$core$Platform$Sub$batch = _Platform_batch;
+var elm$core$Platform$Sub$none = elm$core$Platform$Sub$batch(_List_Nil);
+var elm$browser$Browser$AnimationManager$Time = function (a) {
+	return {$: 'Time', a: a};
+};
+var elm$browser$Browser$AnimationManager$State = F3(
+	function (subs, request, oldTime) {
+		return {oldTime: oldTime, request: request, subs: subs};
+	});
+var elm$core$Task$succeed = _Scheduler_succeed;
+var elm$browser$Browser$AnimationManager$init = elm$core$Task$succeed(
+	A3(elm$browser$Browser$AnimationManager$State, _List_Nil, elm$core$Maybe$Nothing, 0));
+var elm$browser$Browser$External = function (a) {
+	return {$: 'External', a: a};
+};
+var elm$browser$Browser$Internal = function (a) {
+	return {$: 'Internal', a: a};
+};
+var elm$browser$Browser$Dom$NotFound = function (a) {
+	return {$: 'NotFound', a: a};
+};
+var elm$core$Basics$never = function (_n0) {
+	never:
+	while (true) {
+		var nvr = _n0.a;
+		var $temp$_n0 = nvr;
+		_n0 = $temp$_n0;
+		continue never;
+	}
+};
+var elm$core$Task$Perform = function (a) {
+	return {$: 'Perform', a: a};
+};
+var elm$core$Task$init = elm$core$Task$succeed(_Utils_Tuple0);
 var elm$core$Task$andThen = _Scheduler_andThen;
 var elm$core$Task$map = F2(
 	function (func, taskA) {
@@ -5421,10 +6405,6 @@ var elm$browser$Browser$AnimationManager$onEffects = F3(
 			}
 		}
 	});
-var elm$time$Time$Posix = function (a) {
-	return {$: 'Posix', a: a};
-};
-var elm$time$Time$millisToPosix = elm$time$Time$Posix;
 var elm$browser$Browser$AnimationManager$onSelfMsg = F3(
 	function (router, newTime, _n0) {
 		var subs = _n0.subs;
@@ -5494,27 +6474,6 @@ var elm$browser$Browser$AnimationManager$onAnimationFrame = function (tagger) {
 		elm$browser$Browser$AnimationManager$Time(tagger));
 };
 var elm$browser$Browser$Events$onAnimationFrame = elm$browser$Browser$AnimationManager$onAnimationFrame;
-var elm$core$List$any = F2(
-	function (isOkay, list) {
-		any:
-		while (true) {
-			if (!list.b) {
-				return false;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (isOkay(x)) {
-					return true;
-				} else {
-					var $temp$isOkay = isOkay,
-						$temp$list = xs;
-					isOkay = $temp$isOkay;
-					list = $temp$list;
-					continue any;
-				}
-			}
-		}
-	});
 var elm$core$Platform$Sub$map = _Platform_map;
 var mdgriffith$elm_style_animation$Animation$isRunning = function (_n0) {
 	var model = _n0.a;
@@ -5536,12 +6495,26 @@ var author$project$Main$animationSubscription = function (model) {
 		var m = _n0.a;
 		return A2(
 			mdgriffith$elm_style_animation$Animation$subscription,
-			author$project$Main$Animate,
+			author$project$Main$AnimateModal,
 			_List_fromArray(
 				[m.bgStyle, m.contentStyle]));
 	} else {
 		return elm$core$Platform$Sub$none;
 	}
+};
+var author$project$Main$AnimateSlots = function (a) {
+	return {$: 'AnimateSlots', a: a};
+};
+var author$project$Main$slotSubscription = function (model) {
+	return A2(
+		mdgriffith$elm_style_animation$Animation$subscription,
+		author$project$Main$AnimateSlots,
+		A2(
+			elm$core$List$map,
+			function ($) {
+				return $.style;
+			},
+			model.taskSlots));
 };
 var author$project$Main$Tick = function (a) {
 	return {$: 'Tick', a: a};
@@ -5957,7 +6930,8 @@ var author$project$Main$subscriptions = function (model) {
 		_List_fromArray(
 			[
 				author$project$Main$timeSubscription(model),
-				author$project$Main$animationSubscription(model)
+				author$project$Main$animationSubscription(model),
+				author$project$Main$slotSubscription(model)
 			]));
 };
 var author$project$Main$EditTask = function (a) {
@@ -5975,28 +6949,6 @@ var author$project$Main$rgba = F4(
 	function (r, g, b, a) {
 		return {alpha: a, blue: b, green: g, red: r};
 	});
-var elm$core$Basics$negate = function (n) {
-	return -n;
-};
-var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
-	return {$: 'Spring', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$initMotion = F2(
-	function (position, unit) {
-		return {
-			interpolation: mdgriffith$elm_style_animation$Animation$Model$Spring(
-				{damping: 26, stiffness: 170}),
-			interpolationOverride: elm$core$Maybe$Nothing,
-			position: position,
-			target: position,
-			unit: unit,
-			velocity: 0
-		};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
-	function (a, b, c, d, e) {
-		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
-	});
 var mdgriffith$elm_style_animation$Animation$customColor = F2(
 	function (name, _n0) {
 		var red = _n0.red;
@@ -6013,143 +6965,6 @@ var mdgriffith$elm_style_animation$Animation$customColor = F2(
 	});
 var mdgriffith$elm_style_animation$Animation$backgroundColor = function (c) {
 	return A2(mdgriffith$elm_style_animation$Animation$customColor, 'background-color', c);
-};
-var elm$core$List$drop = F2(
-	function (n, list) {
-		drop:
-		while (true) {
-			if (n <= 0) {
-				return list;
-			} else {
-				if (!list.b) {
-					return list;
-				} else {
-					var x = list.a;
-					var xs = list.b;
-					var $temp$n = n - 1,
-						$temp$list = xs;
-					n = $temp$n;
-					list = $temp$list;
-					continue drop;
-				}
-			}
-		}
-	});
-var elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return elm$core$Maybe$Just(x);
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
-};
-var elm$time$Time$posixToMillis = function (_n0) {
-	var millis = _n0.a;
-	return millis;
-};
-var mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
-	var _n0 = elm$core$List$head(steps);
-	if (_n0.$ === 'Nothing') {
-		return _Utils_Tuple2(
-			elm$time$Time$millisToPosix(0),
-			_List_Nil);
-	} else {
-		var step = _n0.a;
-		if (step.$ === 'Wait') {
-			var till = step.a;
-			var _n2 = mdgriffith$elm_style_animation$Animation$extractInitialWait(
-				A2(elm$core$List$drop, 1, steps));
-			var additionalTime = _n2.a;
-			var remainingSteps = _n2.b;
-			return _Utils_Tuple2(
-				elm$time$Time$millisToPosix(
-					elm$time$Time$posixToMillis(till) + elm$time$Time$posixToMillis(additionalTime)),
-				remainingSteps);
-		} else {
-			return _Utils_Tuple2(
-				elm$time$Time$millisToPosix(0),
-				steps);
-		}
-	}
-};
-var mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
-	return {$: 'Animation', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$interrupt = F2(
-	function (steps, _n0) {
-		var model = _n0.a;
-		return mdgriffith$elm_style_animation$Animation$Model$Animation(
-			_Utils_update(
-				model,
-				{
-					interruption: A2(
-						elm$core$List$cons,
-						mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
-						model.interruption),
-					running: true
-				}));
-	});
-var mdgriffith$elm_style_animation$Animation$Length = F2(
-	function (a, b) {
-		return {$: 'Length', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
-var mdgriffith$elm_style_animation$Animation$px = function (myPx) {
-	return A2(mdgriffith$elm_style_animation$Animation$Length, myPx, mdgriffith$elm_style_animation$Animation$Px);
-};
-var mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
-	return {$: 'To', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$to = function (props) {
-	return mdgriffith$elm_style_animation$Animation$Model$To(props);
-};
-var mdgriffith$elm_style_animation$Animation$Model$Property = F2(
-	function (a, b) {
-		return {$: 'Property', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$length = F3(
-	function (name, val, unit) {
-		return A2(
-			mdgriffith$elm_style_animation$Animation$Model$Property,
-			name,
-			A2(mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
-	});
-var mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
-	switch (unit.$) {
-		case 'NoUnit':
-			return '';
-		case 'Px':
-			return 'px';
-		case 'Percent':
-			return '%';
-		case 'Rem':
-			return 'rem';
-		case 'Em':
-			return 'em';
-		case 'Ex':
-			return 'ex';
-		case 'Ch':
-			return 'ch';
-		case 'Vh':
-			return 'vh';
-		case 'Vw':
-			return 'vw';
-		case 'Vmin':
-			return 'vmin';
-		case 'Vmax':
-			return 'vmax';
-		case 'Mm':
-			return 'mm';
-		case 'Cm':
-			return 'cm';
-		case 'In':
-			return 'in';
-		case 'Pt':
-			return 'pt';
-		default:
-			return 'pc';
-	}
 };
 var mdgriffith$elm_style_animation$Animation$top = function (_n0) {
 	var val = _n0.a;
@@ -6323,7 +7138,6 @@ var elm$parser$Parser$toToken = function (str) {
 		str,
 		elm$parser$Parser$Expecting(str));
 };
-var elm$core$Basics$not = _Basics_not;
 var elm$parser$Parser$Advanced$AddRight = F2(
 	function (a, b) {
 		return {$: 'AddRight', a: a, b: b};
@@ -6740,622 +7554,6 @@ var author$project$Main$getPeriodMillis = function (model) {
 				author$project$Main$periodParser,
 				elm$core$String$toLower(model.period))));
 };
-var mdgriffith$elm_style_animation$Animation$initialState = function (current) {
-	return mdgriffith$elm_style_animation$Animation$Model$Animation(
-		{
-			interruption: _List_Nil,
-			running: false,
-			steps: _List_Nil,
-			style: current,
-			timing: {
-				current: elm$time$Time$millisToPosix(0),
-				dt: elm$time$Time$millisToPosix(0)
-			}
-		});
-};
-var elm$core$Basics$pi = _Basics_pi;
-var mdgriffith$elm_style_animation$Animation$Model$AtSpeed = function (a) {
-	return {$: 'AtSpeed', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$speed = function (speedValue) {
-	return mdgriffith$elm_style_animation$Animation$Model$AtSpeed(speedValue);
-};
-var mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
-	return {$: 'Easing', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty = function (prop) {
-	var linear = function (duration) {
-		return mdgriffith$elm_style_animation$Animation$Model$Easing(
-			{duration: duration, ease: elm$core$Basics$identity, progress: 1, start: 0});
-	};
-	var defaultSpring = mdgriffith$elm_style_animation$Animation$Model$Spring(
-		{damping: 26, stiffness: 170});
-	switch (prop.$) {
-		case 'ExactProperty':
-			return defaultSpring;
-		case 'ColorProperty':
-			return linear(
-				elm$time$Time$millisToPosix(400));
-		case 'ShadowProperty':
-			return defaultSpring;
-		case 'Property':
-			return defaultSpring;
-		case 'Property2':
-			return defaultSpring;
-		case 'Property3':
-			var name = prop.a;
-			return (name === 'rotate3d') ? mdgriffith$elm_style_animation$Animation$speed(
-				{perSecond: elm$core$Basics$pi}) : defaultSpring;
-		case 'Property4':
-			return defaultSpring;
-		case 'AngleProperty':
-			return mdgriffith$elm_style_animation$Animation$speed(
-				{perSecond: elm$core$Basics$pi});
-		case 'Points':
-			return defaultSpring;
-		default:
-			return defaultSpring;
-	}
-};
-var mdgriffith$elm_style_animation$Animation$Model$AngleProperty = F2(
-	function (a, b) {
-		return {$: 'AngleProperty', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
-	function (a, b) {
-		return {$: 'ExactProperty', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$Path = function (a) {
-	return {$: 'Path', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Points = function (a) {
-	return {$: 'Points', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Property2 = F3(
-	function (a, b, c) {
-		return {$: 'Property2', a: a, b: b, c: c};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$Property3 = F4(
-	function (a, b, c, d) {
-		return {$: 'Property3', a: a, b: b, c: c, d: d};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$Property4 = F5(
-	function (a, b, c, d, e) {
-		return {$: 'Property4', a: a, b: b, c: c, d: d, e: e};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$ShadowProperty = F3(
-	function (a, b, c) {
-		return {$: 'ShadowProperty', a: a, b: b, c: c};
-	});
-var elm$core$Tuple$second = function (_n0) {
-	var y = _n0.b;
-	return y;
-};
-var mdgriffith$elm_style_animation$Animation$Model$AntiClockwiseArc = function (a) {
-	return {$: 'AntiClockwiseArc', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$ClockwiseArc = function (a) {
-	return {$: 'ClockwiseArc', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Close = {$: 'Close'};
-var mdgriffith$elm_style_animation$Animation$Model$Curve = function (a) {
-	return {$: 'Curve', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$CurveTo = function (a) {
-	return {$: 'CurveTo', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Horizontal = function (a) {
-	return {$: 'Horizontal', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$HorizontalTo = function (a) {
-	return {$: 'HorizontalTo', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Line = F2(
-	function (a, b) {
-		return {$: 'Line', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$LineTo = F2(
-	function (a, b) {
-		return {$: 'LineTo', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$Move = F2(
-	function (a, b) {
-		return {$: 'Move', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$MoveTo = F2(
-	function (a, b) {
-		return {$: 'MoveTo', a: a, b: b};
-	});
-var mdgriffith$elm_style_animation$Animation$Model$Quadratic = function (a) {
-	return {$: 'Quadratic', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$QuadraticTo = function (a) {
-	return {$: 'QuadraticTo', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Smooth = function (a) {
-	return {$: 'Smooth', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$SmoothQuadratic = function (a) {
-	return {$: 'SmoothQuadratic', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$SmoothQuadraticTo = function (a) {
-	return {$: 'SmoothQuadraticTo', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$SmoothTo = function (a) {
-	return {$: 'SmoothTo', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$Vertical = function (a) {
-	return {$: 'Vertical', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$VerticalTo = function (a) {
-	return {$: 'VerticalTo', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Model$mapPathMotion = F2(
-	function (fn, cmd) {
-		var mapCoords = function (coords) {
-			return A2(
-				elm$core$List$map,
-				function (_n1) {
-					var x = _n1.a;
-					var y = _n1.b;
-					return _Utils_Tuple2(
-						fn(x),
-						fn(y));
-				},
-				coords);
-		};
-		switch (cmd.$) {
-			case 'Move':
-				var m1 = cmd.a;
-				var m2 = cmd.b;
-				return A2(
-					mdgriffith$elm_style_animation$Animation$Model$Move,
-					fn(m1),
-					fn(m2));
-			case 'MoveTo':
-				var m1 = cmd.a;
-				var m2 = cmd.b;
-				return A2(
-					mdgriffith$elm_style_animation$Animation$Model$MoveTo,
-					fn(m1),
-					fn(m2));
-			case 'Line':
-				var m1 = cmd.a;
-				var m2 = cmd.b;
-				return A2(
-					mdgriffith$elm_style_animation$Animation$Model$Line,
-					fn(m1),
-					fn(m2));
-			case 'LineTo':
-				var m1 = cmd.a;
-				var m2 = cmd.b;
-				return A2(
-					mdgriffith$elm_style_animation$Animation$Model$LineTo,
-					fn(m1),
-					fn(m2));
-			case 'Horizontal':
-				var motion = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$Horizontal(
-					fn(motion));
-			case 'HorizontalTo':
-				var motion = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$HorizontalTo(
-					fn(motion));
-			case 'Vertical':
-				var motion = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$Vertical(
-					fn(motion));
-			case 'VerticalTo':
-				var motion = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$VerticalTo(
-					fn(motion));
-			case 'Curve':
-				var control1 = cmd.a.control1;
-				var control2 = cmd.a.control2;
-				var point = cmd.a.point;
-				return mdgriffith$elm_style_animation$Animation$Model$Curve(
-					{
-						control1: _Utils_Tuple2(
-							fn(control1.a),
-							fn(control1.b)),
-						control2: _Utils_Tuple2(
-							fn(control2.a),
-							fn(control2.b)),
-						point: _Utils_Tuple2(
-							fn(point.a),
-							fn(point.b))
-					});
-			case 'CurveTo':
-				var control1 = cmd.a.control1;
-				var control2 = cmd.a.control2;
-				var point = cmd.a.point;
-				return mdgriffith$elm_style_animation$Animation$Model$CurveTo(
-					{
-						control1: _Utils_Tuple2(
-							fn(control1.a),
-							fn(control1.b)),
-						control2: _Utils_Tuple2(
-							fn(control2.a),
-							fn(control2.b)),
-						point: _Utils_Tuple2(
-							fn(point.a),
-							fn(point.b))
-					});
-			case 'Quadratic':
-				var control = cmd.a.control;
-				var point = cmd.a.point;
-				return mdgriffith$elm_style_animation$Animation$Model$Quadratic(
-					{
-						control: _Utils_Tuple2(
-							fn(control.a),
-							fn(control.b)),
-						point: _Utils_Tuple2(
-							fn(point.a),
-							fn(point.b))
-					});
-			case 'QuadraticTo':
-				var control = cmd.a.control;
-				var point = cmd.a.point;
-				return mdgriffith$elm_style_animation$Animation$Model$QuadraticTo(
-					{
-						control: _Utils_Tuple2(
-							fn(control.a),
-							fn(control.b)),
-						point: _Utils_Tuple2(
-							fn(point.a),
-							fn(point.b))
-					});
-			case 'SmoothQuadratic':
-				var coords = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$SmoothQuadratic(
-					mapCoords(coords));
-			case 'SmoothQuadraticTo':
-				var coords = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$SmoothQuadraticTo(
-					mapCoords(coords));
-			case 'Smooth':
-				var coords = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$Smooth(
-					mapCoords(coords));
-			case 'SmoothTo':
-				var coords = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$SmoothTo(
-					mapCoords(coords));
-			case 'ClockwiseArc':
-				var arc = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$ClockwiseArc(
-					function () {
-						var y = arc.y;
-						var x = arc.x;
-						var startAngle = arc.startAngle;
-						var radius = arc.radius;
-						var endAngle = arc.endAngle;
-						return _Utils_update(
-							arc,
-							{
-								endAngle: fn(endAngle),
-								radius: fn(radius),
-								startAngle: fn(startAngle),
-								x: fn(x),
-								y: fn(y)
-							});
-					}());
-			case 'AntiClockwiseArc':
-				var arc = cmd.a;
-				return mdgriffith$elm_style_animation$Animation$Model$AntiClockwiseArc(
-					function () {
-						var y = arc.y;
-						var x = arc.x;
-						var startAngle = arc.startAngle;
-						var radius = arc.radius;
-						var endAngle = arc.endAngle;
-						return _Utils_update(
-							arc,
-							{
-								endAngle: fn(endAngle),
-								radius: fn(radius),
-								startAngle: fn(startAngle),
-								x: fn(x),
-								y: fn(y)
-							});
-					}());
-			default:
-				return mdgriffith$elm_style_animation$Animation$Model$Close;
-		}
-	});
-var mdgriffith$elm_style_animation$Animation$Model$mapToMotion = F2(
-	function (fn, prop) {
-		switch (prop.$) {
-			case 'ExactProperty':
-				var name = prop.a;
-				var value = prop.b;
-				return A2(mdgriffith$elm_style_animation$Animation$Model$ExactProperty, name, value);
-			case 'ColorProperty':
-				var name = prop.a;
-				var m1 = prop.b;
-				var m2 = prop.c;
-				var m3 = prop.d;
-				var m4 = prop.e;
-				return A5(
-					mdgriffith$elm_style_animation$Animation$Model$ColorProperty,
-					name,
-					fn(m1),
-					fn(m2),
-					fn(m3),
-					fn(m4));
-			case 'ShadowProperty':
-				var name = prop.a;
-				var inset = prop.b;
-				var shadow = prop.c;
-				var size = shadow.size;
-				var red = shadow.red;
-				var offsetY = shadow.offsetY;
-				var offsetX = shadow.offsetX;
-				var green = shadow.green;
-				var blur = shadow.blur;
-				var blue = shadow.blue;
-				var alpha = shadow.alpha;
-				return A3(
-					mdgriffith$elm_style_animation$Animation$Model$ShadowProperty,
-					name,
-					inset,
-					{
-						alpha: fn(alpha),
-						blue: fn(blue),
-						blur: fn(blur),
-						green: fn(green),
-						offsetX: fn(offsetX),
-						offsetY: fn(offsetY),
-						red: fn(red),
-						size: fn(size)
-					});
-			case 'Property':
-				var name = prop.a;
-				var m1 = prop.b;
-				return A2(
-					mdgriffith$elm_style_animation$Animation$Model$Property,
-					name,
-					fn(m1));
-			case 'Property2':
-				var name = prop.a;
-				var m1 = prop.b;
-				var m2 = prop.c;
-				return A3(
-					mdgriffith$elm_style_animation$Animation$Model$Property2,
-					name,
-					fn(m1),
-					fn(m2));
-			case 'Property3':
-				var name = prop.a;
-				var m1 = prop.b;
-				var m2 = prop.c;
-				var m3 = prop.d;
-				return A4(
-					mdgriffith$elm_style_animation$Animation$Model$Property3,
-					name,
-					fn(m1),
-					fn(m2),
-					fn(m3));
-			case 'Property4':
-				var name = prop.a;
-				var m1 = prop.b;
-				var m2 = prop.c;
-				var m3 = prop.d;
-				var m4 = prop.e;
-				return A5(
-					mdgriffith$elm_style_animation$Animation$Model$Property4,
-					name,
-					fn(m1),
-					fn(m2),
-					fn(m3),
-					fn(m4));
-			case 'AngleProperty':
-				var name = prop.a;
-				var m1 = prop.b;
-				return A2(
-					mdgriffith$elm_style_animation$Animation$Model$AngleProperty,
-					name,
-					fn(m1));
-			case 'Points':
-				var ms = prop.a;
-				return mdgriffith$elm_style_animation$Animation$Model$Points(
-					A2(
-						elm$core$List$map,
-						function (_n1) {
-							var x = _n1.a;
-							var y = _n1.b;
-							return _Utils_Tuple2(
-								fn(x),
-								fn(y));
-						},
-						ms));
-			default:
-				var cmds = prop.a;
-				return mdgriffith$elm_style_animation$Animation$Model$Path(
-					A2(
-						elm$core$List$map,
-						mdgriffith$elm_style_animation$Animation$Model$mapPathMotion(fn),
-						cmds));
-		}
-	});
-var mdgriffith$elm_style_animation$Animation$setDefaultInterpolation = function (prop) {
-	var interp = mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty(prop);
-	return A2(
-		mdgriffith$elm_style_animation$Animation$Model$mapToMotion,
-		function (m) {
-			return _Utils_update(
-				m,
-				{interpolation: interp});
-		},
-		prop);
-};
-var elm$core$List$filter = F2(
-	function (isGood, list) {
-		return A3(
-			elm$core$List$foldr,
-			F2(
-				function (x, xs) {
-					return isGood(x) ? A2(elm$core$List$cons, x, xs) : xs;
-				}),
-			_List_Nil,
-			list);
-	});
-var elm$core$List$sortBy = _List_sortBy;
-var elm$core$List$sort = function (xs) {
-	return A2(elm$core$List$sortBy, elm$core$Basics$identity, xs);
-};
-var mdgriffith$elm_style_animation$Animation$Model$propertyName = function (prop) {
-	switch (prop.$) {
-		case 'ExactProperty':
-			var name = prop.a;
-			return name;
-		case 'ColorProperty':
-			var name = prop.a;
-			return name;
-		case 'ShadowProperty':
-			var name = prop.a;
-			return name;
-		case 'Property':
-			var name = prop.a;
-			return name;
-		case 'Property2':
-			var name = prop.a;
-			return name;
-		case 'Property3':
-			var name = prop.a;
-			return name;
-		case 'Property4':
-			var name = prop.a;
-			return name;
-		case 'AngleProperty':
-			var name = prop.a;
-			return name;
-		case 'Points':
-			return 'points';
-		default:
-			return 'path';
-	}
-};
-var mdgriffith$elm_style_animation$Animation$Render$dropWhile = F2(
-	function (predicate, list) {
-		dropWhile:
-		while (true) {
-			if (!list.b) {
-				return _List_Nil;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (predicate(x)) {
-					var $temp$predicate = predicate,
-						$temp$list = xs;
-					predicate = $temp$predicate;
-					list = $temp$list;
-					continue dropWhile;
-				} else {
-					return list;
-				}
-			}
-		}
-	});
-var mdgriffith$elm_style_animation$Animation$Render$takeWhile = function (predicate) {
-	var takeWhileMemo = F2(
-		function (memo, list) {
-			takeWhileMemo:
-			while (true) {
-				if (!list.b) {
-					return elm$core$List$reverse(memo);
-				} else {
-					var x = list.a;
-					var xs = list.b;
-					if (predicate(x)) {
-						var $temp$memo = A2(elm$core$List$cons, x, memo),
-							$temp$list = xs;
-						memo = $temp$memo;
-						list = $temp$list;
-						continue takeWhileMemo;
-					} else {
-						return elm$core$List$reverse(memo);
-					}
-				}
-			}
-		});
-	return takeWhileMemo(_List_Nil);
-};
-var mdgriffith$elm_style_animation$Animation$Render$span = F2(
-	function (p, xs) {
-		return _Utils_Tuple2(
-			A2(mdgriffith$elm_style_animation$Animation$Render$takeWhile, p, xs),
-			A2(mdgriffith$elm_style_animation$Animation$Render$dropWhile, p, xs));
-	});
-var mdgriffith$elm_style_animation$Animation$Render$groupWhile = F2(
-	function (eq, xs_) {
-		if (!xs_.b) {
-			return _List_Nil;
-		} else {
-			var x = xs_.a;
-			var xs = xs_.b;
-			var _n1 = A2(
-				mdgriffith$elm_style_animation$Animation$Render$span,
-				eq(x),
-				xs);
-			var ys = _n1.a;
-			var zs = _n1.b;
-			return A2(
-				elm$core$List$cons,
-				A2(elm$core$List$cons, x, ys),
-				A2(mdgriffith$elm_style_animation$Animation$Render$groupWhile, eq, zs));
-		}
-	});
-var elm$core$List$member = F2(
-	function (x, xs) {
-		return A2(
-			elm$core$List$any,
-			function (a) {
-				return _Utils_eq(a, x);
-			},
-			xs);
-	});
-var mdgriffith$elm_style_animation$Animation$Render$isTransformation = function (prop) {
-	return A2(
-		elm$core$List$member,
-		mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
-		_List_fromArray(
-			['rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d', 'translate', 'translate3d', 'scale', 'scale3d']));
-};
-var mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties = function (props) {
-	var _n0 = A2(
-		elm$core$List$map,
-		function (propGroup) {
-			var _n1 = elm$core$List$head(propGroup);
-			if (_n1.$ === 'Nothing') {
-				return '';
-			} else {
-				var name = _n1.a;
-				return (elm$core$List$length(propGroup) > 1) ? '' : '';
-			}
-		},
-		A2(
-			mdgriffith$elm_style_animation$Animation$Render$groupWhile,
-			elm$core$Basics$eq,
-			elm$core$List$sort(
-				A2(
-					elm$core$List$map,
-					mdgriffith$elm_style_animation$Animation$Model$propertyName,
-					A2(
-						elm$core$List$filter,
-						function (prop) {
-							return !mdgriffith$elm_style_animation$Animation$Render$isTransformation(prop);
-						},
-						props)))));
-	return props;
-};
-var mdgriffith$elm_style_animation$Animation$style = function (props) {
-	return mdgriffith$elm_style_animation$Animation$initialState(
-		A2(
-			elm$core$List$map,
-			mdgriffith$elm_style_animation$Animation$setDefaultInterpolation,
-			mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties(props)));
-};
 var author$project$Main$initalBgStyle = mdgriffith$elm_style_animation$Animation$style(
 	_List_fromArray(
 		[
@@ -7470,16 +7668,23 @@ var author$project$Main$store = F2(
 					])));
 	});
 var elm$core$Basics$neq = _Utils_notEqual;
-var elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return elm$core$Maybe$Nothing;
-		}
-	});
+var elm$core$List$unzip = function (pairs) {
+	var step = F2(
+		function (_n0, _n1) {
+			var x = _n0.a;
+			var y = _n0.b;
+			var xs = _n1.a;
+			var ys = _n1.b;
+			return _Utils_Tuple2(
+				A2(elm$core$List$cons, x, xs),
+				A2(elm$core$List$cons, y, ys));
+		});
+	return A3(
+		elm$core$List$foldr,
+		step,
+		_Utils_Tuple2(_List_Nil, _List_Nil),
+		pairs);
+};
 var elm$core$List$partition = F2(
 	function (pred, list) {
 		var step = F2(
@@ -7526,15 +7731,6 @@ var mdgriffith$elm_style_animation$Animation$Model$Step = {$: 'Step'};
 var mdgriffith$elm_style_animation$Animation$Model$Wait = function (a) {
 	return {$: 'Wait', a: a};
 };
-var elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
 var mdgriffith$elm_style_animation$Animation$Model$isCmdDone = function (cmd) {
 	var motionDone = function (motion) {
 		return (!motion.velocity) && _Utils_eq(motion.position, motion.target);
@@ -9146,32 +9342,70 @@ var author$project$Main$update = F2(
 							modalModel: elm$core$Maybe$Just(modalModel)
 						}),
 					elm$core$Platform$Cmd$none);
-			case 'Animate':
+			case 'AnimateSlots':
 				var animMsg = msg.a;
-				var _n1 = model.modalModel;
-				if (_n1.$ === 'Just') {
-					var m = _n1.a;
-					var _n2 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.contentStyle);
-					var newContentStyle = _n2.a;
-					var cmd2 = _n2.b;
-					var _n3 = A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, m.bgStyle);
-					var newBGStyle = _n3.a;
-					var cmd1 = _n3.b;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{
-								modalModel: elm$core$Maybe$Just(
-									_Utils_update(
-										m,
-										{bgStyle: newBGStyle, contentStyle: newContentStyle}))
-							}),
-						elm$core$Platform$Cmd$batch(
-							_List_fromArray(
-								[cmd1, cmd2])));
-				} else {
-					return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
-				}
+				var updateStyle = function (s) {
+					return A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, s);
+				};
+				var _n1 = elm$core$List$unzip(
+					A2(
+						elm$core$List$map,
+						updateStyle,
+						A2(
+							elm$core$List$map,
+							function ($) {
+								return $.style;
+							},
+							model.taskSlots)));
+				var slotStyles = _n1.a;
+				var slotCmds = _n1.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							taskSlots: A3(
+								elm$core$List$map2,
+								F2(
+									function (slot, style) {
+										return _Utils_update(
+											slot,
+											{style: style});
+									}),
+								model.taskSlots,
+								slotStyles)
+						}),
+					elm$core$Platform$Cmd$batch(slotCmds));
+			case 'AnimateModal':
+				var animMsg = msg.a;
+				return A2(
+					elm$core$Maybe$withDefault,
+					_Utils_Tuple2(model, elm$core$Platform$Cmd$none),
+					A2(
+						elm$core$Maybe$map,
+						function (modal) {
+							var updateStyle = function (s) {
+								return A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, s);
+							};
+							var _n2 = updateStyle(modal.contentStyle);
+							var contentStyle = _n2.a;
+							var cmd2 = _n2.b;
+							var _n3 = updateStyle(modal.bgStyle);
+							var bgStyle = _n3.a;
+							var cmd1 = _n3.b;
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										modalModel: elm$core$Maybe$Just(
+											_Utils_update(
+												modal,
+												{bgStyle: bgStyle, contentStyle: contentStyle}))
+									}),
+								elm$core$Platform$Cmd$batch(
+									_List_fromArray(
+										[cmd1, cmd2])));
+						},
+						model.modalModel));
 			case 'ChangeDescription':
 				var newTaskModel = msg.a;
 				var desc = msg.b;
@@ -9293,22 +9527,6 @@ var author$project$Main$update = F2(
 						}),
 					elm$core$Platform$Cmd$none);
 		}
-	});
-var author$project$Main$isDueSoon = F3(
-	function (period, now, task) {
-		return _Utils_cmp(now + period, task.nextDue) > 0;
-	});
-var author$project$Main$isRecentlyDone = F3(
-	function (period, now, task) {
-		return A2(
-			elm$core$Maybe$withDefault,
-			false,
-			A2(
-				elm$core$Maybe$map,
-				function (t) {
-					return _Utils_cmp(now - period, t) < 0;
-				},
-				task.lastDone));
 	});
 var author$project$Main$CloseModal = {$: 'CloseModal'};
 var author$project$Main$NoOp = {$: 'NoOp'};
@@ -10365,12 +10583,11 @@ var author$project$Main$millisPeriodToString = function (millis) {
 	var days = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Day)) | 0;
 	return (months >= 1) ? A2(author$project$Main$addS, months, 'Month') : ((weeks >= 1) ? A2(author$project$Main$addS, weeks, 'Week') : ((days >= 1) ? A2(author$project$Main$addS, days, 'Day') : ((hours >= 1) ? A2(author$project$Main$addS, hours, 'hour') : ((weeks >= 1) ? A2(author$project$Main$addS, minutes, 'Minute') : '1 Minute'))));
 };
-var elm$html$Html$li = _VirtualDom_node('li');
 var author$project$Main$viewTask = F2(
 	function (time, task) {
 		var recentlyDone = A3(author$project$Main$isRecentlyDone, ((12 * 60) * 60) * 1000, time, task);
 		return A2(
-			elm$html$Html$li,
+			elm$html$Html$div,
 			_List_Nil,
 			_List_fromArray(
 				[
@@ -10437,20 +10654,36 @@ var author$project$Main$viewTask = F2(
 						]))
 				]));
 	});
-var elm$virtual_dom$VirtualDom$lazy2 = _VirtualDom_lazy2;
-var elm$html$Html$Lazy$lazy2 = elm$virtual_dom$VirtualDom$lazy2;
-var author$project$Main$viewKeyedTask = F2(
-	function (time, task) {
-		return _Utils_Tuple2(
-			elm$core$String$fromInt(task.id),
-			A3(elm$html$Html$Lazy$lazy2, author$project$Main$viewTask, time, task));
+var elm$html$Html$li = _VirtualDom_node('li');
+var author$project$Main$viewSlot = F2(
+	function (time, slot) {
+		return A2(
+			elm$html$Html$li,
+			_Utils_ap(
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('slot')
+					]),
+				mdgriffith$elm_style_animation$Animation$render(slot.style)),
+			_List_fromArray(
+				[
+					A2(
+					elm$core$Maybe$withDefault,
+					A2(elm$html$Html$div, _List_Nil, _List_Nil),
+					A2(
+						elm$core$Maybe$map,
+						author$project$Main$viewTask(time),
+						slot.currentTask)),
+					A2(
+					elm$core$Maybe$withDefault,
+					A2(elm$html$Html$div, _List_Nil, _List_Nil),
+					A2(
+						elm$core$Maybe$map,
+						author$project$Main$viewTask(time),
+						slot.previousTask))
+				]));
 	});
-var elm$virtual_dom$VirtualDom$keyedNode = function (tag) {
-	return _VirtualDom_keyedNode(
-		_VirtualDom_noScript(tag));
-};
-var elm$html$Html$Keyed$node = elm$virtual_dom$VirtualDom$keyedNode;
-var elm$html$Html$Keyed$ul = elm$html$Html$Keyed$node('ul');
+var elm$html$Html$ul = _VirtualDom_node('ul');
 var author$project$Main$viewTasks = F2(
 	function (time, tasks) {
 		return A2(
@@ -10462,29 +10695,18 @@ var author$project$Main$viewTasks = F2(
 			_List_fromArray(
 				[
 					A2(
-					elm$html$Html$Keyed$ul,
+					elm$html$Html$ul,
 					_List_fromArray(
 						[
 							elm$html$Html$Attributes$class('task-list')
 						]),
 					A2(
 						elm$core$List$map,
-						author$project$Main$viewKeyedTask(time),
+						author$project$Main$viewSlot(time),
 						tasks))
 				]));
 	});
 var author$project$Main$view = function (model) {
-	var recentlyDone = A2(author$project$Main$isRecentlyDone, ((12 * 60) * 60) * 1000, model.time);
-	var dueSoon = A2(author$project$Main$isDueSoon, ((12 * 60) * 60) * 1000, model.time);
-	var isVisible = function (task) {
-		return dueSoon(task) || recentlyDone(task);
-	};
-	var visibleTasks = A2(
-		elm$core$List$sortBy,
-		function ($) {
-			return $.nextDue;
-		},
-		A2(elm$core$List$filter, isVisible, model.tasks));
 	return A2(
 		elm$html$Html$div,
 		_List_fromArray(
@@ -10495,7 +10717,7 @@ var author$project$Main$view = function (model) {
 			[
 				author$project$Main$maybeModalView(model),
 				author$project$Main$viewMenu,
-				A2(author$project$Main$viewTasks, model.time, visibleTasks)
+				A2(author$project$Main$viewTasks, model.time, model.taskSlots)
 			]));
 };
 var elm$browser$Browser$document = _Browser_document;
@@ -10505,7 +10727,11 @@ var author$project$Main$main = elm$browser$Browser$document(
 	{
 		init: author$project$Main$init,
 		subscriptions: author$project$Main$subscriptions,
-		update: author$project$Main$update,
+		update: F2(
+			function (m, c) {
+				return author$project$Main$updateWithSlots(
+					A2(author$project$Main$update, m, c));
+			}),
 		view: function (model) {
 			return {
 				body: _List_fromArray(

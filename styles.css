@@ -110,6 +110,7 @@ html {
 
 .wrapper {
   max-width: 800px;
+  overflow: hidden;
 }
 
 .task-view {
@@ -194,4 +195,15 @@ html {
 modal-view-buttons {
   display: flex;
   flex-direction: row;
+}
+
+.slot {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+}
+
+.slot > div {
+  min-width: 800px;
 }

@@ -15,6 +15,7 @@ import Json.Decode exposing (Decoder, field, string, int)
 import Animation exposing (px)
 import Animation.Messenger
 
+
 -- TODO figure out why we can't import this...
 rgba r g b a=
     { red = r
@@ -32,7 +33,7 @@ main =
     Browser.document
         { init = init
         , view = \model -> { title = "Tasks", body = [view model] }
-        , update = update
+        , update = (\m c -> updateWithSlots (update m c))
         , subscriptions = subscriptions
         }
 init : Flags -> ( Model, Cmd Msg )
@@ -41,7 +42,7 @@ init flags =
         model = (logResultErr "Json Decode" (Json.Decode.decodeValue storageModelDecoder flags.model))
             |> Result.withDefault (StorageModel [] 0)
     in
-        (Model flags.time model.tasks model.uid Nothing, Cmd.none)
+        updateWithSlots (Model flags.time model.tasks [] model.uid Nothing, Cmd.none)
 
 port storeTasks : StorageModel -> Cmd msg
 store : Model -> Cmd Msg -> (Model, Cmd Msg)
@@ -53,6 +54,7 @@ store model cmd =
 type alias Model =
   { time : Int
   , tasks : List Task
+  , taskSlots : List Slot
   , uid : Int
   , modalModel : Maybe ModalModel
   }
@@ -88,8 +90,12 @@ newTask time uid model =
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
     case model.modalModel of
-        Just m -> (Animation.subscription Animate [ m.bgStyle, m.contentStyle ])
+        Just m -> (Animation.subscription AnimateModal [ m.bgStyle, m.contentStyle ])
         Nothing -> (Sub.none)
+
+slotSubscription : Model -> Sub Msg
+slotSubscription model =
+    Animation.subscription AnimateSlots (List.map .style model.taskSlots)
 
 timeSubscription : Model -> Sub Msg
 timeSubscription model =
@@ -97,7 +103,7 @@ timeSubscription model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Sub.batch [timeSubscription model, animationSubscription model]
+  Sub.batch [timeSubscription model, animationSubscription model, slotSubscription model]
 
 -- UPDATE
 type Msg
@@ -108,7 +114,8 @@ type Msg
     | OpenModal Modal
     | CloseModal
     | ClearModal
-    | Animate Animation.Msg
+    | AnimateSlots Animation.Msg
+    | AnimateModal Animation.Msg
     | ChangeDescription NewTaskModel String
     | ChangeTag NewTaskModel String
     | ChangePeriod NewTaskModel String
@@ -129,6 +136,16 @@ closeModal m =
         ]
         m.contentStyle
     }
+
+updateWithSlots : (Model, Cmd Msg) -> (Model, Cmd Msg)
+updateWithSlots (model, cmd) =
+    let
+        recentlyDone = isRecentlyDone (12*60*60*1000) model.time
+        dueSoon = isDueSoon (12*60*60*1000) model.time
+        isVisible task = (dueSoon task) || (recentlyDone task)
+        visibleTasks = (List.sortBy .nextDue (List.filter isVisible model.tasks))
+    in
+        ({model | taskSlots = (marrySlots model.taskSlots visibleTasks)}, cmd)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -197,18 +214,36 @@ update msg model =
                     (Animation.interrupt [ Animation.to [ Animation.top (px 0)] ] initalContentStyle)
             in
                 ( { model | modalModel = Just modalModel }, Cmd.none)
-        Animate animMsg ->
-            case model.modalModel of
-                Just m -> (
-                    let
-                        ( newBGStyle, cmd1 ) =
-                                Animation.Messenger.update animMsg m.bgStyle
-                        ( newContentStyle, cmd2 ) =
-                                Animation.Messenger.update animMsg m.contentStyle
-                    in
-                        ( { model | modalModel = Just {m | bgStyle = newBGStyle, contentStyle = newContentStyle}}, Cmd.batch [cmd1, cmd2])
+        AnimateSlots animMsg ->
+            let
+                updateStyle s = Animation.Messenger.update animMsg s
+                (slotStyles, slotCmds) = List.map .style model.taskSlots 
+                    |> List.map updateStyle
+                    |> List.unzip
+            in
+                ({model
+                | taskSlots = List.map2 
+                    (\slot style -> {slot | style = style})
+                    model.taskSlots
+                    slotStyles
+                }, Cmd.batch(slotCmds))
+        AnimateModal animMsg ->
+            Maybe.withDefault 
+                (model, Cmd.none)
+                (Maybe.map
+                    (\modal ->
+                        let
+                            updateStyle s = Animation.Messenger.update animMsg s
+                            (bgStyle, cmd1) = updateStyle modal.bgStyle
+                            (contentStyle, cmd2) = updateStyle modal.contentStyle 
+                        in
+                        ( {model
+                            | modalModel = Just {modal | bgStyle = bgStyle, contentStyle = contentStyle}
+                            }
+                        , (Cmd.batch [cmd1, cmd2])
+                        )
                     )
-                Nothing -> (model, Cmd.none)
+                    model.modalModel)
         ChangeDescription newTaskModel desc ->
             let
                 newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | description = desc}}
@@ -241,20 +276,73 @@ update msg model =
                 ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
 
 -- VIEW
+
+type alias Slot = 
+    { currentTask : Maybe Task
+    , previousTask : Maybe Task
+    , style : Animation.Messenger.State Msg
+    }
+
+-- Zip that doesnt drop items
+zip : List a -> List b -> List (Maybe a, Maybe b)
+zip a b =
+    case a of
+        aitem :: arest ->
+            case b of
+                bitem :: brest ->
+                    ([(Just aitem, Just bitem)] ++ zip arest brest)
+                _ -> [(Just aitem, Nothing)] ++ zip arest []
+        _ ->
+            case b of
+                bitem :: brest ->
+                    ([(Nothing, Just bitem)] ++ zip [] brest)
+                _ -> []
+
+slotSlideStart = (Animation.style [ Animation.left (px -800) ])
+slotSlideEnd =
+        Animation.interrupt [ Animation.to [ Animation.left (px 0) ] ]
+
+marry : (Maybe Slot, Maybe Task) -> Slot
+marry (maybeSlot, maybeTask) =
+    case maybeSlot of
+        Just slot -> (
+            let
+                sameTask = Maybe.withDefault False (Maybe.map2 (\a b -> a.id == b.id) slot.currentTask maybeTask)
+            in
+                {slot
+                | currentTask = maybeTask
+                , previousTask = if not sameTask then slot.currentTask else slot.previousTask
+                , style = if sameTask then
+                    slot.style
+                    else (slotSlideEnd slotSlideStart)
+                })
+        Nothing ->
+            -- Slot created, should slide in
+            (Slot maybeTask Nothing (slotSlideEnd slotSlideStart))
+
+-- This creates an updated list of slots based on the current task list...
+marrySlots : List Slot -> List Task -> List Slot
+marrySlots slots tasks =
+    List.map marry (zip slots tasks)
+
+viewSlot : Int -> Slot -> Html Msg
+viewSlot time slot =
+    li
+        ([class "slot"] ++ Animation.render slot.style)
+        [ Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.currentTask)
+        , Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.previousTask)
+        ]
+
+
+
 view : Model -> Html Msg
 view model =
-    let
-        recentlyDone = isRecentlyDone (12*60*60*1000) model.time
-        dueSoon = isDueSoon (12*60*60*1000) model.time
-        isVisible task = (dueSoon task) || (recentlyDone task)
-        visibleTasks = (List.sortBy .nextDue (List.filter isVisible model.tasks))
-    in
-        div
-            [ class "wrapper" ]
-                [ maybeModalView model
-                , viewMenu 
-                , viewTasks model.time visibleTasks
-            ]
+    div
+        [ class "wrapper" ]
+            [ maybeModalView model
+            , viewMenu 
+            , viewTasks model.time model.taskSlots
+        ]
 
 viewMenu : Html Msg
 viewMenu =
@@ -266,25 +354,25 @@ viewMenu =
                 [ text "+" ]
         ]
 
-viewTasks : Int -> List Task -> Html Msg
+viewTasks : Int -> List Slot -> Html Msg
 viewTasks time tasks =
     section
         [ class "main"]
         [
-            Keyed.ul [ class "task-list" ] <|
-            List.map (viewKeyedTask time) tasks
+            ul [ class "task-list" ] <|
+            List.map (viewSlot time) tasks
         ]
 
-viewKeyedTask : Int -> Task -> ( String, Html Msg )
+{-viewKeyedTask : Int -> Slot -> ( String, Html Msg )
 viewKeyedTask time task =
     ( String.fromInt task.id, lazy2 viewTask time task )
-
+-}
 viewTask : Int -> Task -> Html Msg
 viewTask time task =
     let
         recentlyDone = isRecentlyDone (12*60*60*1000) time task
     in
-        li
+        div
             []
             [ div
                 [ class "task-view" ]
@@ -307,29 +395,6 @@ viewTask time task =
                     ]
                 ]
             ]
-
-maybeModalView : Model -> Html Msg
-maybeModalView model =
-    case model.modalModel of
-        Just modal -> (
-            div
-                ([class "modal", onClick CloseModal] ++ Animation.render modal.bgStyle)
-                [ 
-                    div ([(Html.Events.custom "click" (Json.Decode.succeed
-                            { message = NoOp
-                            , stopPropagation = True
-                            , preventDefault = True
-                            }
-                        )), class "modal-content" ] ++ Animation.render modal.contentStyle)
-                    [
-                        case modal.modalType of
-                            NewTask newTaskModel -> newTaskView newTaskModel model.tasks
-                            EditTask editTaskModel -> editTaskView editTaskModel model.tasks
-                            _ -> (span [] [])
-                    ]
-                ]
-            )
-        Nothing -> (span [] [])
 
 taskInputsView model tasks descChange tagChange periodChange
     = let
@@ -368,7 +433,6 @@ taskInputsView model tasks descChange tagChange periodChange
             ((periodOptions findUnit model.period) ++ (periodOptions (findUnit + 1) model.period))
         ]
 
--- TODO clean up
 editTaskView : EditTaskModel -> List Task -> Html Msg
 editTaskView editTaskModel tasks
     = div [class "modal-view" ]
@@ -400,10 +464,28 @@ newTaskView newTaskModel tasks
 
 -- MODAL
 
-bgStyleClose = 
-    [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ]
-    , Animation.Messenger.send (ClearModal)
-    ]
+maybeModalView : Model -> Html Msg
+maybeModalView model =
+    case model.modalModel of
+        Just modal -> (
+            div
+                ([class "modal", onClick CloseModal] ++ Animation.render modal.bgStyle)
+                [ 
+                    div ([(Html.Events.custom "click" (Json.Decode.succeed
+                            { message = NoOp
+                            , stopPropagation = True
+                            , preventDefault = True
+                            }
+                        )), class "modal-content" ] ++ Animation.render modal.contentStyle)
+                    [
+                        case modal.modalType of
+                            NewTask newTaskModel -> newTaskView newTaskModel model.tasks
+                            EditTask editTaskModel -> editTaskView editTaskModel model.tasks
+                            _ -> (span [] [])
+                    ]
+                ]
+            )
+        Nothing -> (span [] [])
 
 type alias ModalModel =
     { modalType : Modal

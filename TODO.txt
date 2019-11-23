@@ -1,4 +1,3 @@
-P2 Figure out delay in modal disappear 
 P1 Options modal
 
 P1 task entry/exit/move
