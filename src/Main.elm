@@ -299,11 +299,13 @@ zip a b =
                 _ -> []
 
 slotSlideStart = (Animation.style [ Animation.left (px -800) ])
-slotSlideEnd =
-        Animation.interrupt [ Animation.to [ Animation.left (px 0) ] ]
+slotSlideEnd index = [ 
+    Animation.wait (Time.millisToPosix (index * 1000)),
+    Animation.to [ Animation.left (px 0) ]
+    ]
 
-marry : (Maybe Slot, Maybe Task) -> Slot
-marry (maybeSlot, maybeTask) =
+marry : Int -> (Maybe Slot, Maybe Task) -> Slot
+marry index (maybeSlot, maybeTask) =
     case maybeSlot of
         Just slot -> (
             let
@@ -314,16 +316,16 @@ marry (maybeSlot, maybeTask) =
                 , previousTask = if not sameTask then slot.currentTask else slot.previousTask
                 , style = if sameTask then
                     slot.style
-                    else (slotSlideEnd slotSlideStart)
+                    else (Animation.interrupt (slotSlideEnd index) slotSlideStart)
                 })
         Nothing ->
             -- Slot created, should slide in
-            (Slot maybeTask Nothing (slotSlideEnd slotSlideStart))
+            (Slot maybeTask Nothing (Animation.interrupt (slotSlideEnd index) slotSlideStart))
 
 -- This creates an updated list of slots based on the current task list...
 marrySlots : List Slot -> List Task -> List Slot
 marrySlots slots tasks =
-    List.map marry (zip slots tasks)
+    List.indexedMap marry (zip slots tasks)
 
 viewSlot : Int -> Slot -> Html Msg
 viewSlot time slot =
