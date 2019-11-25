@@ -42,7 +42,7 @@ init flags =
         model = (logResultErr "Json Decode" (Json.Decode.decodeValue storageModelDecoder flags.model))
             |> Result.withDefault (StorageModel [] 0)
     in
-        updateWithSlots (Model flags.time model.tasks [] model.uid Nothing, Cmd.none)
+        updateWithSlots (Model flags.time model.tasks [] model.uid Nothing newOptions, Cmd.none)
 
 port storeTasks : StorageModel -> Cmd msg
 store : Model -> Cmd Msg -> (Model, Cmd Msg)
@@ -57,7 +57,16 @@ type alias Model =
   , taskSlots : List Slot
   , uid : Int
   , modalModel : Maybe ModalModel
+  , options : OptionsModel
   }
+
+type alias OptionsModel =
+  { recentPeriod : Int
+  , upcomingPeriod : Int
+  , showAll : Bool
+  }
+
+newOptions = OptionsModel (12*60*60*1000) (12*60*60*1000) False 
 
 type alias Task =
   { description : String
@@ -141,8 +150,8 @@ closeModal m =
 updateWithSlots : (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateWithSlots (model, cmd) =
     let
-        recentlyDone = isRecentlyDone (12*60*60*1000) model.time
-        dueSoon = isDueSoon (12*60*60*1000) model.time
+        recentlyDone = isRecentlyDone model.options.recentPeriod model.time
+        dueSoon = isDueSoon model.options.upcomingPeriod model.time
         isVisible task = (dueSoon task) || (recentlyDone task)
         visibleTasks = (List.sortBy .nextDue (List.filter isVisible model.tasks))
     in
@@ -293,37 +302,36 @@ view model =
     div
         [ class "wrapper" ]
             [ maybeModalView model
-            , viewMenu 
-            , viewTasks model.time model.taskSlots
+            , viewMenu model
+            , viewTasks model
         ]
 
-viewMenu : Html Msg
-viewMenu =
+viewMenu : Model -> Html Msg
+viewMenu model =
     section
         [ class "menu" ]
         [
             button
                 [ class "add-task", onClick (OpenModal (NewTask emptyNewTaskModel)) ]
                 [ text "+" ]
+            , button
+                [ class "add-task", onClick (OpenModal (Options (newEditOptionsModel model.options))) ]
+                [ text "O" ]
         ]
 
-viewTasks : Int -> List Slot -> Html Msg
-viewTasks time tasks =
+viewTasks : Model -> Html Msg
+viewTasks model =
     section
         [ class "main"]
         [
             ul [ class "task-list" ] <|
-            List.map (viewSlot time) tasks
+            List.map (viewSlot model) model.taskSlots
         ]
 
-{-viewKeyedTask : Int -> Slot -> ( String, Html Msg )
-viewKeyedTask time task =
-    ( String.fromInt task.id, lazy2 viewTask time task )
--}
-viewTask : Int -> Task -> Html Msg
-viewTask time task =
+viewTask : Int -> Int -> Task -> Html Msg
+viewTask time recentPeriod task =
     let
-        recentlyDone = isRecentlyDone (12*60*60*1000) time task
+        recentlyDone = isRecentlyDone recentPeriod time task
     in
         div
             []
@@ -414,31 +422,40 @@ marrySlots : List Slot -> List Task -> List Slot
 marrySlots slots tasks =
     foldlMap marry 0 (zip slots tasks)
 
-viewSlot : Int -> Slot -> Html Msg
-viewSlot time slot =
+viewSlot : Model -> Slot -> Html Msg
+viewSlot model slot =
     li
         ([class (case slot.currentTask of 
             Just b -> ("slot") 
             Nothing -> ("notslot"))] ++ Animation.render slot.style)
-        [ Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.currentTask)
-        , Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.previousTask)
+        [ Maybe.withDefault (div [] []) (Maybe.map (viewTask model.time model.options.recentPeriod) slot.currentTask)
+        , Maybe.withDefault (div [] []) (Maybe.map (viewTask model.time model.options.recentPeriod) slot.previousTask)
         ]
 
 -- MODAL VIEWS
 
-taskInputsView model tasks descChange tagChange periodChange
-    = let
-        tagOption tag = option [value tag] [text tag]
-        findUnit = Result.withDefault 
+periodOptionsView : String -> String -> Html Msg
+periodOptionsView period for =
+    let
+        periodUnit = Result.withDefault 
                 1
-                (Parser.run Parser.int model.period)
-        periodOptions unit period =
+                (Parser.run Parser.int period)
+        periodOptions unit =
             [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
             , option [value (addS unit "Hour")] [text (addS unit "Hour")]
             , option [value (addS unit "Day")] [text (addS unit "Day")]
             , option [value (addS unit "Week")] [text (addS unit "Week")]
             , option [value (addS unit "Month")] [text (addS unit "Month")]
             ]  
+    in
+        datalist
+            [id for]
+            ((periodOptions periodUnit) ++ (periodOptions (periodUnit + 1)))
+        
+
+taskInputsView model tasks descChange tagChange periodChange
+    = let
+        tagOption tag = option [value tag] [text tag]
     in
         [ label
             []
@@ -450,17 +467,15 @@ taskInputsView model tasks descChange tagChange periodChange
             [text "Tag"]
         , input
             [ placeholder "Tag", value model.tag, list "tag-list", onInput tagChange ] []
+        , datalist
+            [id "tag-list"]
+            (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
         , label
             []
             [text "Repeated every"]
         , input 
             [ placeholder "Period", value model.period, list "period-list", onInput periodChange ] []
-        , datalist
-            [id "tag-list"]
-            (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
-        , datalist
-            [id "period-list"]
-            ((periodOptions findUnit model.period) ++ (periodOptions (findUnit + 1) model.period))
+        , periodOptionsView model.period "period-list"     
         ]
 
 editTaskView : EditTaskModel -> List Task -> Html Msg
@@ -492,6 +507,27 @@ newTaskView newTaskModel tasks
             ]
         ]) 
         
+optionsView : EditOptionsModel -> Html Msg
+optionsView options =
+    div
+        [class "modal-view"]
+        [label
+            []
+            [text "Show tasks completed within"]
+        , input 
+            [value options.recentPeriod, list "recent-list", onInput (\s -> NoOp) ] []
+        , periodOptionsView options.recentPeriod "recent-list"
+        , label
+            []
+            [text "Show tasks due within"]
+        , input 
+            [value options.upcomingPeriod, list "upcoming-list", onInput (\s -> NoOp) ] []
+        , periodOptionsView options.upcomingPeriod "upcoming-list"
+        , div
+            [class "modal-view-buttons"]
+            [   button [ onClick (CloseModal) ] [text "Save"]
+            ]
+        ]
 
 -- MODAL
 
@@ -512,7 +548,7 @@ maybeModalView model =
                         case modal.modalType of
                             NewTask newTaskModel -> newTaskView newTaskModel model.tasks
                             EditTask editTaskModel -> editTaskView editTaskModel model.tasks
-                            _ -> (span [] [])
+                            Options options -> optionsView options
                     ]
                 ]
             )
@@ -527,13 +563,19 @@ type alias ModalModel =
 type Modal
     = NewTask NewTaskModel
     | EditTask EditTaskModel
-    | Options OptionsModel
+    | Options EditOptionsModel
 
-type alias OptionsModel =
-    { showAll : Bool
-    , afterPeriod : String
-    , beforePeriod : String
+type alias EditOptionsModel =
+    { recentPeriod : String
+    , upcomingPeriod : String
+    , showAll : Bool 
     }
+
+newEditOptionsModel options =
+    EditOptionsModel 
+        (millisPeriodToString options.recentPeriod)
+        (millisPeriodToString options.upcomingPeriod)
+        False
 
 type alias EditTaskModel =
     { description : String

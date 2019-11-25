@@ -4486,9 +4486,9 @@ var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString
 
 	return _Utils_Tuple3(newOffset, row, col);
 });
-var author$project$Main$Model = F5(
-	function (time, tasks, taskSlots, uid, modalModel) {
-		return {modalModel: modalModel, taskSlots: taskSlots, tasks: tasks, time: time, uid: uid};
+var author$project$Main$Model = F6(
+	function (time, tasks, taskSlots, uid, modalModel, options) {
+		return {modalModel: modalModel, options: options, taskSlots: taskSlots, tasks: tasks, time: time, uid: uid};
 	});
 var author$project$Main$StorageModel = F2(
 	function (tasks, uid) {
@@ -4592,6 +4592,13 @@ var author$project$Main$logResultErr = F2(
 				A2(elm$core$Debug$log, label, msg));
 		}
 	});
+var author$project$Main$OptionsModel = F3(
+	function (recentPeriod, upcomingPeriod, showAll) {
+		return {recentPeriod: recentPeriod, showAll: showAll, upcomingPeriod: upcomingPeriod};
+	});
+var elm$core$Basics$False = {$: 'False'};
+var elm$core$Basics$mul = _Basics_mul;
+var author$project$Main$newOptions = A3(author$project$Main$OptionsModel, ((12 * 60) * 60) * 1000, ((12 * 60) * 60) * 1000, false);
 var author$project$Main$Task = F7(
 	function (description, tag, id, period, lastDone, nextDue, doneCount) {
 		return {description: description, doneCount: doneCount, id: id, lastDone: lastDone, nextDue: nextDue, period: period, tag: tag};
@@ -4699,7 +4706,6 @@ var elm$core$Basics$max = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) > 0) ? x : y;
 	});
-var elm$core$Basics$mul = _Basics_mul;
 var elm$core$Basics$sub = _Basics_sub;
 var elm$core$Elm$JsArray$length = _JsArray_length;
 var elm$core$Array$builderToArray = F2(
@@ -4725,7 +4731,6 @@ var elm$core$Array$builderToArray = F2(
 				builder.tail);
 		}
 	});
-var elm$core$Basics$False = {$: 'False'};
 var elm$core$Basics$idiv = _Basics_idiv;
 var elm$core$Basics$lt = _Utils_lt;
 var elm$core$Elm$JsArray$initialize = _JsArray_initialize;
@@ -6116,8 +6121,8 @@ var author$project$Main$marrySlots = F2(
 var author$project$Main$updateWithSlots = function (_n0) {
 	var model = _n0.a;
 	var cmd = _n0.b;
-	var recentlyDone = A2(author$project$Main$isRecentlyDone, ((12 * 60) * 60) * 1000, model.time);
-	var dueSoon = A2(author$project$Main$isDueSoon, ((12 * 60) * 60) * 1000, model.time);
+	var recentlyDone = A2(author$project$Main$isRecentlyDone, model.options.recentPeriod, model.time);
+	var dueSoon = A2(author$project$Main$isDueSoon, model.options.upcomingPeriod, model.time);
 	var isVisible = function (task) {
 		return dueSoon(task) || recentlyDone(task);
 	};
@@ -6157,7 +6162,7 @@ var author$project$Main$init = function (flags) {
 			A2(elm$json$Json$Decode$decodeValue, author$project$Main$storageModelDecoder, flags.model)));
 	return author$project$Main$updateWithSlots(
 		_Utils_Tuple2(
-			A5(author$project$Main$Model, flags.time, model.tasks, _List_Nil, model.uid, elm$core$Maybe$Nothing),
+			A6(author$project$Main$Model, flags.time, model.tasks, _List_Nil, model.uid, elm$core$Maybe$Nothing, author$project$Main$newOptions),
 			elm$core$Platform$Cmd$none));
 };
 var author$project$Main$AnimateModal = function (a) {
@@ -9621,6 +9626,100 @@ var author$project$Main$addS = F2(
 	function (unit, str) {
 		return elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
 	});
+var elm$html$Html$datalist = _VirtualDom_node('datalist');
+var elm$html$Html$option = _VirtualDom_node('option');
+var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
+var elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			elm$json$Json$Encode$string(string));
+	});
+var elm$html$Html$Attributes$id = elm$html$Html$Attributes$stringProperty('id');
+var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
+var author$project$Main$periodOptionsView = F2(
+	function (period, _for) {
+		var periodUnit = A2(
+			elm$core$Result$withDefault,
+			1,
+			A2(elm$parser$Parser$run, elm$parser$Parser$int, period));
+		var periodOptions = function (unit) {
+			return _List_fromArray(
+				[
+					A2(
+					elm$html$Html$option,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$value(
+							A2(author$project$Main$addS, unit, 'Minute'))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(
+							A2(author$project$Main$addS, unit, 'Minute'))
+						])),
+					A2(
+					elm$html$Html$option,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$value(
+							A2(author$project$Main$addS, unit, 'Hour'))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(
+							A2(author$project$Main$addS, unit, 'Hour'))
+						])),
+					A2(
+					elm$html$Html$option,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$value(
+							A2(author$project$Main$addS, unit, 'Day'))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(
+							A2(author$project$Main$addS, unit, 'Day'))
+						])),
+					A2(
+					elm$html$Html$option,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$value(
+							A2(author$project$Main$addS, unit, 'Week'))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(
+							A2(author$project$Main$addS, unit, 'Week'))
+						])),
+					A2(
+					elm$html$Html$option,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$value(
+							A2(author$project$Main$addS, unit, 'Month'))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(
+							A2(author$project$Main$addS, unit, 'Month'))
+						]))
+				]);
+		};
+		return A2(
+			elm$html$Html$datalist,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$id(_for)
+				]),
+			_Utils_ap(
+				periodOptions(periodUnit),
+				periodOptions(periodUnit + 1)));
+	});
 var elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -9634,23 +9733,10 @@ var elm$core$Set$insert = F2(
 var elm$core$Set$fromList = function (list) {
 	return A3(elm$core$List$foldl, elm$core$Set$insert, elm$core$Set$empty, list);
 };
-var elm$html$Html$datalist = _VirtualDom_node('datalist');
 var elm$html$Html$input = _VirtualDom_node('input');
 var elm$html$Html$label = _VirtualDom_node('label');
-var elm$html$Html$option = _VirtualDom_node('option');
-var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
-var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
-var elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			elm$json$Json$Encode$string(string));
-	});
-var elm$html$Html$Attributes$id = elm$html$Html$Attributes$stringProperty('id');
 var elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
 var elm$html$Html$Attributes$placeholder = elm$html$Html$Attributes$stringProperty('placeholder');
-var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
 var elm$html$Html$Events$alwaysStop = function (x) {
 	return _Utils_Tuple2(x, true);
 };
@@ -9697,76 +9783,6 @@ var author$project$Main$taskInputsView = F5(
 						elm$html$Html$text(tag)
 					]));
 		};
-		var periodOptions = F2(
-			function (unit, period) {
-				return _List_fromArray(
-					[
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(author$project$Main$addS, unit, 'Minute'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(author$project$Main$addS, unit, 'Minute'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(author$project$Main$addS, unit, 'Hour'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(author$project$Main$addS, unit, 'Hour'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(author$project$Main$addS, unit, 'Day'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(author$project$Main$addS, unit, 'Day'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(author$project$Main$addS, unit, 'Week'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(author$project$Main$addS, unit, 'Week'))
-							])),
-						A2(
-						elm$html$Html$option,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(
-								A2(author$project$Main$addS, unit, 'Month'))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								A2(author$project$Main$addS, unit, 'Month'))
-							]))
-					]);
-			});
-		var findUnit = A2(
-			elm$core$Result$withDefault,
-			1,
-			A2(elm$parser$Parser$run, elm$parser$Parser$int, model.period));
 		return _List_fromArray(
 			[
 				A2(
@@ -9803,23 +9819,6 @@ var author$project$Main$taskInputsView = F5(
 					]),
 				_List_Nil),
 				A2(
-				elm$html$Html$label,
-				_List_Nil,
-				_List_fromArray(
-					[
-						elm$html$Html$text('Repeated every')
-					])),
-				A2(
-				elm$html$Html$input,
-				_List_fromArray(
-					[
-						elm$html$Html$Attributes$placeholder('Period'),
-						elm$html$Html$Attributes$value(model.period),
-						elm$html$Html$Attributes$list('period-list'),
-						elm$html$Html$Events$onInput(periodChange)
-					]),
-				_List_Nil),
-				A2(
 				elm$html$Html$datalist,
 				_List_fromArray(
 					[
@@ -9837,14 +9836,23 @@ var author$project$Main$taskInputsView = F5(
 								},
 								tasks))))),
 				A2(
-				elm$html$Html$datalist,
+				elm$html$Html$label,
+				_List_Nil,
 				_List_fromArray(
 					[
-						elm$html$Html$Attributes$id('period-list')
+						elm$html$Html$text('Repeated every')
+					])),
+				A2(
+				elm$html$Html$input,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$placeholder('Period'),
+						elm$html$Html$Attributes$value(model.period),
+						elm$html$Html$Attributes$list('period-list'),
+						elm$html$Html$Events$onInput(periodChange)
 					]),
-				_Utils_ap(
-					A2(periodOptions, findUnit, model.period),
-					A2(periodOptions, findUnit + 1, model.period)))
+				_List_Nil),
+				A2(author$project$Main$periodOptionsView, model.period, 'period-list')
 			]);
 	});
 var elm$html$Html$button = _VirtualDom_node('button');
@@ -9992,6 +10000,76 @@ var author$project$Main$newTaskView = F2(
 							]))
 					])));
 	});
+var author$project$Main$optionsView = function (options) {
+	return A2(
+		elm$html$Html$div,
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$class('modal-view')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				elm$html$Html$label,
+				_List_Nil,
+				_List_fromArray(
+					[
+						elm$html$Html$text('Show tasks completed within')
+					])),
+				A2(
+				elm$html$Html$input,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$value(options.recentPeriod),
+						elm$html$Html$Attributes$list('recent-list'),
+						elm$html$Html$Events$onInput(
+						function (s) {
+							return author$project$Main$NoOp;
+						})
+					]),
+				_List_Nil),
+				A2(author$project$Main$periodOptionsView, options.recentPeriod, 'recent-list'),
+				A2(
+				elm$html$Html$label,
+				_List_Nil,
+				_List_fromArray(
+					[
+						elm$html$Html$text('Show tasks due in')
+					])),
+				A2(
+				elm$html$Html$input,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$value(options.upcomingPeriod),
+						elm$html$Html$Attributes$list('upcoming-list'),
+						elm$html$Html$Events$onInput(
+						function (s) {
+							return author$project$Main$NoOp;
+						})
+					]),
+				_List_Nil),
+				A2(author$project$Main$periodOptionsView, options.upcomingPeriod, 'upcoming-list'),
+				A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('modal-view-buttons')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$button,
+						_List_fromArray(
+							[
+								elm$html$Html$Events$onClick(author$project$Main$CloseModal)
+							]),
+						_List_fromArray(
+							[
+								elm$html$Html$text('Save')
+							]))
+					]))
+			]));
+};
 var elm$html$Html$span = _VirtualDom_node('span');
 var elm$virtual_dom$VirtualDom$Custom = function (a) {
 	return {$: 'Custom', a: a};
@@ -10597,7 +10675,8 @@ var author$project$Main$maybeModalView = function (model) {
 									var editTaskModel = _n1.a;
 									return A2(author$project$Main$editTaskView, editTaskModel, model.tasks);
 								default:
-									return A2(elm$html$Html$span, _List_Nil, _List_Nil);
+									var options = _n1.a;
+									return author$project$Main$optionsView(options);
 							}
 						}()
 						]))
@@ -10609,40 +10688,17 @@ var author$project$Main$maybeModalView = function (model) {
 var author$project$Main$OpenModal = function (a) {
 	return {$: 'OpenModal', a: a};
 };
+var author$project$Main$Options = function (a) {
+	return {$: 'Options', a: a};
+};
 var author$project$Main$NewTaskModel = F3(
 	function (description, tag, period) {
 		return {description: description, period: period, tag: tag};
 	});
 var author$project$Main$emptyNewTaskModel = A3(author$project$Main$NewTaskModel, '', '', '');
-var elm$html$Html$section = _VirtualDom_node('section');
-var author$project$Main$viewMenu = A2(
-	elm$html$Html$section,
-	_List_fromArray(
-		[
-			elm$html$Html$Attributes$class('menu')
-		]),
-	_List_fromArray(
-		[
-			A2(
-			elm$html$Html$button,
-			_List_fromArray(
-				[
-					elm$html$Html$Attributes$class('add-task'),
-					elm$html$Html$Events$onClick(
-					author$project$Main$OpenModal(
-						author$project$Main$NewTask(author$project$Main$emptyNewTaskModel)))
-				]),
-			_List_fromArray(
-				[
-					elm$html$Html$text('+')
-				]))
-		]));
-var author$project$Main$Do = function (a) {
-	return {$: 'Do', a: a};
-};
-var author$project$Main$EditTaskModel = F4(
-	function (description, tag, period, id) {
-		return {description: description, id: id, period: period, tag: tag};
+var author$project$Main$EditOptionsModel = F3(
+	function (recentPeriod, upcomingPeriod, showAll) {
+		return {recentPeriod: recentPeriod, showAll: showAll, upcomingPeriod: upcomingPeriod};
 	});
 var author$project$Main$millisPeriodToString = function (millis) {
 	var weeks = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Week)) | 0;
@@ -10652,9 +10708,62 @@ var author$project$Main$millisPeriodToString = function (millis) {
 	var days = (millis / author$project$Main$periodUnitToMillis(author$project$Main$Day)) | 0;
 	return (months >= 1) ? A2(author$project$Main$addS, months, 'Month') : ((weeks >= 1) ? A2(author$project$Main$addS, weeks, 'Week') : ((days >= 1) ? A2(author$project$Main$addS, days, 'Day') : ((hours >= 1) ? A2(author$project$Main$addS, hours, 'hour') : ((weeks >= 1) ? A2(author$project$Main$addS, minutes, 'Minute') : '1 Minute'))));
 };
-var author$project$Main$viewTask = F2(
-	function (time, task) {
-		var recentlyDone = A3(author$project$Main$isRecentlyDone, ((12 * 60) * 60) * 1000, time, task);
+var author$project$Main$newEditOptionsModel = function (options) {
+	return A3(
+		author$project$Main$EditOptionsModel,
+		author$project$Main$millisPeriodToString(options.recentPeriod),
+		author$project$Main$millisPeriodToString(options.upcomingPeriod),
+		false);
+};
+var elm$html$Html$section = _VirtualDom_node('section');
+var author$project$Main$viewMenu = function (model) {
+	return A2(
+		elm$html$Html$section,
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$class('menu')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				elm$html$Html$button,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('add-task'),
+						elm$html$Html$Events$onClick(
+						author$project$Main$OpenModal(
+							author$project$Main$NewTask(author$project$Main$emptyNewTaskModel)))
+					]),
+				_List_fromArray(
+					[
+						elm$html$Html$text('+')
+					])),
+				A2(
+				elm$html$Html$button,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('add-task'),
+						elm$html$Html$Events$onClick(
+						author$project$Main$OpenModal(
+							author$project$Main$Options(
+								author$project$Main$newEditOptionsModel(model.options))))
+					]),
+				_List_fromArray(
+					[
+						elm$html$Html$text('O')
+					]))
+			]));
+};
+var author$project$Main$Do = function (a) {
+	return {$: 'Do', a: a};
+};
+var author$project$Main$EditTaskModel = F4(
+	function (description, tag, period, id) {
+		return {description: description, id: id, period: period, tag: tag};
+	});
+var author$project$Main$viewTask = F3(
+	function (time, recentPeriod, task) {
+		var recentlyDone = A3(author$project$Main$isRecentlyDone, recentPeriod, time, task);
 		return A2(
 			elm$html$Html$div,
 			_List_Nil,
@@ -10725,7 +10834,7 @@ var author$project$Main$viewTask = F2(
 	});
 var elm$html$Html$li = _VirtualDom_node('li');
 var author$project$Main$viewSlot = F2(
-	function (time, slot) {
+	function (model, slot) {
 		return A2(
 			elm$html$Html$li,
 			_Utils_ap(
@@ -10750,40 +10859,39 @@ var author$project$Main$viewSlot = F2(
 					A2(elm$html$Html$div, _List_Nil, _List_Nil),
 					A2(
 						elm$core$Maybe$map,
-						author$project$Main$viewTask(time),
+						A2(author$project$Main$viewTask, model.time, model.options.recentPeriod),
 						slot.currentTask)),
 					A2(
 					elm$core$Maybe$withDefault,
 					A2(elm$html$Html$div, _List_Nil, _List_Nil),
 					A2(
 						elm$core$Maybe$map,
-						author$project$Main$viewTask(time),
+						A2(author$project$Main$viewTask, model.time, model.options.recentPeriod),
 						slot.previousTask))
 				]));
 	});
 var elm$html$Html$ul = _VirtualDom_node('ul');
-var author$project$Main$viewTasks = F2(
-	function (time, tasks) {
-		return A2(
-			elm$html$Html$section,
-			_List_fromArray(
-				[
-					elm$html$Html$Attributes$class('main')
-				]),
-			_List_fromArray(
-				[
-					A2(
-					elm$html$Html$ul,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$class('task-list')
-						]),
-					A2(
-						elm$core$List$map,
-						author$project$Main$viewSlot(time),
-						tasks))
-				]));
-	});
+var author$project$Main$viewTasks = function (model) {
+	return A2(
+		elm$html$Html$section,
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$class('main')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				elm$html$Html$ul,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('task-list')
+					]),
+				A2(
+					elm$core$List$map,
+					author$project$Main$viewSlot(model),
+					model.taskSlots))
+			]));
+};
 var author$project$Main$view = function (model) {
 	return A2(
 		elm$html$Html$div,
@@ -10794,8 +10902,8 @@ var author$project$Main$view = function (model) {
 		_List_fromArray(
 			[
 				author$project$Main$maybeModalView(model),
-				author$project$Main$viewMenu,
-				A2(author$project$Main$viewTasks, model.time, model.taskSlots)
+				author$project$Main$viewMenu(model),
+				author$project$Main$viewTasks(model)
 			]));
 };
 var elm$browser$Browser$document = _Browser_document;
