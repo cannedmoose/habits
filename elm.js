@@ -5056,93 +5056,34 @@ var author$project$Main$isRecentlyDone = F3(
 				},
 				task.lastDone));
 	});
+var author$project$Main$foldlMap = F3(
+	function (fn, initial, l) {
+		if (!l.b) {
+			return _List_Nil;
+		} else {
+			var val = l.a;
+			var rest = l.b;
+			var _n1 = A2(fn, initial, val);
+			var accum = _n1.a;
+			var r = _n1.b;
+			return A2(
+				elm$core$List$cons,
+				r,
+				A3(author$project$Main$foldlMap, fn, accum, rest));
+		}
+	});
 var author$project$Main$Slot = F3(
 	function (currentTask, previousTask, style) {
 		return {currentTask: currentTask, previousTask: previousTask, style: style};
 	});
+var author$project$Main$RmSlots = {$: 'RmSlots'};
 var elm$core$Basics$identity = function (x) {
 	return x;
-};
-var elm$core$List$drop = F2(
-	function (n, list) {
-		drop:
-		while (true) {
-			if (n <= 0) {
-				return list;
-			} else {
-				if (!list.b) {
-					return list;
-				} else {
-					var x = list.a;
-					var xs = list.b;
-					var $temp$n = n - 1,
-						$temp$list = xs;
-					n = $temp$n;
-					list = $temp$list;
-					continue drop;
-				}
-			}
-		}
-	});
-var elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return elm$core$Maybe$Just(x);
-	} else {
-		return elm$core$Maybe$Nothing;
-	}
 };
 var elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
 var elm$time$Time$millisToPosix = elm$time$Time$Posix;
-var elm$time$Time$posixToMillis = function (_n0) {
-	var millis = _n0.a;
-	return millis;
-};
-var mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
-	var _n0 = elm$core$List$head(steps);
-	if (_n0.$ === 'Nothing') {
-		return _Utils_Tuple2(
-			elm$time$Time$millisToPosix(0),
-			_List_Nil);
-	} else {
-		var step = _n0.a;
-		if (step.$ === 'Wait') {
-			var till = step.a;
-			var _n2 = mdgriffith$elm_style_animation$Animation$extractInitialWait(
-				A2(elm$core$List$drop, 1, steps));
-			var additionalTime = _n2.a;
-			var remainingSteps = _n2.b;
-			return _Utils_Tuple2(
-				elm$time$Time$millisToPosix(
-					elm$time$Time$posixToMillis(till) + elm$time$Time$posixToMillis(additionalTime)),
-				remainingSteps);
-		} else {
-			return _Utils_Tuple2(
-				elm$time$Time$millisToPosix(0),
-				steps);
-		}
-	}
-};
-var mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
-	return {$: 'Animation', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$interrupt = F2(
-	function (steps, _n0) {
-		var model = _n0.a;
-		return mdgriffith$elm_style_animation$Animation$Model$Animation(
-			_Utils_update(
-				model,
-				{
-					interruption: A2(
-						elm$core$List$cons,
-						mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
-						model.interruption),
-					running: true
-				}));
-	});
 var mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
 	return {$: 'Spring', a: a};
 };
@@ -5228,16 +5169,37 @@ var mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
 var mdgriffith$elm_style_animation$Animation$to = function (props) {
 	return mdgriffith$elm_style_animation$Animation$Model$To(props);
 };
-var author$project$Main$slotSlideEnd = mdgriffith$elm_style_animation$Animation$interrupt(
-	_List_fromArray(
-		[
-			mdgriffith$elm_style_animation$Animation$to(
+var mdgriffith$elm_style_animation$Animation$Model$Wait = function (a) {
+	return {$: 'Wait', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$wait = function (till) {
+	return mdgriffith$elm_style_animation$Animation$Model$Wait(till);
+};
+var mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
+	return {$: 'Send', a: a};
+};
+var mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
+	return mdgriffith$elm_style_animation$Animation$Model$Send(msg);
+};
+var author$project$Main$slotSlideEnd = F2(
+	function (index, rm) {
+		return _Utils_ap(
 			_List_fromArray(
 				[
-					mdgriffith$elm_style_animation$Animation$left(
-					mdgriffith$elm_style_animation$Animation$px(0))
-				]))
-		]));
+					mdgriffith$elm_style_animation$Animation$wait(
+					elm$time$Time$millisToPosix(index * 400)),
+					mdgriffith$elm_style_animation$Animation$to(
+					_List_fromArray(
+						[
+							mdgriffith$elm_style_animation$Animation$left(
+							mdgriffith$elm_style_animation$Animation$px(0))
+						]))
+				]),
+			rm ? _List_fromArray(
+				[
+					mdgriffith$elm_style_animation$Animation$Messenger$send(author$project$Main$RmSlots)
+				]) : _List_Nil);
+	});
 var elm$core$Basics$negate = function (n) {
 	return -n;
 };
@@ -5310,6 +5272,9 @@ var elm$core$List$map = F2(
 			_List_Nil,
 			xs);
 	});
+var mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
+	return {$: 'Animation', a: a};
+};
 var mdgriffith$elm_style_animation$Animation$initialState = function (current) {
 	return mdgriffith$elm_style_animation$Animation$Model$Animation(
 		{
@@ -5775,6 +5740,15 @@ var elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
+var elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return elm$core$Maybe$Just(x);
+	} else {
+		return elm$core$Maybe$Nothing;
+	}
+};
 var elm$core$List$sortBy = _List_sortBy;
 var elm$core$List$sort = function (xs) {
 	return A2(elm$core$List$sortBy, elm$core$Basics$identity, xs);
@@ -5973,37 +5947,121 @@ var elm$core$Maybe$map2 = F3(
 			}
 		}
 	});
-var author$project$Main$marry = function (_n0) {
-	var maybeSlot = _n0.a;
-	var maybeTask = _n0.b;
-	if (maybeSlot.$ === 'Just') {
-		var slot = maybeSlot.a;
-		var sameTask = A2(
-			elm$core$Maybe$withDefault,
-			false,
-			A3(
-				elm$core$Maybe$map2,
-				F2(
-					function (a, b) {
-						return _Utils_eq(a.id, b.id);
-					}),
-				slot.currentTask,
-				maybeTask));
-		return _Utils_update(
-			slot,
-			{
-				currentTask: maybeTask,
-				previousTask: (!sameTask) ? slot.currentTask : slot.previousTask,
-				style: sameTask ? slot.style : author$project$Main$slotSlideEnd(author$project$Main$slotSlideStart)
-			});
+var elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
+		}
+	});
+var elm$time$Time$posixToMillis = function (_n0) {
+	var millis = _n0.a;
+	return millis;
+};
+var mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
+	var _n0 = elm$core$List$head(steps);
+	if (_n0.$ === 'Nothing') {
+		return _Utils_Tuple2(
+			elm$time$Time$millisToPosix(0),
+			_List_Nil);
 	} else {
-		return A3(
-			author$project$Main$Slot,
-			maybeTask,
-			elm$core$Maybe$Nothing,
-			author$project$Main$slotSlideEnd(author$project$Main$slotSlideStart));
+		var step = _n0.a;
+		if (step.$ === 'Wait') {
+			var till = step.a;
+			var _n2 = mdgriffith$elm_style_animation$Animation$extractInitialWait(
+				A2(elm$core$List$drop, 1, steps));
+			var additionalTime = _n2.a;
+			var remainingSteps = _n2.b;
+			return _Utils_Tuple2(
+				elm$time$Time$millisToPosix(
+					elm$time$Time$posixToMillis(till) + elm$time$Time$posixToMillis(additionalTime)),
+				remainingSteps);
+		} else {
+			return _Utils_Tuple2(
+				elm$time$Time$millisToPosix(0),
+				steps);
+		}
 	}
 };
+var mdgriffith$elm_style_animation$Animation$interrupt = F2(
+	function (steps, _n0) {
+		var model = _n0.a;
+		return mdgriffith$elm_style_animation$Animation$Model$Animation(
+			_Utils_update(
+				model,
+				{
+					interruption: A2(
+						elm$core$List$cons,
+						mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
+						model.interruption),
+					running: true
+				}));
+	});
+var author$project$Main$marry = F2(
+	function (accum, _n0) {
+		var maybeSlot = _n0.a;
+		var maybeTask = _n0.b;
+		if (maybeSlot.$ === 'Just') {
+			var slot = maybeSlot.a;
+			var sameTask = A2(
+				elm$core$Maybe$withDefault,
+				false,
+				A3(
+					elm$core$Maybe$map2,
+					F2(
+						function (a, b) {
+							return _Utils_eq(a.id, b.id);
+						}),
+					slot.currentTask,
+					maybeTask));
+			var rm = A2(
+				elm$core$Maybe$withDefault,
+				false,
+				A2(
+					elm$core$Maybe$map,
+					function (a) {
+						return true;
+					},
+					maybeTask));
+			return _Utils_Tuple2(
+				accum + (sameTask ? 0 : 1),
+				_Utils_update(
+					slot,
+					{
+						currentTask: maybeTask,
+						previousTask: (!sameTask) ? slot.currentTask : slot.previousTask,
+						style: sameTask ? slot.style : A2(
+							mdgriffith$elm_style_animation$Animation$interrupt,
+							A2(author$project$Main$slotSlideEnd, accum, rm),
+							author$project$Main$slotSlideStart)
+					}));
+		} else {
+			return _Utils_Tuple2(
+				accum + 1,
+				A3(
+					author$project$Main$Slot,
+					maybeTask,
+					elm$core$Maybe$Nothing,
+					A2(
+						mdgriffith$elm_style_animation$Animation$interrupt,
+						A2(author$project$Main$slotSlideEnd, accum, false),
+						author$project$Main$slotSlideStart)));
+		}
+	});
 var author$project$Main$zip = F2(
 	function (a, b) {
 		if (a.b) {
@@ -6049,9 +6107,10 @@ var author$project$Main$zip = F2(
 	});
 var author$project$Main$marrySlots = F2(
 	function (slots, tasks) {
-		return A2(
-			elm$core$List$map,
+		return A3(
+			author$project$Main$foldlMap,
 			author$project$Main$marry,
+			0,
 			A2(author$project$Main$zip, slots, tasks));
 	});
 var author$project$Main$updateWithSlots = function (_n0) {
@@ -6975,12 +7034,6 @@ var mdgriffith$elm_style_animation$Animation$top = function (_n0) {
 		val,
 		mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
 };
-var mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
-	return {$: 'Send', a: a};
-};
-var mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
-	return mdgriffith$elm_style_animation$Animation$Model$Send(msg);
-};
 var author$project$Main$closeModal = function (m) {
 	return _Utils_update(
 		m,
@@ -7728,9 +7781,6 @@ var mdgriffith$elm_style_animation$Animation$Model$Repeat = F2(
 		return {$: 'Repeat', a: a, b: b};
 	});
 var mdgriffith$elm_style_animation$Animation$Model$Step = {$: 'Step'};
-var mdgriffith$elm_style_animation$Animation$Model$Wait = function (a) {
-	return {$: 'Wait', a: a};
-};
 var mdgriffith$elm_style_animation$Animation$Model$isCmdDone = function (cmd) {
 	var motionDone = function (motion) {
 		return (!motion.velocity) && _Utils_eq(motion.position, motion.target);
@@ -9237,6 +9287,25 @@ var author$project$Main$update = F2(
 							tasks: A2(elm$core$List$map, updateTask, model.tasks)
 						}),
 					elm$core$Platform$Cmd$none);
+			case 'RmSlots':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							taskSlots: A2(
+								elm$core$List$filter,
+								function (s) {
+									var _n1 = s.currentTask;
+									if (_n1.$ === 'Nothing') {
+										return false;
+									} else {
+										var b = _n1.a;
+										return true;
+									}
+								},
+								model.taskSlots)
+						}),
+					elm$core$Platform$Cmd$none);
 			case 'CloseModal':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -9347,7 +9416,7 @@ var author$project$Main$update = F2(
 				var updateStyle = function (s) {
 					return A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, s);
 				};
-				var _n1 = elm$core$List$unzip(
+				var _n2 = elm$core$List$unzip(
 					A2(
 						elm$core$List$map,
 						updateStyle,
@@ -9357,8 +9426,8 @@ var author$project$Main$update = F2(
 								return $.style;
 							},
 							model.taskSlots)));
-				var slotStyles = _n1.a;
-				var slotCmds = _n1.b;
+				var slotStyles = _n2.a;
+				var slotCmds = _n2.b;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
@@ -9386,12 +9455,12 @@ var author$project$Main$update = F2(
 							var updateStyle = function (s) {
 								return A2(mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, s);
 							};
-							var _n2 = updateStyle(modal.contentStyle);
-							var contentStyle = _n2.a;
-							var cmd2 = _n2.b;
-							var _n3 = updateStyle(modal.bgStyle);
-							var bgStyle = _n3.a;
-							var cmd1 = _n3.b;
+							var _n3 = updateStyle(modal.contentStyle);
+							var contentStyle = _n3.a;
+							var cmd2 = _n3.b;
+							var _n4 = updateStyle(modal.bgStyle);
+							var bgStyle = _n4.a;
+							var cmd1 = _n4.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -10662,7 +10731,16 @@ var author$project$Main$viewSlot = F2(
 			_Utils_ap(
 				_List_fromArray(
 					[
-						elm$html$Html$Attributes$class('slot')
+						elm$html$Html$Attributes$class(
+						function () {
+							var _n0 = slot.currentTask;
+							if (_n0.$ === 'Just') {
+								var b = _n0.a;
+								return 'slot';
+							} else {
+								return 'notslot';
+							}
+						}())
 					]),
 				mdgriffith$elm_style_animation$Animation$render(slot.style)),
 			_List_fromArray(

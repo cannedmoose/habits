@@ -124,6 +124,7 @@ type Msg
     | ChangePeriodEdit EditTaskModel String
     | Edit EditTaskModel
     | Delete EditTaskModel
+    | RmSlots
 
 closeModal m =
     { m | bgStyle = Animation.interrupt
@@ -170,6 +171,17 @@ update msg model =
             store
                 { model | tasks = List.map updateTask model.tasks }
                 Cmd.none
+        RmSlots -> (
+            ({model 
+                | taskSlots =
+                    List.filter 
+                        (\s -> (case s.currentTask of 
+                            Nothing -> (False)
+                            Just b -> (True)))
+                        model.taskSlots}
+            )
+            , Cmd.none
+            )
         CloseModal ->
             ({model | modalModel = Maybe.map closeModal model.modalModel}, Cmd.none)
         ClearModal -> ({model | modalModel = Nothing}, Cmd.none)
@@ -276,67 +288,6 @@ update msg model =
                 ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
 
 -- VIEW
-
-type alias Slot = 
-    { currentTask : Maybe Task
-    , previousTask : Maybe Task
-    , style : Animation.Messenger.State Msg
-    }
-
--- Zip that doesnt drop items
-zip : List a -> List b -> List (Maybe a, Maybe b)
-zip a b =
-    case a of
-        aitem :: arest ->
-            case b of
-                bitem :: brest ->
-                    ([(Just aitem, Just bitem)] ++ zip arest brest)
-                _ -> [(Just aitem, Nothing)] ++ zip arest []
-        _ ->
-            case b of
-                bitem :: brest ->
-                    ([(Nothing, Just bitem)] ++ zip [] brest)
-                _ -> []
-
-slotSlideStart = (Animation.style [ Animation.left (px -800) ])
-slotSlideEnd index = [ 
-    Animation.wait (Time.millisToPosix (index * 1000)),
-    Animation.to [ Animation.left (px 0) ]
-    ]
-
-marry : Int -> (Maybe Slot, Maybe Task) -> Slot
-marry index (maybeSlot, maybeTask) =
-    case maybeSlot of
-        Just slot -> (
-            let
-                sameTask = Maybe.withDefault False (Maybe.map2 (\a b -> a.id == b.id) slot.currentTask maybeTask)
-            in
-                {slot
-                | currentTask = maybeTask
-                , previousTask = if not sameTask then slot.currentTask else slot.previousTask
-                , style = if sameTask then
-                    slot.style
-                    else (Animation.interrupt (slotSlideEnd index) slotSlideStart)
-                })
-        Nothing ->
-            -- Slot created, should slide in
-            (Slot maybeTask Nothing (Animation.interrupt (slotSlideEnd index) slotSlideStart))
-
--- This creates an updated list of slots based on the current task list...
-marrySlots : List Slot -> List Task -> List Slot
-marrySlots slots tasks =
-    List.indexedMap marry (zip slots tasks)
-
-viewSlot : Int -> Slot -> Html Msg
-viewSlot time slot =
-    li
-        ([class "slot"] ++ Animation.render slot.style)
-        [ Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.currentTask)
-        , Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.previousTask)
-        ]
-
-
-
 view : Model -> Html Msg
 view model =
     div
@@ -397,6 +348,83 @@ viewTask time task =
                     ]
                 ]
             ]
+
+--SLOTS
+type alias Slot = 
+    { currentTask : Maybe Task
+    , previousTask : Maybe Task
+    , style : Animation.Messenger.State Msg
+    }
+
+-- Zip that doesnt drop items
+zip : List a -> List b -> List (Maybe a, Maybe b)
+zip a b =
+    case a of
+        aitem :: arest ->
+            case b of
+                bitem :: brest ->
+                    ([(Just aitem, Just bitem)] ++ zip arest brest)
+                _ -> [(Just aitem, Nothing)] ++ zip arest []
+        _ ->
+            case b of
+                bitem :: brest ->
+                    ([(Nothing, Just bitem)] ++ zip [] brest)
+                _ -> []
+
+slotSlideStart = (Animation.style [ Animation.left (px -800) ])
+slotSlideEnd index rm = [ 
+    Animation.wait (Time.millisToPosix (index * 400)),
+    Animation.to [ Animation.left (px 0) ]
+    ] ++ (if rm then [Animation.Messenger.send (RmSlots)] else [])
+
+{- Fold a value left while mapping a function and passing the value in-}
+foldlMap : (b -> a -> (b, c)) -> b -> List a -> List c
+foldlMap fn initial l =
+    case l of
+        [] -> ([])
+        val :: rest -> 
+            ( let
+                (accum, r) = fn initial val 
+            in
+                r :: (foldlMap fn accum rest)
+            ) 
+
+marry : Int -> (Maybe Slot, Maybe Task) -> (Int, Slot)
+marry accum (maybeSlot, maybeTask) =
+    case maybeSlot of
+        Just slot -> (
+            let
+                sameTask = Maybe.withDefault False (Maybe.map2 (\a b -> a.id == b.id) slot.currentTask maybeTask)
+                rm = Maybe.withDefault False (Maybe.map (\a -> True)maybeTask)
+            in
+                (accum + (if sameTask then 0 else 1), {slot
+                | currentTask = maybeTask
+                , previousTask = if not sameTask then slot.currentTask else slot.previousTask
+                , style =
+                    if sameTask then
+                        slot.style
+                    else (Animation.interrupt (slotSlideEnd accum rm) slotSlideStart)
+                }))
+        Nothing ->
+            -- Slot created, should slide in
+            (accum + 1, (Slot maybeTask Nothing (Animation.interrupt (slotSlideEnd accum False) slotSlideStart)))
+
+-- This creates an updated list of slots based on the current task list...
+marrySlots : List Slot -> List Task -> List Slot
+marrySlots slots tasks =
+    foldlMap marry 0 (zip slots tasks)
+
+viewSlot : Int -> Slot -> Html Msg
+viewSlot time slot =
+    li
+        ([class (case slot.currentTask of 
+            Just b -> ("slot") 
+            Nothing -> ("notslot"))] ++ Animation.render slot.style)
+        [ Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.currentTask)
+        , Maybe.withDefault (div [] []) (Maybe.map (viewTask time) slot.previousTask)
+        ]
+
+-- MODAL VIEWS
 
 taskInputsView model tasks descChange tagChange periodChange
     = let
@@ -463,6 +491,7 @@ newTaskView newTaskModel tasks
             , button [ onClick (CloseModal) ] [text "Cancel"]
             ]
         ]) 
+        
 
 -- MODAL
 

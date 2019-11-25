@@ -119,6 +119,10 @@ html {
   border-top: 0.5px solid #add8e6;
 }
 
+.slot:last-of-type .task-view {
+  border-bottom: 0.5px solid #add8e6;
+}
+
 .add-task,
 .task-edit,
 .task-button {
@@ -128,10 +132,6 @@ html {
 
 .task-edit {
   border-right: 0.5px solid #add8e6;
-}
-
-.main {
-  border-bottom: 0.5px solid #add8e6;
 }
 
 .task-button {
