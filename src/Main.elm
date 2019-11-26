@@ -56,7 +56,7 @@ type alias Model =
   , tasks : List Task
   , taskSlots : List Slot
   , uid : Int
-  , modalModel : Maybe ModalModel
+  , modal : Maybe ModalModel
   , options : OptionsModel
   }
 
@@ -78,11 +78,6 @@ type alias Task =
   , doneCount : Int
   }
 
-type alias StorageModel =
-    { tasks : List Task
-    , uid : Int
-    }
-
 newTask : Int -> Int -> NewTaskModel -> Task
 newTask time uid model =
     { description = model.description
@@ -94,11 +89,16 @@ newTask time uid model =
     , doneCount = 0
     }
 
+type alias StorageModel =
+    { tasks : List Task
+    , uid : Int
+    }
+
 -- SUBSCRIPTIONS
 
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
-    case model.modalModel of
+    case model.modal of
         Just m -> (Animation.subscription AnimateModal [ m.bgStyle, m.contentStyle ])
         Nothing -> (Sub.none)
 
@@ -114,6 +114,70 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch [timeSubscription model, animationSubscription model, slotSubscription model]
 
+maybeUpdateModal : Model -> (ModalModel -> ModalModel) -> Model
+maybeUpdateModal model fn = { model | modal = Maybe.map fn model.modal }
+
+type EditField
+    = EditDescription String
+    | EditTag String
+    | EditPeriod String
+
+updateEditModel : EditTaskModel -> EditField -> EditTaskModel
+updateEditModel model field =
+    case field of
+        EditDescription str -> ({model | description = str})
+        EditTag str -> ({model | tag = str})
+        EditPeriod str -> ({model | period = str})
+
+maybeUpdateEditModel : EditField -> ModalModel -> ModalModel
+maybeUpdateEditModel field model
+    = case model.modalType of
+        EditTask editModel -> ( 
+                {model | modalType = EditTask (updateEditModel editModel field)}
+            )
+        _ -> model
+
+type NewField
+    = NewDescription String
+    | NewTag String
+    | NewPeriod String
+
+updateNewModel : NewTaskModel -> NewField -> NewTaskModel
+updateNewModel model field =
+    case field of
+        NewDescription str -> ({model | description = str})
+        NewTag str -> ({model | tag = str})
+        NewPeriod str -> ({model | period = str})
+
+maybeUpdateNewModel : NewField -> ModalModel -> ModalModel
+maybeUpdateNewModel field model
+    = case model.modalType of
+        NewTask newModel -> ( 
+                {model | modalType = NewTask (updateNewModel newModel field)}
+            )
+        _ -> model
+
+type OptionsField
+    = OptionsRecent String
+    | OptionsUpcoming String
+    | OptionsShowAll Bool
+
+updateOptionsModel : EditOptionsModel -> OptionsField -> EditOptionsModel
+updateOptionsModel model field =
+    case field of
+        OptionsRecent str -> ({model | recentPeriod = str})
+        OptionsUpcoming str -> ({model | upcomingPeriod = str})
+        OptionsShowAll bool -> ({model | showAll = bool})
+
+maybeUpdateOptionsModel : OptionsField -> ModalModel -> ModalModel
+maybeUpdateOptionsModel field model
+    = case model.modalType of
+        Options optionsModel -> ( 
+                {model | modalType = Options (updateOptionsModel optionsModel field)}
+            )
+        _ -> model
+
+
 -- UPDATE
 type Msg
     = NoOp
@@ -123,7 +187,11 @@ type Msg
     | OpenModal Modal
     | CloseModal
     | ClearModal
-    | AnimateSlots Animation.Msg
+    
+    | UpdateEditForm EditField
+    | UpdateNewForm NewField
+    | UpdateOptionsForm OptionsField
+
     | AnimateModal Animation.Msg
     | ChangeDescription NewTaskModel String
     | ChangeTag NewTaskModel String
@@ -133,29 +201,9 @@ type Msg
     | ChangePeriodEdit EditTaskModel String
     | Edit EditTaskModel
     | Delete EditTaskModel
+
+    | AnimateSlots Animation.Msg
     | RmSlots
-
-closeModal m =
-    { m | bgStyle = Animation.interrupt
-        [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
-        , Animation.Messenger.send (ClearModal)
-        ]
-        m.bgStyle
-        , contentStyle = Animation.interrupt
-        [ Animation.to [ Animation.top (px -300) ]
-        ]
-        m.contentStyle
-    }
-
-updateWithSlots : (Model, Cmd Msg) -> (Model, Cmd Msg)
-updateWithSlots (model, cmd) =
-    let
-        recentlyDone = isRecentlyDone model.options.recentPeriod model.time
-        dueSoon = isDueSoon model.options.upcomingPeriod model.time
-        isVisible task = (dueSoon task) || (recentlyDone task)
-        visibleTasks = (List.sortBy .nextDue (List.filter isVisible model.tasks))
-    in
-        ({model | taskSlots = (marrySlots model.taskSlots visibleTasks)}, cmd)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -192,21 +240,21 @@ update msg model =
             , Cmd.none
             )
         CloseModal ->
-            ({model | modalModel = Maybe.map closeModal model.modalModel}, Cmd.none)
-        ClearModal -> ({model | modalModel = Nothing}, Cmd.none)
+            ({model | modal = Maybe.map closeModal model.modal}, Cmd.none)
+        ClearModal -> ({model | modal = Nothing}, Cmd.none)
         Add newTaskModel ->
             store
                 { model 
                 | tasks = model.tasks ++ [newTask model.time model.uid newTaskModel]
                 , uid = model.uid + 1
-                , modalModel = Maybe.map closeModal model.modalModel
+                , modal = Maybe.map closeModal model.modal
                 }
                 Cmd.none
         Delete editTaskModel ->
             store
                 ({ model 
                     | tasks = List.filter (\t -> t.id /= editTaskModel.id) model.tasks
-                    , modalModel = Maybe.map closeModal model.modalModel
+                    , modal = Maybe.map closeModal model.modal
                 })
                 Cmd.none
         Edit editTaskModel ->
@@ -224,17 +272,23 @@ update msg model =
                 in
                     { model
                     | tasks = List.map updateTask model.tasks
-                    , modalModel = Maybe.map closeModal model.modalModel
+                    , modal = Maybe.map closeModal model.modal
                     })
                 Cmd.none
+        UpdateEditForm field ->
+            (maybeUpdateModal model (maybeUpdateEditModel field), Cmd.none)
+        UpdateNewForm field ->
+            (maybeUpdateModal model (maybeUpdateNewModel field), Cmd.none)
+        UpdateOptionsForm field ->
+            (maybeUpdateModal model (maybeUpdateOptionsModel field), Cmd.none)
         OpenModal modal ->
             let
-                modalModel  = ModalModel
+                modalModel = ModalModel
                     modal
                     (Animation.interrupt [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.4 ) ] ] initalBgStyle)
                     (Animation.interrupt [ Animation.to [ Animation.top (px 0)] ] initalContentStyle)
             in
-                ( { model | modalModel = Just modalModel }, Cmd.none)
+                ( { model | modal = Just modalModel }, Cmd.none)
         AnimateSlots animMsg ->
             let
                 updateStyle s = Animation.Messenger.update animMsg s
@@ -259,42 +313,65 @@ update msg model =
                             (contentStyle, cmd2) = updateStyle modal.contentStyle 
                         in
                         ( {model
-                            | modalModel = Just {modal | bgStyle = bgStyle, contentStyle = contentStyle}
+                            | modal = Just {modal | bgStyle = bgStyle, contentStyle = contentStyle}
                             }
                         , (Cmd.batch [cmd1, cmd2])
                         )
                     )
-                    model.modalModel)
+                    model.modal)
+            
         ChangeDescription newTaskModel desc ->
             let
                 newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | description = desc}}
             in
-                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
         ChangeTag newTaskModel tag ->
             let
                 newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | tag = tag}}
             in
-                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
         ChangePeriod newTaskModel period ->
             let
                 newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | period = period}}
             in
-                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
         ChangeDescriptionEdit newTaskModel desc ->
             let
                 newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | description = desc}}
             in
-                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
         ChangeTagEdit newTaskModel tag ->
             let
                 newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | tag = tag}}
             in
-                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
         ChangePeriodEdit newTaskModel period ->
             let
                 newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | period = period}}
             in
-                ( { model | modalModel = Maybe.map newTaskModelUpdate model.modalModel}, Cmd.none )
+                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
+
+closeModal m =
+    { m | bgStyle = Animation.interrupt
+        [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
+        , Animation.Messenger.send (ClearModal)
+        ]
+        m.bgStyle
+        , contentStyle = Animation.interrupt
+        [ Animation.to [ Animation.top (px -300) ]
+        ]
+        m.contentStyle
+    }
+
+updateWithSlots : (Model, Cmd Msg) -> (Model, Cmd Msg)
+updateWithSlots (model, cmd) =
+    let
+        recentlyDone = isRecentlyDone model.options.recentPeriod model.time
+        dueSoon = isDueSoon model.options.upcomingPeriod model.time
+        isVisible task = (dueSoon task) || (recentlyDone task)
+        visibleTasks = (List.sortBy .nextDue (List.filter isVisible model.tasks))
+    in
+        ({model | taskSlots = (marrySlots model.taskSlots visibleTasks)}, cmd)
 
 -- VIEW
 view : Model -> Html Msg
@@ -482,9 +559,9 @@ editTaskView : EditTaskModel -> List Task -> Html Msg
 editTaskView editTaskModel tasks
     = div [class "modal-view" ]
         (taskInputsView editTaskModel tasks
-            (ChangeDescriptionEdit editTaskModel)
-            (ChangeTagEdit editTaskModel)
-            (ChangePeriodEdit editTaskModel) ++
+            (\s -> UpdateEditForm (EditDescription s))
+            (\s -> UpdateEditForm (EditTag s))
+            (\s -> UpdateEditForm (EditPeriod s)) ++
         [div
             [class "modal-view-buttons"]
             [ button [ onClick (Edit editTaskModel) ] [text "Save"]
@@ -496,10 +573,10 @@ newTaskView : NewTaskModel -> List Task -> Html Msg
 newTaskView newTaskModel tasks
     = div
         [class "modal-view" ]
-        ((taskInputsView newTaskModel tasks
-            (ChangeDescription newTaskModel)
-            (ChangeTag newTaskModel)
-            (ChangePeriod newTaskModel)) ++
+        (taskInputsView newTaskModel tasks
+            (\s -> UpdateNewForm (NewDescription s))
+            (\s -> UpdateNewForm (NewTag s))
+            (\s -> UpdateNewForm (NewPeriod s)) ++
         [div
             [class "modal-view-buttons"]
             [ button [ onClick (Add newTaskModel) ] [text "Add"]
@@ -509,31 +586,35 @@ newTaskView newTaskModel tasks
         
 optionsView : EditOptionsModel -> Html Msg
 optionsView options =
-    div
-        [class "modal-view"]
-        [label
-            []
-            [text "Show tasks completed within"]
-        , input 
-            [value options.recentPeriod, list "recent-list", onInput (\s -> NoOp) ] []
-        , periodOptionsView options.recentPeriod "recent-list"
-        , label
-            []
-            [text "Show tasks due within"]
-        , input 
-            [value options.upcomingPeriod, list "upcoming-list", onInput (\s -> NoOp) ] []
-        , periodOptionsView options.upcomingPeriod "upcoming-list"
-        , div
-            [class "modal-view-buttons"]
-            [   button [ onClick (CloseModal) ] [text "Save"]
+    let
+        updateRecent = (\s -> UpdateOptionsForm (OptionsRecent s))
+        updateUpcoming = (\s -> UpdateOptionsForm (OptionsUpcoming s))
+    in
+        div
+            [class "modal-view"]
+            [label
+                []
+                [text "Show tasks completed within"]
+            , input 
+                [value options.recentPeriod, list "recent-list", onInput updateRecent ] []
+            , periodOptionsView options.recentPeriod "recent-list"
+            , label
+                []
+                [text "Show tasks due within"]
+            , input 
+                [value options.upcomingPeriod, list "upcoming-list", onInput updateUpcoming ] []
+            , periodOptionsView options.upcomingPeriod "upcoming-list"
+            , div
+                [class "modal-view-buttons"]
+                [   button [ onClick (CloseModal) ] [text "Save"]
+                ]
             ]
-        ]
 
 -- MODAL
 
 maybeModalView : Model -> Html Msg
 maybeModalView model =
-    case model.modalModel of
+    case model.modal of
         Just modal -> (
             div
                 ([class "modal", onClick CloseModal] ++ Animation.render modal.bgStyle)
@@ -564,6 +645,14 @@ type Modal
     = NewTask NewTaskModel
     | EditTask EditTaskModel
     | Options EditOptionsModel
+
+{-
+ModalModel -> String -> ModalModel
+
+modal = {modal | modalType = fn modal.modalType str}
+
+model = {model | modal = Just fn model.modal str}
+-}
 
 type alias EditOptionsModel =
     { recentPeriod : String
