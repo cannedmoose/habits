@@ -1,4 +1,4 @@
-module Habit exposing (Habit, description, tag, period, id, nextDue, lastDone, setDescription, setTag, setPeriod, do, newHabit, Id(..))
+module Habit exposing (Habit, description, tag, period, id, nextDue, lastDone, setDescription, setTag, setPeriod, do, newHabit, Id(..), decoder, encode)
 import Period exposing (Period, addToPosix)
 import Time exposing (Posix)
 import Json.Decode exposing (Decoder, field, string, int)

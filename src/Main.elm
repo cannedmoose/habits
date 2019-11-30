@@ -8,6 +8,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Events exposing (..)
+import Json.Decode as JD
+import Json.Encode as JE
 import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
 import Time exposing (Posix, posixToMillis)
@@ -20,8 +22,6 @@ rgba r g b a=
     , alpha = a
     }
 
-type alias Flags = {time : Int}
-
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -33,15 +33,59 @@ main =
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    ({ time = Time.millisToPosix flags.time
-     , habits = []
+    let
+        storage = JD.decodeValue storageDecoder flags.model
+            |> Result.withDefault defaultStorageModel
+        time = Time.millisToPosix flags.time
+    in
+    ({ time = time
+     , habits = storage.habits
      , slots = []
-     , options = defaultOptions
+     , options = storage.options
      , modal = Nothing
-     , uuid = 0
-    }, Cmd.none)
+     , uuid = storage.uuid
+    } |> fillSlots, Cmd.none)
 
 -- MODEL
+type alias Flags = {time : Int, model: JD.Value}
+
+type alias StorageModel =
+    { uuid: Int
+    , options: Options
+    , habits: List Habit
+    }
+
+defaultStorageModel : StorageModel
+defaultStorageModel = StorageModel 0 defaultOptions []
+
+storageDecoder: JD.Decoder StorageModel
+storageDecoder =
+    JD.map3 StorageModel
+      (JD.field "uuid" JD.int)
+      (JD.field "options" optionsDecoder)
+      (JD.field "habits" (JD.list Habit.decoder))
+
+storageEncoder : Model -> JE.Value
+storageEncoder model
+    = ( JE.object
+        [ ("uuid", JE.int model.uuid)
+        , ("options", optionsEncoder model.options)
+        , ("habits", JE.list Habit.encode model.habits)
+    ] )
+
+optionsDecoder: JD.Decoder Options
+optionsDecoder =
+    JD.map2 Options
+        (JD.field "recent" Period.decoder)
+        (JD.field "upcoming" Period.decoder)
+
+optionsEncoder: Options -> JE.Value
+optionsEncoder options
+    = ( JE.object
+        [ ("recent", Period.encode options.recent)
+        , ("upcoming", Period.encode options.upcoming)
+    ] )
+
 type alias Model = 
     { time : Posix 
     , habits : List Habit
@@ -147,9 +191,10 @@ subscriptions model =
   Sub.batch [timeSubscription model, animationSubscription model, slotSubscription model]
 
 -- PORTS
-port storeTasks : {} -> Cmd msg
-store : Model -> Cmd Msg -> (Model, Cmd Msg)
-store model cmd = (model, cmd)
+port store : JE.Value -> Cmd msg
+storeModel : (Model, Cmd msg) -> (Model, Cmd msg)
+storeModel (model, cmd) 
+    = (model, Cmd.batch [cmd, store (storageEncoder model)])
 
 -- UPDATE
 type ModalUpdate
@@ -190,7 +235,7 @@ type Msg
     | EditHabit EditModal
 
 initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
-initalContentStyle = (Animation.style [ Animation.top (Animation.px -800) ])
+initalContentStyle = (Animation.style [ Animation.top (Animation.px -400) ])
 closeBgStyle = Animation.interrupt
         [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
         , Animation.Messenger.send (RemoveModal)
@@ -303,7 +348,7 @@ update msg model =
             in
                 ( { model | options = updatedOptions } |> fillSlots |> closeModal
                 , Cmd.none
-                )
+                ) |> storeModel
 
         DoHabit habitId ->
             (
@@ -320,7 +365,7 @@ update msg model =
                         model | habits = updatedHabits
                     } |> fillSlots
                     , Cmd.none
-            )
+            ) |> storeModel
         
         AddHabit fields ->
             let
@@ -335,7 +380,7 @@ update msg model =
                     { model | habits = newHabit :: model.habits
                     , uuid = (model.uuid + 1) } |> closeModal |> fillSlots
                     , Cmd.none
-                )
+                ) |> storeModel
         
         DeleteHabit habitId ->
             (
@@ -343,7 +388,7 @@ update msg model =
                 | habits = List.filter (\h -> (Habit.id h) /= habitId) model.habits
                 } |> closeModal |> fillSlots
                 , Cmd.none
-            )
+            ) |> storeModel
         
         EditHabit editModal ->
             (
@@ -360,7 +405,7 @@ update msg model =
                     {
                         model | habits = updatedHabits 
                     } |> closeModal |> fillSlots , Cmd.none
-            )
+            ) |> storeModel
 
         UpdateModal modalUpdate -> (
             case model.modal of
@@ -404,7 +449,7 @@ update msg model =
             )
         
 
-slotSlideStart = (Animation.style [ Animation.left (Animation.px -800) ])
+slotSlideStart = (Animation.style [ Animation.left (Animation.px -400) ])
 slotSlideEnd index = [ 
     Animation.wait (Time.millisToPosix (index * 400)),
     Animation.to [ Animation.left (Animation.px 0) ]
@@ -547,11 +592,14 @@ maybeViewModal model =
 
 viewModalTransition : Model -> ModalTransition -> Html Msg
 viewModalTransition model transition =
-    div
-        (class "modal-background" :: Animation.render transition.background)
-        [ div
-            (class "modal-content" :: Animation.render transition.content)
-            [ viewModal model transition.modal]
+    div [class "modal-container"]
+        [
+        div
+            (class "modal-background" :: Animation.render transition.background)
+            [ div
+                (class "modal-content" :: Animation.render transition.content)
+                [ viewModal model transition.modal]
+            ]
         ]
 
 viewModal : Model -> Modal -> Html Msg
@@ -648,9 +696,15 @@ viewOptionsModal : OptionsModal -> Html Msg
 viewOptionsModal fields =
     div
         [class "modal-view"]
-        [ input 
+        [ label
+            []
+            [text "Upcoming"]
+        , input 
             [ placeholder "Period", value fields.upcoming, list "upcoming-list", onInput (\s -> UpdateModal (ChangeOptionsUpcoming s)) ] []
         , periodOptionsView fields.upcoming "upcoming-list"
+        , label
+            []
+            [text "Recent"]
         , input 
             [ placeholder "Period", value fields.recent, list "recent-list", onInput (\s -> UpdateModal (ChangeOptionsRecent s)) ] []
         , periodOptionsView fields.recent "recent-list"

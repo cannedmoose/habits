@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Tasks</title>
+  <title>Habits</title>
   <link rel="stylesheet" href="./styles.css?id=1574032113">
   <script type="text/javascript" src="elm.js?id=ds"></script>
 </head>
@@ -12,7 +12,17 @@
 </body>
 
 <script type="text/javascript">
-var app = Elm.Main.init({flags: {time: Date.now(), model: JSON.parse(localStorage.getItem('store'))}});
+var app = Elm.Main.init(
+  { flags:
+    { time: Date.now()
+    , model: JSON.parse(localStorage.getItem('habit-store'))
+    }
+  });
+
+app.ports.store.subscribe(function(data) {
+  localStorage.setItem('habit-store', JSON.stringify(data));
+});
+
 </script>
 
 </html>
