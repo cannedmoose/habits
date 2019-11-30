@@ -1,20 +1,16 @@
 port module Main exposing (..)
+
+import Animation
+import Animation.Messenger
 import Browser
-import Browser.Dom as Dom
+import Habit exposing (Habit)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Keyed as Keyed
-import Html.Lazy exposing (lazy2)
-import Set exposing (Set)
-import Time
-import Parser exposing (Parser, (|.), (|=), succeed, int, spaces)
-import Platform.Cmd exposing (batch)
-import Json.Encode as E
-import Json.Decode exposing (Decoder, field, string, int)
-import Animation exposing (px)
-import Animation.Messenger
-
+import Html.Events exposing (..)
+import Parser
+import Period exposing (Period(..), addToPosix, minusFromPosix)
+import Time exposing (Posix, posixToMillis)
 
 -- TODO figure out why we can't import this...
 rgba r g b a=
@@ -24,443 +20,486 @@ rgba r g b a=
     , alpha = a
     }
 
--- Setup
-
-type alias Flags = {time : Int, model : Json.Decode.Value}
+type alias Flags = {time : Int}
 
 main : Program Flags Model Msg
 main =
     Browser.document
         { init = init
         , view = \model -> { title = "Tasks", body = [view model] }
-        , update = (\m c -> updateWithSlots (update m c))
+        , update = update
         , subscriptions = subscriptions
         }
+
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    let
-        model = (logResultErr "Json Decode" (Json.Decode.decodeValue storageModelDecoder flags.model))
-            |> Result.withDefault (StorageModel [] 0)
-    in
-        updateWithSlots (Model flags.time model.tasks [] model.uid Nothing newOptions, Cmd.none)
-
-port storeTasks : StorageModel -> Cmd msg
-store : Model -> Cmd Msg -> (Model, Cmd Msg)
-store model cmd =
-    (model, batch [cmd, storeTasks {uid = model.uid, tasks = model.tasks}])
-
+    ({ time = Time.millisToPosix flags.time
+     , habits = []
+     , slots = []
+     , options = defaultOptions
+     , modal = Nothing
+     , uuid = 0
+    }, Cmd.none)
 
 -- MODEL
-type alias Model =
-  { time : Int
-  , tasks : List Task
-  , taskSlots : List Slot
-  , uid : Int
-  , modal : Maybe ModalModel
-  , options : OptionsModel
-  }
-
-type alias OptionsModel =
-  { recentPeriod : Int
-  , upcomingPeriod : Int
-  , showAll : Bool
-  }
-
-newOptions = OptionsModel (12*60*60*1000) (12*60*60*1000) False 
-
-type alias Task =
-  { description : String
-  , tag : String
-  , id : Int
-  , period : Int
-  , lastDone : Maybe Int
-  , nextDue : Int
-  , doneCount : Int
-  }
-
-newTask : Int -> Int -> NewTaskModel -> Task
-newTask time uid model =
-    { description = model.description
-    , tag = model.tag
-    , id = uid
-    , period = getPeriodMillis model
-    , lastDone = Nothing
-    , nextDue = time
-    , doneCount = 0
+type alias Model = 
+    { time : Posix 
+    , habits : List Habit
+    , slots : List Slot
+    , options : Options
+    , modal : Maybe ModalTransition
+    , uuid : Int
     }
 
-type alias StorageModel =
-    { tasks : List Task
-    , uid : Int
+type Modal
+    = Editing EditModal
+    | NewHabit NewModal
+    | ChangeOptions OptionsModal
+
+type alias ModalTransition =
+    { modal: Modal
+    , background: Anim
+    , content: Anim
     }
+openModalTransition : Modal -> ModalTransition
+openModalTransition modal =
+    { modal = modal
+    , background = (Animation.interrupt [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.4 ) ] ] initalBgStyle)
+    , content = (Animation.interrupt [ Animation.to [ Animation.top (Animation.px 0)] ] initalContentStyle)
+    }
+
+type alias EditModal =
+    { id: Habit.Id
+    , description: String
+    , tag: String
+    , period: String
+    }
+editModalFromHabit : Habit -> Modal
+editModalFromHabit habit =
+    Editing
+    { id = habit.id
+    , description = habit.description
+    , tag = habit.tag
+    , period = Period.toString(habit.period) 
+    }
+
+type alias NewModal =
+    { description: String
+    , tag: String
+    , period: String
+    }
+newNewModal : Modal
+newNewModal =
+    NewHabit 
+    { description = ""
+    , tag = ""
+    , period = "" 
+    }
+
+type alias OptionsModal =
+    { recent: String
+    , upcoming: String
+    }
+optionsModalFromOptions : Options -> Modal
+optionsModalFromOptions options =
+    ChangeOptions
+        { recent = Period.toString(options.recent) 
+        , upcoming = Period.toString(options.upcoming) 
+        }
+
+{-
+Note: Slot stores habit state so we can do a clean slide even if a habit has been updated 
+-}
+type alias Slot
+    = { style : Anim
+        , habits: OR Habit Habit
+        }
+
+type alias Options =
+    { recent : Period
+    , upcoming : Period
+    }
+defaultOptions = 
+    { recent = Hours 12
+    ,upcoming = Hours 12
+    }
+
+type alias Anim = Animation.Messenger.State Msg
 
 -- SUBSCRIPTIONS
 
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
     case model.modal of
-        Just m -> (Animation.subscription AnimateModal [ m.bgStyle, m.contentStyle ])
+        Just m -> (Animation.subscription AnimateModal [ m.background, m.content ])
         Nothing -> (Sub.none)
 
 slotSubscription : Model -> Sub Msg
 slotSubscription model =
-    Animation.subscription AnimateSlots (List.map .style model.taskSlots)
+    Animation.subscription AnimateSlot (List.map .style model.slots)
 
 timeSubscription : Model -> Sub Msg
-timeSubscription model =
-  Time.every 1000 Tick
+timeSubscription model = Sub.none
+  -- Time.every 1000 Tick
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch [timeSubscription model, animationSubscription model, slotSubscription model]
 
-maybeUpdateModal : Model -> (ModalModel -> ModalModel) -> Model
-maybeUpdateModal model fn = { model | modal = Maybe.map fn model.modal }
-
-type EditField
-    = EditDescription String
-    | EditTag String
-    | EditPeriod String
-
-updateEditModel : EditTaskModel -> EditField -> EditTaskModel
-updateEditModel model field =
-    case field of
-        EditDescription str -> ({model | description = str})
-        EditTag str -> ({model | tag = str})
-        EditPeriod str -> ({model | period = str})
-
-maybeUpdateEditModel : EditField -> ModalModel -> ModalModel
-maybeUpdateEditModel field model
-    = case model.modalType of
-        EditTask editModel -> ( 
-                {model | modalType = EditTask (updateEditModel editModel field)}
-            )
-        _ -> model
-
-type NewField
-    = NewDescription String
-    | NewTag String
-    | NewPeriod String
-
-updateNewModel : NewTaskModel -> NewField -> NewTaskModel
-updateNewModel model field =
-    case field of
-        NewDescription str -> ({model | description = str})
-        NewTag str -> ({model | tag = str})
-        NewPeriod str -> ({model | period = str})
-
-maybeUpdateNewModel : NewField -> ModalModel -> ModalModel
-maybeUpdateNewModel field model
-    = case model.modalType of
-        NewTask newModel -> ( 
-                {model | modalType = NewTask (updateNewModel newModel field)}
-            )
-        _ -> model
-
-type OptionsField
-    = OptionsRecent String
-    | OptionsUpcoming String
-    | OptionsShowAll Bool
-
-updateOptionsModel : EditOptionsModel -> OptionsField -> EditOptionsModel
-updateOptionsModel model field =
-    case field of
-        OptionsRecent str -> ({model | recentPeriod = str})
-        OptionsUpcoming str -> ({model | upcomingPeriod = str})
-        OptionsShowAll bool -> ({model | showAll = bool})
-
-maybeUpdateOptionsModel : OptionsField -> ModalModel -> ModalModel
-maybeUpdateOptionsModel field model
-    = case model.modalType of
-        Options optionsModel -> ( 
-                {model | modalType = Options (updateOptionsModel optionsModel field)}
-            )
-        _ -> model
-
+-- PORTS
+port storeTasks : {} -> Cmd msg
+store : Model -> Cmd Msg -> (Model, Cmd Msg)
+store model cmd = (model, cmd)
 
 -- UPDATE
-type Msg
+type ModalUpdate
+    = ChangeEditDescription String
+    | ChangeEditTag String
+    | ChangeEditPeriod String
+    | ChangeNewDescription String
+    | ChangeNewTag String
+    | ChangeNewPeriod String
+    | ChangeOptionsRecent String
+    | ChangeOptionsUpcoming String
+
+type Msg 
     = NoOp
+    | NoOps String
+
+    -- Subscriptions
     | Tick Time.Posix
-    | Do Int
-    | Add NewTaskModel
-    | OpenModal Modal
-    | CloseModal
-    | ClearModal
-    
-    | UpdateEditForm EditField
-    | UpdateNewForm NewField
-    | UpdateOptionsForm OptionsField
-
     | AnimateModal Animation.Msg
-    | ChangeDescription NewTaskModel String
-    | ChangeTag NewTaskModel String
-    | ChangePeriod NewTaskModel String
-    | ChangeDescriptionEdit EditTaskModel String
-    | ChangeTagEdit EditTaskModel String
-    | ChangePeriodEdit EditTaskModel String
-    | Edit EditTaskModel
-    | Delete EditTaskModel
+    | RemoveModal
+    | AnimateSlot Animation.Msg
+    | RemoveSlots
 
-    | AnimateSlots Animation.Msg
-    | RmSlots
+    -- Modals
+    | OpenEditModal Habit.Id
+    | OpenNewModal
+    | OpenOptionsModal
+    | CloseModal
+    | UpdateModal ModalUpdate
+
+    -- Options
+    | SaveOptions OptionsModal
+
+    -- Tasks
+    | DoHabit Habit.Id
+    | AddHabit NewModal
+    | DeleteHabit Habit.Id
+    | EditHabit EditModal
+
+initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
+initalContentStyle = (Animation.style [ Animation.top (Animation.px -800) ])
+closeBgStyle = Animation.interrupt
+        [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
+        , Animation.Messenger.send (RemoveModal)
+        ]
+closeContentStyle = Animation.interrupt
+        [ Animation.to [ Animation.top (Animation.px -300) ]
+        ]
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoOp ->
-            ( model, Cmd.none ) 
-        Tick newTime -> 
-            ( { model | time = Time.posixToMillis(newTime) }
-            , Cmd.none
+        NoOp -> (model, Cmd.none)
+        NoOps s -> (model, Cmd.none)
+
+        Tick time ->
+            (
+                { model | time = time } |> fillSlots
+                , Cmd.none
             )
-        Do id ->
-            let
-                updateTask task =
-                    if task.id == id then
-                        { task | doneCount = task.doneCount + 1
-                            , lastDone = Just model.time
-                            , nextDue = model.time + task.period
-                        }
-                    else
-                        task
-            in
-            store
-                { model | tasks = List.map updateTask model.tasks }
-                Cmd.none
-        RmSlots -> (
-            ({model 
-                | taskSlots =
-                    List.filter 
-                        (\s -> (case s.currentTask of 
-                            Nothing -> (False)
-                            Just b -> (True)))
-                        model.taskSlots}
-            )
-            , Cmd.none
-            )
-        CloseModal ->
-            ({model | modal = Maybe.map closeModal model.modal}, Cmd.none)
-        ClearModal -> ({model | modal = Nothing}, Cmd.none)
-        Add newTaskModel ->
-            store
-                { model 
-                | tasks = model.tasks ++ [newTask model.time model.uid newTaskModel]
-                , uid = model.uid + 1
-                , modal = Maybe.map closeModal model.modal
-                }
-                Cmd.none
-        Delete editTaskModel ->
-            store
-                ({ model 
-                    | tasks = List.filter (\t -> t.id /= editTaskModel.id) model.tasks
-                    , modal = Maybe.map closeModal model.modal
-                })
-                Cmd.none
-        Edit editTaskModel ->
-            store
-                (let
-                    updateTask task =
-                        if task.id == editTaskModel.id then
-                            {task 
-                            |   description = editTaskModel.description
-                            , tag = editTaskModel.tag
-                            , period = getPeriodMillis editTaskModel 
-                            }
-                        else
-                            task 
-                in
-                    { model
-                    | tasks = List.map updateTask model.tasks
-                    , modal = Maybe.map closeModal model.modal
-                    })
-                Cmd.none
-        UpdateEditForm field ->
-            (maybeUpdateModal model (maybeUpdateEditModel field), Cmd.none)
-        UpdateNewForm field ->
-            (maybeUpdateModal model (maybeUpdateNewModel field), Cmd.none)
-        UpdateOptionsForm field ->
-            (maybeUpdateModal model (maybeUpdateOptionsModel field), Cmd.none)
-        OpenModal modal ->
-            let
-                modalModel = ModalModel
-                    modal
-                    (Animation.interrupt [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.4 ) ] ] initalBgStyle)
-                    (Animation.interrupt [ Animation.to [ Animation.top (px 0)] ] initalContentStyle)
-            in
-                ( { model | modal = Just modalModel }, Cmd.none)
-        AnimateSlots animMsg ->
-            let
-                updateStyle s = Animation.Messenger.update animMsg s
-                (slotStyles, slotCmds) = List.map .style model.taskSlots 
-                    |> List.map updateStyle
-                    |> List.unzip
-            in
-                ({model
-                | taskSlots = List.map2 
-                    (\slot style -> {slot | style = style})
-                    model.taskSlots
-                    slotStyles
-                }, Cmd.batch(slotCmds))
+
         AnimateModal animMsg ->
-            Maybe.withDefault 
-                (model, Cmd.none)
-                (Maybe.map
-                    (\modal ->
-                        let
-                            updateStyle s = Animation.Messenger.update animMsg s
-                            (bgStyle, cmd1) = updateStyle modal.bgStyle
-                            (contentStyle, cmd2) = updateStyle modal.contentStyle 
-                        in
-                        ( {model
-                            | modal = Just {modal | bgStyle = bgStyle, contentStyle = contentStyle}
-                            }
-                        , (Cmd.batch [cmd1, cmd2])
-                        )
+            case model.modal of
+            Nothing -> (model, Cmd.none)
+            Just modal -> ( 
+                let
+                    updateStyle s = Animation.Messenger.update animMsg s
+                    (background, cmd1) = updateStyle modal.background
+                    (content, cmd2) = updateStyle modal.content
+                in
+                ( { model | modal = Just {modal | background = background, content = content} }
+                , (Cmd.batch [cmd1, cmd2])
+                )
+                )
+        
+        RemoveModal ->
+            (
+                let 
+                    modal = model.modal
+                in
+                    ( {model | modal = Nothing }
+                    , Cmd.none
                     )
-                    model.modal)
-            
-        ChangeDescription newTaskModel desc ->
-            let
-                newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | description = desc}}
-            in
-                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
-        ChangeTag newTaskModel tag ->
-            let
-                newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | tag = tag}}
-            in
-                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
-        ChangePeriod newTaskModel period ->
-            let
-                newTaskModelUpdate m = { m | modalType = NewTask {newTaskModel | period = period}}
-            in
-                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
-        ChangeDescriptionEdit newTaskModel desc ->
-            let
-                newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | description = desc}}
-            in
-                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
-        ChangeTagEdit newTaskModel tag ->
-            let
-                newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | tag = tag}}
-            in
-                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
-        ChangePeriodEdit newTaskModel period ->
-            let
-                newTaskModelUpdate m = { m | modalType = EditTask {newTaskModel | period = period}}
-            in
-                ( { model | modal = Maybe.map newTaskModelUpdate model.modal}, Cmd.none )
+            )
 
-closeModal m =
-    { m | bgStyle = Animation.interrupt
-        [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
-        , Animation.Messenger.send (ClearModal)
-        ]
-        m.bgStyle
-        , contentStyle = Animation.interrupt
-        [ Animation.to [ Animation.top (px -300) ]
-        ]
-        m.contentStyle
-    }
+        AnimateSlot animMsg ->
+            (
+                let
+                    updateStyle s = Animation.Messenger.update animMsg s
+                    (slotStyles, slotCmds) = List.map .style model.slots 
+                        |> List.map updateStyle
+                        |> List.unzip
+                in
+                    ({model
+                    | slots = List.map2 
+                        (\slot style -> {slot | style = style})
+                        model.slots
+                        slotStyles
+                    }, Cmd.batch(slotCmds))
+            )
+        
+        -- TODO IMPLEMENT Figure out how to call
+        RemoveSlots ->
+            (
+                let
+                    _ = Debug.log "REMOVE" "YEAH"
+                in
+                    ( model, Cmd.none )
+            )
+        
+        OpenEditModal habitId ->
+            (
+                let
+                    habit = List.filter (\h -> h.id == habitId) model.habits
+                        |> List.head
+                    modal = Maybe.map editModalFromHabit habit
+                        |> Maybe.map openModalTransition
+                in
+                { model | modal = modal }, Cmd.none
+            )
+        
+        OpenNewModal ->
+            (
+                let
+                    modal = openModalTransition newNewModal
+                in
+                { model | modal = Just modal }, Cmd.none
+            )
+        
+        OpenOptionsModal ->
+            (
+                let
+                    modal = openModalTransition (optionsModalFromOptions model.options)
+                in
+                { model | modal = Just modal }, Cmd.none
+            )
 
-updateWithSlots : (Model, Cmd Msg) -> (Model, Cmd Msg)
-updateWithSlots (model, cmd) =
+        CloseModal ->
+            (
+                model |> closeModal, Cmd.none
+            )
+
+        SaveOptions optionsFields ->
+            let
+                options = model.options
+                updatedOptions =
+                    { options 
+                    | recent = (Period.parse optionsFields.recent)
+                    , upcoming = (Period.parse optionsFields.upcoming)
+                    }
+            in
+                ( { model | options = updatedOptions } |> fillSlots |> closeModal
+                , Cmd.none
+                )
+
+        DoHabit habitId ->
+            (
+                let
+                    updatedHabits = List.map 
+                        (\h -> 
+                            if h.id == habitId
+                            then Habit.do model.time h 
+                            else h
+                        ) 
+                        model.habits
+                in
+                    {
+                        model | habits = updatedHabits
+                    } |> fillSlots
+                    , Cmd.none
+            )
+        
+        AddHabit fields ->
+            let
+                newHabit = Habit.newHabit
+                    model.time
+                    fields.description
+                    fields.tag
+                    (Habit.HabitId model.uuid)
+                    (Period.parse fields.period)
+            in
+                (
+                    { model | habits = newHabit :: model.habits
+                    , uuid = (model.uuid + 1) } |> closeModal |> fillSlots
+                    , Cmd.none
+                )
+        
+        DeleteHabit habitId ->
+            (
+                { model 
+                | habits = List.filter (\h -> (Habit.id h) /= habitId) model.habits
+                } |> closeModal |> fillSlots
+                , Cmd.none
+            )
+        
+        EditHabit editModal ->
+            (
+                let
+                    updatedHabits = List.map 
+                        (\h -> 
+                            if h.id == editModal.id
+                            then
+                                {h | description = editModal.description, tag = editModal.tag, period = (Period.parse editModal.period)} 
+                            else h
+                        ) 
+                        model.habits
+                in
+                    {
+                        model | habits = updatedHabits 
+                    } |> closeModal |> fillSlots , Cmd.none
+            )
+
+        UpdateModal modalUpdate -> (
+            case model.modal of
+                Nothing -> (model, Cmd.none)
+                Just transition -> (
+                    case (modalUpdate, transition.modal) of
+                        (ChangeEditDescription str, Editing modal) ->
+                            (
+                                {model | modal = Just {transition | modal = Editing {modal | description = str}}}, Cmd.none 
+                            )
+                        (ChangeEditTag str, Editing modal) ->
+                            (
+                                {model | modal = Just {transition | modal = Editing {modal | tag = str}}}, Cmd.none 
+                            )
+                        (ChangeEditPeriod str, Editing modal) ->
+                            (
+                                {model | modal = Just {transition | modal = Editing {modal | period = str}}}, Cmd.none 
+                            )
+                        (ChangeNewDescription str, NewHabit modal) ->
+                            (
+                                {model | modal = Just {transition | modal = NewHabit {modal | description = str}}}, Cmd.none 
+                            )
+                        (ChangeNewTag str, NewHabit modal) ->
+                            (
+                                {model | modal = Just {transition | modal = NewHabit {modal | tag = str}}}, Cmd.none 
+                            )
+                        (ChangeNewPeriod str, NewHabit modal) ->
+                            (
+                                {model | modal = Just {transition | modal = NewHabit {modal | period = str}}}, Cmd.none 
+                            )
+                        (ChangeOptionsRecent str, ChangeOptions modal) ->
+                            (
+                                {model | modal = Just {transition | modal = ChangeOptions {modal | recent = str}}}, Cmd.none 
+                            )
+                        (ChangeOptionsUpcoming str, ChangeOptions modal) ->
+                            (
+                                {model | modal = Just {transition | modal = ChangeOptions {modal | upcoming = str}}}, Cmd.none 
+                            )
+                        (_, _) -> (model, Cmd.none)
+                    )
+            )
+        
+
+slotSlideStart = (Animation.style [ Animation.left (Animation.px -800) ])
+slotSlideEnd index = [ 
+    Animation.wait (Time.millisToPosix (index * 400)),
+    Animation.to [ Animation.left (Animation.px 0) ]
+    ]
+slotFinale = [Animation.Messenger.send RemoveSlots]
+
+fillSlot : Int -> OR Slot Habit -> (Int, Slot)
+fillSlot accum slotOrHabit =
+    case slotOrHabit of
+        Both slot habit ->
+            let
+                currentHabit = case slot.habits of
+                    Both f s -> Just f
+                    First f -> Just f
+                    _ -> Nothing
+                {-
+                    TODO work out if this is the same based on visible properties
+                    ATM it's just id, want it to slide through if description changed though
+                -}
+                sameHabit = Maybe.map (\c -> c.id == habit.id) currentHabit
+                    |> Maybe.withDefault False
+            in
+                if sameHabit then
+                    (accum, { slot | habits = First habit})
+                else
+                    (accum + 1
+                    , Slot
+                        (Animation.interrupt (slotSlideEnd accum) slotSlideStart)
+                        (Maybe.map (\c -> Both habit c) currentHabit
+                            |> Maybe.withDefault (First habit))
+                    )
+        First slot -> (
+            let
+                sameHabit = case slot.habits of
+                    Second s -> True
+                    _ -> False
+            in
+                if sameHabit then
+                    (accum, slot)
+                else
+                    (accum + 1
+                    , Slot
+                        (Animation.interrupt (slotSlideEnd accum) slotSlideStart)
+                        (case slot.habits of
+                            Both f s -> Second f
+                            Second s -> Second s
+                            First f -> Second f)
+                    )
+            )
+        Second habit -> (
+            accum + 1,
+            Slot
+                (Animation.interrupt (slotSlideEnd accum) slotSlideStart)
+                (First habit)
+            )
+
+fillSlots : Model -> Model
+fillSlots model =
     let
-        recentlyDone = isRecentlyDone model.options.recentPeriod model.time
-        dueSoon = isDueSoon model.options.upcomingPeriod model.time
+        recentlyDone = isRecentlyDone model.time model.options
+        dueSoon = isDueSoon model.time model.options
         isVisible task = (dueSoon task) || (recentlyDone task)
-        visibleTasks = (List.sortBy .nextDue (List.filter isVisible model.tasks))
+        visibleHabits = (List.sortBy (\h -> Time.posixToMillis h.nextDue) (List.filter isVisible model.habits))
+        newSlots = foldlMap fillSlot 0 (zip model.slots visibleHabits)
     in
-        ({model | taskSlots = (marrySlots model.taskSlots visibleTasks)}, cmd)
+        {model | slots = newSlots}
 
--- VIEW
-view : Model -> Html Msg
-view model =
-    div
-        [ class "wrapper" ]
-            [ maybeModalView model
-            , viewMenu model
-            , viewTasks model
-        ]
-
-viewMenu : Model -> Html Msg
-viewMenu model =
-    section
-        [ class "menu" ]
-        [
-            button
-                [ class "add-task", onClick (OpenModal (NewTask emptyNewTaskModel)) ]
-                [ text "+" ]
-            , button
-                [ class "add-task", onClick (OpenModal (Options (newEditOptionsModel model.options))) ]
-                [ text "O" ]
-        ]
-
-viewTasks : Model -> Html Msg
-viewTasks model =
-    section
-        [ class "main"]
-        [
-            ul [ class "task-list" ] <|
-            List.map (viewSlot model) model.taskSlots
-        ]
-
-viewTask : Int -> Int -> Task -> Html Msg
-viewTask time recentPeriod task =
+closeModal : Model -> Model
+closeModal model =
     let
-        recentlyDone = isRecentlyDone recentPeriod time task
+        modalTransition = Maybe.map
+            (\modal -> {modal | background = closeBgStyle modal.background, content = closeContentStyle modal.content})
+            model.modal
     in
-        div
-            []
-            [ div
-                [ class "task-view" ]
-                [ button 
-                    [ class "task-edit"
-                    , onClick (OpenModal (EditTask (EditTaskModel task.description task.tag (millisPeriodToString task.period) task.id)))
-                    ]
-                    [ text "..." ]
-                , button 
-                    [ class "task-button"
-                    , class (if recentlyDone then "task-done" else "task-todo")
-                    , onClick (Do task.id)
-                    ]
-                    [ span 
-                        [class "task-description"]
-                        [text task.description]
-                    , span 
-                        [class "task-tag"]
-                        [text task.tag] 
-                    ]
-                ]
-            ]
+    { model | modal = modalTransition }
 
---SLOTS
-type alias Slot = 
-    { currentTask : Maybe Task
-    , previousTask : Maybe Task
-    , style : Animation.Messenger.State Msg
-    }
+type OR a b
+    = Both a b
+    | First a
+    | Second b
 
 -- Zip that doesnt drop items
-zip : List a -> List b -> List (Maybe a, Maybe b)
+zip : List a -> List b -> List (OR a b)
 zip a b =
     case a of
         aitem :: arest ->
             case b of
                 bitem :: brest ->
-                    ([(Just aitem, Just bitem)] ++ zip arest brest)
-                _ -> [(Just aitem, Nothing)] ++ zip arest []
+                    (Both aitem bitem :: zip arest brest)
+                _ -> (First aitem) :: zip arest []
         _ ->
             case b of
                 bitem :: brest ->
-                    ([(Nothing, Just bitem)] ++ zip [] brest)
+                    ((Second bitem) :: zip [] brest)
                 _ -> []
-
-slotSlideStart = (Animation.style [ Animation.left (px -800) ])
-slotSlideEnd index rm = [ 
-    Animation.wait (Time.millisToPosix (index * 400)),
-    Animation.to [ Animation.left (px 0) ]
-    ] ++ (if rm then [Animation.Messenger.send (RmSlots)] else [])
 
 {- Fold a value left while mapping a function and passing the value in-}
 foldlMap : (b -> a -> (b, c)) -> b -> List a -> List c
@@ -474,63 +513,80 @@ foldlMap fn initial l =
                 r :: (foldlMap fn accum rest)
             ) 
 
-marry : Int -> (Maybe Slot, Maybe Task) -> (Int, Slot)
-marry accum (maybeSlot, maybeTask) =
-    case maybeSlot of
-        Just slot -> (
-            let
-                sameTask = Maybe.withDefault False (Maybe.map2 (\a b -> a.id == b.id) slot.currentTask maybeTask)
-                rm = Maybe.withDefault False (Maybe.map (\a -> True)maybeTask)
-            in
-                (accum + (if sameTask then 0 else 1), {slot
-                | currentTask = maybeTask
-                , previousTask = if not sameTask then slot.currentTask else slot.previousTask
-                , style =
-                    if sameTask then
-                        slot.style
-                    else (Animation.interrupt (slotSlideEnd accum rm) slotSlideStart)
-                }))
-        Nothing ->
-            -- Slot created, should slide in
-            (accum + 1, (Slot maybeTask Nothing (Animation.interrupt (slotSlideEnd accum False) slotSlideStart)))
+-- VIEW
+emptyDiv = (div [] [])
 
--- This creates an updated list of slots based on the current task list...
-marrySlots : List Slot -> List Task -> List Slot
-marrySlots slots tasks =
-    foldlMap marry 0 (zip slots tasks)
-
-viewSlot : Model -> Slot -> Html Msg
-viewSlot model slot =
-    li
-        ([class (case slot.currentTask of 
-            Just b -> ("slot") 
-            Nothing -> ("notslot"))] ++ Animation.render slot.style)
-        [ Maybe.withDefault (div [] []) (Maybe.map (viewTask model.time model.options.recentPeriod) slot.currentTask)
-        , Maybe.withDefault (div [] []) (Maybe.map (viewTask model.time model.options.recentPeriod) slot.previousTask)
+view : Model -> Html Msg
+view model =
+    div
+        [class "page"]
+        [ maybeViewModal model
+        , viewMenu model
+        , viewHabitList model
         ]
 
--- MODAL VIEWS
+viewMenu : Model -> Html Msg
+viewMenu model =
+    section
+        [ class "menu" ]
+        [
+            button
+                [ class "add-task", onClick (OpenNewModal) ]
+                [ text "+" ]
+            , button
+                [ class "add-task", onClick (OpenOptionsModal) ]
+                [ text "O" ]
+        ]
+
+maybeViewModal: Model -> Html Msg
+maybeViewModal model =
+    Maybe.map
+        (viewModalTransition model)
+        model.modal |>
+        Maybe.withDefault emptyDiv
+
+viewModalTransition : Model -> ModalTransition -> Html Msg
+viewModalTransition model transition =
+    div
+        (class "modal-background" :: Animation.render transition.background)
+        [ div
+            (class "modal-content" :: Animation.render transition.content)
+            [ viewModal model transition.modal]
+        ]
+
+viewModal : Model -> Modal -> Html Msg
+viewModal model modal =
+    case modal of
+        Editing editModal ->
+                (viewEditingModal editModal model.habits)
+        NewHabit newModal ->
+                (viewNewModal newModal model.habits)
+        ChangeOptions optionsModal ->
+                (viewOptionsModal optionsModal)
 
 periodOptionsView : String -> String -> Html Msg
-periodOptionsView period for =
+periodOptionsView input for =
     let
         periodUnit = Result.withDefault 
                 1
-                (Parser.run Parser.int period)
+                (Parser.run Parser.int input)
+        periodOption period =
+            option
+                [value (Period.toString period)]
+                [text (Period.toString period)]
         periodOptions unit =
-            [ option [value (addS unit "Minute")] [text (addS unit "Minute")]
-            , option [value (addS unit "Hour")] [text (addS unit "Hour")]
-            , option [value (addS unit "Day")] [text (addS unit "Day")]
-            , option [value (addS unit "Week")] [text (addS unit "Week")]
-            , option [value (addS unit "Month")] [text (addS unit "Month")]
+            [ periodOption (Minutes unit)
+            , periodOption (Hours unit)
+            , periodOption (Days unit)
+            , periodOption (Weeks unit)
+            , periodOption (Months unit)
             ]  
     in
         datalist
             [id for]
             ((periodOptions periodUnit) ++ (periodOptions (periodUnit + 1)))
-        
 
-taskInputsView model tasks descChange tagChange periodChange
+habitFieldsView fields tags descChange tagChange periodChange
     = let
         tagOption tag = option [value tag] [text tag]
     in
@@ -538,266 +594,132 @@ taskInputsView model tasks descChange tagChange periodChange
             []
             [text "I want to"]
         , input 
-            [ placeholder "Description", value model.description, onInput descChange ] []
+            [ placeholder "Description", value fields.description, onInput descChange ] []
         , label
             []
             [text "Tag"]
         , input
-            [ placeholder "Tag", value model.tag, list "tag-list", onInput tagChange ] []
+            [ placeholder "Tag", value fields.tag, list "tag-list", onInput tagChange ] []
         , datalist
             [id "tag-list"]
-            (List.map tagOption (Set.toList (Set.fromList (List.map .tag tasks))))
+            (List.map tagOption tags)
         , label
             []
             [text "Repeated every"]
         , input 
-            [ placeholder "Period", value model.period, list "period-list", onInput periodChange ] []
-        , periodOptionsView model.period "period-list"     
+            [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ] []
+        , periodOptionsView fields.period "period-list"
         ]
 
-editTaskView : EditTaskModel -> List Task -> Html Msg
-editTaskView editTaskModel tasks
-    = div [class "modal-view" ]
-        (taskInputsView editTaskModel tasks
-            (\s -> UpdateEditForm (EditDescription s))
-            (\s -> UpdateEditForm (EditTag s))
-            (\s -> UpdateEditForm (EditPeriod s)) ++
+viewEditingModal : EditModal -> List Habit -> Html Msg
+viewEditingModal fields habits =
+    div
+        [class "modal-view"]
+        (habitFieldsView
+            fields
+            (List.map .tag habits) 
+            (\s -> UpdateModal (ChangeEditDescription s))
+            (\s -> UpdateModal (ChangeEditTag s)) 
+            (\s -> UpdateModal (ChangeEditPeriod s)) ++
         [div
             [class "modal-view-buttons"]
-            [ button [ onClick (Edit editTaskModel) ] [text "Save"]
-            , button [ onClick (Delete editTaskModel) ] [text "Delete"]
+            [ button [ onClick (EditHabit fields) ] [text "Save"]
+            , button [ onClick (DeleteHabit fields.id) ] [text "Delete"]
             , button [ onClick (CloseModal) ] [text "Cancel"]
             ]])
 
-newTaskView : NewTaskModel -> List Task -> Html Msg
-newTaskView newTaskModel tasks
-    = div
-        [class "modal-view" ]
-        (taskInputsView newTaskModel tasks
-            (\s -> UpdateNewForm (NewDescription s))
-            (\s -> UpdateNewForm (NewTag s))
-            (\s -> UpdateNewForm (NewPeriod s)) ++
+viewNewModal : NewModal -> List Habit -> Html Msg
+viewNewModal fields habits =
+    div
+        [class "modal-view"]
+        (habitFieldsView
+            fields
+            (List.map .tag habits)
+            (\s -> UpdateModal (ChangeNewDescription s))
+            (\s -> UpdateModal (ChangeNewTag s))
+            (\s -> UpdateModal (ChangeNewPeriod s)) ++
         [div
             [class "modal-view-buttons"]
-            [ button [ onClick (Add newTaskModel) ] [text "Add"]
+            [ button [ onClick (AddHabit fields) ] [text "Save"]
+            , button [ onClick (CloseModal) ] [text "Cancel"]
+            ]])
+
+viewOptionsModal : OptionsModal -> Html Msg
+viewOptionsModal fields =
+    div
+        [class "modal-view"]
+        [ input 
+            [ placeholder "Period", value fields.upcoming, list "upcoming-list", onInput (\s -> UpdateModal (ChangeOptionsUpcoming s)) ] []
+        , periodOptionsView fields.upcoming "upcoming-list"
+        , input 
+            [ placeholder "Period", value fields.recent, list "recent-list", onInput (\s -> UpdateModal (ChangeOptionsRecent s)) ] []
+        , periodOptionsView fields.recent "recent-list"
+        , div
+            [class "modal-view-buttons"]
+            [ button [ onClick (SaveOptions fields) ] [text "Save"]
             , button [ onClick (CloseModal) ] [text "Cancel"]
             ]
-        ]) 
-        
-optionsView : EditOptionsModel -> Html Msg
-optionsView options =
-    let
-        updateRecent = (\s -> UpdateOptionsForm (OptionsRecent s))
-        updateUpcoming = (\s -> UpdateOptionsForm (OptionsUpcoming s))
-    in
-        div
-            [class "modal-view"]
-            [label
-                []
-                [text "Show tasks completed within"]
-            , input 
-                [value options.recentPeriod, list "recent-list", onInput updateRecent ] []
-            , periodOptionsView options.recentPeriod "recent-list"
-            , label
-                []
-                [text "Show tasks due within"]
-            , input 
-                [value options.upcomingPeriod, list "upcoming-list", onInput updateUpcoming ] []
-            , periodOptionsView options.upcomingPeriod "upcoming-list"
-            , div
-                [class "modal-view-buttons"]
-                [   button [ onClick (CloseModal) ] [text "Save"]
-                ]
-            ]
+        ]
 
--- MODAL
+isDueSoon: Posix -> Options -> Habit -> Bool
+isDueSoon time options habit =
+    posixToMillis (Habit.nextDue habit)
+        < posixToMillis (addToPosix options.upcoming time)
 
-maybeModalView : Model -> Html Msg
-maybeModalView model =
-    case model.modal of
-        Just modal -> (
+isRecentlyDone: Posix -> Options -> Habit -> Bool
+isRecentlyDone time options habit =
+    (Habit.lastDone habit) 
+        |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
+        |> Maybe.withDefault False
+
+viewHabitFilter: Posix -> Options -> Habit -> Bool
+viewHabitFilter time options habit =
+    isDueSoon time options habit || isRecentlyDone time options habit
+
+viewHabitList : Model -> Html Msg
+viewHabitList {time, habits, slots, options} =
+    div
+        [class "slots"]
+        (List.map (viewSlot time options) slots)
+
+viewSlot : Posix -> Options -> Slot -> Html Msg
+viewSlot time options slot =
+    (case slot.habits of
+        Both to from -> (
             div
-                ([class "modal", onClick CloseModal] ++ Animation.render modal.bgStyle)
-                [ 
-                    div ([(Html.Events.custom "click" (Json.Decode.succeed
-                            { message = NoOp
-                            , stopPropagation = True
-                            , preventDefault = True
-                            }
-                        )), class "modal-content" ] ++ Animation.render modal.contentStyle)
-                    [
-                        case modal.modalType of
-                            NewTask newTaskModel -> newTaskView newTaskModel model.tasks
-                            EditTask editTaskModel -> editTaskView editTaskModel model.tasks
-                            Options options -> optionsView options
-                    ]
-                ]
+                (class "slot" :: Animation.render slot.style)
+                [viewHabit time options to, viewHabit time options from]
             )
-        Nothing -> (span [] [])
-
-type alias ModalModel =
-    { modalType : Modal
-    , bgStyle : Animation.Messenger.State Msg
-    , contentStyle : Animation.Messenger.State Msg
-    }
-
-type Modal
-    = NewTask NewTaskModel
-    | EditTask EditTaskModel
-    | Options EditOptionsModel
-
-{-
-ModalModel -> String -> ModalModel
-
-modal = {modal | modalType = fn modal.modalType str}
-
-model = {model | modal = Just fn model.modal str}
--}
-
-type alias EditOptionsModel =
-    { recentPeriod : String
-    , upcomingPeriod : String
-    , showAll : Bool 
-    }
-
-newEditOptionsModel options =
-    EditOptionsModel 
-        (millisPeriodToString options.recentPeriod)
-        (millisPeriodToString options.upcomingPeriod)
-        False
-
-type alias EditTaskModel =
-    { description : String
-    , tag : String
-    , period : String
-    , id : Int
-    }
-
-type alias NewTaskModel =
-    { description : String
-    , tag : String
-    , period : String
-    }
-
-initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
-initalContentStyle = (Animation.style [ Animation.top (px -800) ])
-emptyNewTaskModel = NewTaskModel "" "" ""
-
-
--- HELPERS
-
-isRecentlyDone : Int -> Int -> Task -> Bool
-isRecentlyDone period now task =
-    Maybe.withDefault 
-        False 
-        (Maybe.map (\t -> now - period < t) task.lastDone)
-
-isDueSoon : Int -> Int -> Task -> Bool
-isDueSoon period now task = now + period > task.nextDue
-
--- Period parsing helpers
-type PeriodUnit
-    = Minute
-    | Hour
-    | Day
-    | Week
-    | Month
-
-type alias Period = 
-    { amount : Int
-    , unit: PeriodUnit
-    }
-
-addS : Int -> String -> String
-addS unit str 
-    = String.fromInt unit
-    ++ " "
-    ++ if (unit > 1) then str ++ "s" else str
-
-periodUnitToMillis : PeriodUnit -> Int
-periodUnitToMillis periodUnit =
-    case periodUnit of
-        Minute -> (60*1000)
-        Hour -> (60*60*1000)
-        Day -> (24*60*60*1000)
-        Week -> (7*24*60*60*1000)
-        Month -> (28*24*60*60*1000)
-
-periodToMillis : Period -> Int
-periodToMillis period =
-    (periodUnitToMillis period.unit) * period.amount
-
-millisPeriodToString : Int -> String
-millisPeriodToString millis =
-    let
-        months = millis//periodUnitToMillis(Month)
-        weeks = millis//periodUnitToMillis(Week)
-        hours = millis//periodUnitToMillis(Hour)
-        days = millis//periodUnitToMillis(Day)
-        minutes = millis//periodUnitToMillis(Minute)
-    in
-        if months >= 1 then
-            addS months "Month"
-        else if weeks >= 1 then
-            addS weeks "Week"
-        else if days >= 1 then
-            addS days "Day"
-        else if hours >= 1 then
-            addS hours "hour"
-        else if weeks >= 1 then
-            addS minutes "Minute"
-        else
-            "1 Minute"
-
-
-periodUnitParser : Parser PeriodUnit
-periodUnitParser = Parser.oneOf
-    [   succeed Week |. Parser.oneOf [Parser.token "week", Parser.token "weeks"] 
-        , succeed Month |. Parser.oneOf [Parser.token "month", Parser.token "months"]
-        , succeed Minute |. Parser.oneOf [Parser.token "minute", Parser.token "minutes"]
-        , succeed Hour |. Parser.oneOf [Parser.token "hour", Parser.token "hours"]
-        , succeed Day |. Parser.oneOf [Parser.token "day", Parser.token "days"]
-    ]
-periodParser : Parser Period
-periodParser =
-    succeed Period
-        |= Parser.oneOf [Parser.int ,  succeed 1]
-        |. spaces
-        |= periodUnitParser
-
-getPeriodMillis model =
-    periodToMillis (
-        Result.withDefault 
-        (Period 1 Day) 
-        (Parser.run periodParser (
-            String.toLower model.period
+        First habit -> (
+            div
+                (class "slot" :: Animation.render slot.style)
+                [viewHabit time options habit, emptyDiv]
             )
-        )
-    )
+        Second habit -> (
+            div
+                (class "slot" :: Animation.render slot.style)
+                [emptyDiv, viewHabit time options habit])
+            )
 
-
--- Debug logs and error message from a result, returning original result. 
-logResultErr : String -> Result x a -> Result x a
-logResultErr label r =
-    case r of
-        Ok value -> Ok value
-        Err msg -> Err (Debug.log label msg) 
-
--- JSON Decoding
-
-storageModelDecoder : Decoder StorageModel
-storageModelDecoder =
-    Json.Decode.map2 StorageModel
-        (field "tasks" (Json.Decode.list taskDecoder))
-        (field "uid" int)
-
-taskDecoder : Decoder Task
-taskDecoder =
-    Json.Decode.map7 Task
-        (field "description" string)
-        (field "tag" string)
-        (field "id" int)
-        (field "period" int)
-        (Json.Decode.maybe (field "lastDone" int))
-        (field "nextDue" int)
-        (field "doneCount" int)
+viewHabit : Posix -> Options -> Habit -> Html Msg
+viewHabit time options habit =
+    div
+        [ class "habit-view" ]
+        [ button 
+            [ class "habit-edit"
+            , onClick (OpenEditModal habit.id)
+            ]
+            [ text "..." ]
+        , button 
+            [ class "habit-button"
+            , class (if isRecentlyDone time options habit then "habit-done" else "habit-todo")
+            , onClick (DoHabit habit.id)
+            ]
+            [ span 
+                [class "habit-description"]
+                [text habit.description]
+            , span 
+                [class "habit-tag"]
+                [text habit.tag] 
+            ]
+        ]
