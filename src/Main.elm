@@ -3,6 +3,7 @@ port module Main exposing (..)
 import Animation
 import Animation.Messenger
 import Browser
+import Ease
 import Habit exposing (Habit)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -40,11 +41,11 @@ init flags =
     in
     ({ time = time
      , habits = storage.habits
-     , slots = []
      , options = storage.options
-     , modal = Nothing
      , uuid = storage.uuid
-    } |> fillSlots, Cmd.none)
+     , page = HabitList {visibleHabits = storage.habits, pageNumber = 0}
+     , pageTransition = Nothing
+    }, Cmd.none)
 
 -- MODEL
 type alias Flags = {time : Int, model: JD.Value}
@@ -89,27 +90,44 @@ optionsEncoder options
 type alias Model = 
     { time : Posix 
     , habits : List Habit
-    , slots : List Slot
     , options : Options
-    , modal : Maybe ModalTransition
+    , page : Page
+    , pageTransition : Maybe PageTransition
     , uuid : Int
     }
 
-type Modal
-    = Editing EditModal
+type Page
+    = HabitList HabitListPage
+    | EditHabit EditModal
     | NewHabit NewModal
     | ChangeOptions OptionsModal
 
-type alias ModalTransition =
-    { modal: Modal
-    , background: Anim
-    , content: Anim
+type alias PageTransition =
+    { previousPage: Page
+    , style: Anim
+    , above: Bool
     }
-openModalTransition : Modal -> ModalTransition
-openModalTransition modal =
-    { modal = modal
-    , background = (Animation.interrupt [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.4 ) ] ] initalBgStyle)
-    , content = (Animation.interrupt [ Animation.to [ Animation.top (Animation.px 0)] ] initalContentStyle)
+
+initalPageTransitionStyle = (Animation.styleWith (Animation.easing
+        { duration = 750
+        , ease = Ease.inOutQuart}
+    ) [ Animation.right (Animation.px 0) ])
+pageTransitionStyle = Animation.interrupt
+        [ Animation.to [ Animation.right (Animation.px -510) ]
+        , Animation.Messenger.send (SwapPages)
+        , Animation.to [ Animation.right (Animation.px 0) ]
+        ]
+
+openPageTransition : Page -> PageTransition
+openPageTransition page =
+    { previousPage = page
+    , style = pageTransitionStyle initalPageTransitionStyle
+    , above = True
+    }
+
+type alias HabitListPage = 
+    { visibleHabits : List Habit
+    , pageNumber : Int
     }
 
 type alias EditModal =
@@ -118,9 +136,9 @@ type alias EditModal =
     , tag: String
     , period: String
     }
-editModalFromHabit : Habit -> Modal
-editModalFromHabit habit =
-    Editing
+editPageFromHabit : Habit -> Page
+editPageFromHabit habit =
+    EditHabit
     { id = habit.id
     , description = habit.description
     , tag = habit.tag
@@ -132,7 +150,7 @@ type alias NewModal =
     , tag: String
     , period: String
     }
-newNewModal : Modal
+newNewModal : Page
 newNewModal =
     NewHabit 
     { description = ""
@@ -144,19 +162,11 @@ type alias OptionsModal =
     { recent: String
     , upcoming: String
     }
-optionsModalFromOptions : Options -> Modal
+optionsModalFromOptions : Options -> Page
 optionsModalFromOptions options =
     ChangeOptions
         { recent = Period.toString(options.recent) 
         , upcoming = Period.toString(options.upcoming) 
-        }
-
-{-
-Note: Slot stores habit state so we can do a clean slide even if a habit has been updated 
--}
-type alias Slot
-    = { style : Anim
-        , habits: OR Habit Habit
         }
 
 type alias Options =
@@ -174,13 +184,9 @@ type alias Anim = Animation.Messenger.State Msg
 
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
-    case model.modal of
-        Just m -> (Animation.subscription AnimateModal [ m.background, m.content ])
+    case model.pageTransition of
+        Just m -> (Animation.subscription AnimateModal [ m.style ])
         Nothing -> (Sub.none)
-
-slotSubscription : Model -> Sub Msg
-slotSubscription model =
-    Animation.subscription AnimateSlot (List.map .style model.slots)
 
 timeSubscription : Model -> Sub Msg
 timeSubscription model = Sub.none
@@ -188,7 +194,7 @@ timeSubscription model = Sub.none
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Sub.batch [timeSubscription model, animationSubscription model, slotSubscription model]
+  Sub.batch [timeSubscription model, animationSubscription model]
 
 -- PORTS
 port store : JE.Value -> Cmd msg
@@ -197,6 +203,19 @@ storeModel (model, cmd)
     = (model, Cmd.batch [cmd, store (storageEncoder model)])
 
 -- UPDATE
+updateVisibleHabits: Model -> Model
+updateVisibleHabits model
+    = case model.page of
+    HabitList habitList -> (
+        { model 
+        | page = HabitList
+            { habitList 
+            | visibleHabits = List.filter (viewHabitFilter model.time model.options) model.habits
+            }
+        }
+        )
+    _ -> model
+
 type ModalUpdate
     = ChangeEditDescription String
     | ChangeEditTag String
@@ -214,15 +233,13 @@ type Msg
     -- Subscriptions
     | Tick Time.Posix
     | AnimateModal Animation.Msg
-    | RemoveModal
-    | AnimateSlot Animation.Msg
-    | RemoveSlots
+    | SwapPages
 
     -- Modals
-    | OpenEditModal Habit.Id
-    | OpenNewModal
-    | OpenOptionsModal
-    | CloseModal
+    | OpenEditPage Habit.Id
+    | OpenNewPage
+    | OpenOptionsPage
+    | OpenHabitListPage Int
     | UpdateModal ModalUpdate
 
     -- Options
@@ -230,19 +247,10 @@ type Msg
 
     -- Tasks
     | DoHabit Habit.Id
-    | AddHabit NewModal
-    | DeleteHabit Habit.Id
-    | EditHabit EditModal
+    | DoAddHabit NewModal
+    | DoDeleteHabit Habit.Id
+    | DoEditHabit EditModal
 
-initalBgStyle = (Animation.style [ Animation.backgroundColor (rgba 0 0 0 0.0 ) ])
-initalContentStyle = (Animation.style [ Animation.top (Animation.px -400) ])
-closeBgStyle = Animation.interrupt
-        [ Animation.to [ Animation.backgroundColor (rgba 0 0 0 0.0) ]
-        , Animation.Messenger.send (RemoveModal)
-        ]
-closeContentStyle = Animation.interrupt
-        [ Animation.to [ Animation.top (Animation.px -300) ]
-        ]
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -252,89 +260,68 @@ update msg model =
 
         Tick time ->
             (
-                { model | time = time } |> fillSlots
+                { model | time = time } |> updateVisibleHabits
                 , Cmd.none
             )
 
         AnimateModal animMsg ->
-            case model.modal of
+            case model.pageTransition of
             Nothing -> (model, Cmd.none)
-            Just modal -> ( 
+            Just page -> ( 
                 let
                     updateStyle s = Animation.Messenger.update animMsg s
-                    (background, cmd1) = updateStyle modal.background
-                    (content, cmd2) = updateStyle modal.content
+                    (style, cmd) = updateStyle page.style
                 in
-                ( { model | modal = Just {modal | background = background, content = content} }
-                , (Cmd.batch [cmd1, cmd2])
+                ( { model | pageTransition = Just {page | style = style} }
+                , (cmd)
                 )
                 )
         
-        RemoveModal ->
-            (
-                let 
-                    modal = model.modal
-                in
-                    ( {model | modal = Nothing }
-                    , Cmd.none
-                    )
-            )
+        SwapPages ->
+            case model.pageTransition of
+            Nothing -> (model, Cmd.none)
+            Just transition -> (
+                {model | pageTransition = Just {transition | above = not transition.above}}
+                , Cmd.none)
 
-        AnimateSlot animMsg ->
+        OpenHabitListPage pageNumber ->
             (
                 let
-                    updateStyle s = Animation.Messenger.update animMsg s
-                    (slotStyles, slotCmds) = List.map .style model.slots 
-                        |> List.map updateStyle
-                        |> List.unzip
+                    page = HabitList {visibleHabits = [], pageNumber = 0}
+                    pageTransition = Just (openPageTransition model.page)
                 in
-                    ({model
-                    | slots = List.map2 
-                        (\slot style -> {slot | style = style})
-                        model.slots
-                        slotStyles
-                    }, Cmd.batch(slotCmds))
+                { model | page = page, pageTransition = pageTransition } |> updateVisibleHabits
+                , Cmd.none
             )
         
-        -- TODO IMPLEMENT Figure out how to call
-        RemoveSlots ->
-            (
-                let
-                    _ = Debug.log "REMOVE" "YEAH"
-                in
-                    ( model, Cmd.none )
-            )
-        
-        OpenEditModal habitId ->
+        OpenEditPage habitId ->
             (
                 let
                     habit = List.filter (\h -> h.id == habitId) model.habits
                         |> List.head
-                    modal = Maybe.map editModalFromHabit habit
-                        |> Maybe.map openModalTransition
+                    makePageTransition _ = Just (openPageTransition model.page)
+                    page = Maybe.map editPageFromHabit habit
+                        |> Maybe.withDefault model.page
+                    pageTransition = Maybe.map makePageTransition habit
+                        |> Maybe.withDefault model.pageTransition
                 in
-                { model | modal = modal }, Cmd.none
+                { model | page = page, pageTransition = pageTransition }, Cmd.none
             )
         
-        OpenNewModal ->
+        OpenNewPage ->
             (
                 let
-                    modal = openModalTransition newNewModal
+                    pageTransition = Just (openPageTransition model.page)
                 in
-                { model | modal = Just modal }, Cmd.none
+                { model | page = newNewModal, pageTransition = pageTransition }, Cmd.none
             )
         
-        OpenOptionsModal ->
+        OpenOptionsPage ->
             (
                 let
-                    modal = openModalTransition (optionsModalFromOptions model.options)
+                    pageTransition = Just (openPageTransition model.page)
                 in
-                { model | modal = Just modal }, Cmd.none
-            )
-
-        CloseModal ->
-            (
-                model |> closeModal, Cmd.none
+                { model | page = optionsModalFromOptions model.options, pageTransition = pageTransition}, Cmd.none
             )
 
         SaveOptions optionsFields ->
@@ -346,7 +333,7 @@ update msg model =
                     , upcoming = (Period.parse optionsFields.upcoming)
                     }
             in
-                ( { model | options = updatedOptions } |> fillSlots |> closeModal
+                ( { model | options = updatedOptions }
                 , Cmd.none
                 ) |> storeModel
 
@@ -363,11 +350,11 @@ update msg model =
                 in
                     {
                         model | habits = updatedHabits
-                    } |> fillSlots
+                    } |> updateVisibleHabits
                     , Cmd.none
             ) |> storeModel
         
-        AddHabit fields ->
+        DoAddHabit fields ->
             let
                 newHabit = Habit.newHabit
                     model.time
@@ -378,19 +365,19 @@ update msg model =
             in
                 (
                     { model | habits = newHabit :: model.habits
-                    , uuid = (model.uuid + 1) } |> closeModal |> fillSlots
+                    , uuid = (model.uuid + 1) }
                     , Cmd.none
                 ) |> storeModel
         
-        DeleteHabit habitId ->
+        DoDeleteHabit habitId ->
             (
                 { model 
                 | habits = List.filter (\h -> (Habit.id h) /= habitId) model.habits
-                } |> closeModal |> fillSlots
+                } 
                 , Cmd.none
             ) |> storeModel
         
-        EditHabit editModal ->
+        DoEditHabit editModal ->
             (
                 let
                     updatedHabits = List.map 
@@ -404,213 +391,183 @@ update msg model =
                 in
                     {
                         model | habits = updatedHabits 
-                    } |> closeModal |> fillSlots , Cmd.none
+                    }, Cmd.none
             ) |> storeModel
 
         UpdateModal modalUpdate -> (
-            case model.modal of
-                Nothing -> (model, Cmd.none)
-                Just transition -> (
-                    case (modalUpdate, transition.modal) of
-                        (ChangeEditDescription str, Editing modal) ->
-                            (
-                                {model | modal = Just {transition | modal = Editing {modal | description = str}}}, Cmd.none 
-                            )
-                        (ChangeEditTag str, Editing modal) ->
-                            (
-                                {model | modal = Just {transition | modal = Editing {modal | tag = str}}}, Cmd.none 
-                            )
-                        (ChangeEditPeriod str, Editing modal) ->
-                            (
-                                {model | modal = Just {transition | modal = Editing {modal | period = str}}}, Cmd.none 
-                            )
-                        (ChangeNewDescription str, NewHabit modal) ->
-                            (
-                                {model | modal = Just {transition | modal = NewHabit {modal | description = str}}}, Cmd.none 
-                            )
-                        (ChangeNewTag str, NewHabit modal) ->
-                            (
-                                {model | modal = Just {transition | modal = NewHabit {modal | tag = str}}}, Cmd.none 
-                            )
-                        (ChangeNewPeriod str, NewHabit modal) ->
-                            (
-                                {model | modal = Just {transition | modal = NewHabit {modal | period = str}}}, Cmd.none 
-                            )
-                        (ChangeOptionsRecent str, ChangeOptions modal) ->
-                            (
-                                {model | modal = Just {transition | modal = ChangeOptions {modal | recent = str}}}, Cmd.none 
-                            )
-                        (ChangeOptionsUpcoming str, ChangeOptions modal) ->
-                            (
-                                {model | modal = Just {transition | modal = ChangeOptions {modal | upcoming = str}}}, Cmd.none 
-                            )
-                        (_, _) -> (model, Cmd.none)
+            case (modalUpdate, model.page) of
+                (ChangeEditDescription str, EditHabit page) ->
+                    (
+                        {model | page = EditHabit {page | description = str}}, Cmd.none 
                     )
-            )
-        
-
-slotSlideStart = (Animation.style [ Animation.left (Animation.px -400) ])
-slotSlideEnd index = [ 
-    Animation.wait (Time.millisToPosix (index * 400)),
-    Animation.to [ Animation.left (Animation.px 0) ]
-    ]
-slotFinale = [Animation.Messenger.send RemoveSlots]
-
-fillSlot : Int -> OR Slot Habit -> (Int, Slot)
-fillSlot accum slotOrHabit =
-    case slotOrHabit of
-        Both slot habit ->
-            let
-                currentHabit = case slot.habits of
-                    Both f s -> Just f
-                    First f -> Just f
-                    _ -> Nothing
-                {-
-                    TODO work out if this is the same based on visible properties
-                    ATM it's just id, want it to slide through if description changed though
-                -}
-                sameHabit = Maybe.map (\c -> c.id == habit.id) currentHabit
-                    |> Maybe.withDefault False
-            in
-                if sameHabit then
-                    (accum, { slot | habits = First habit})
-                else
-                    (accum + 1
-                    , Slot
-                        (Animation.interrupt (slotSlideEnd accum) slotSlideStart)
-                        (Maybe.map (\c -> Both habit c) currentHabit
-                            |> Maybe.withDefault (First habit))
+                (ChangeEditTag str, EditHabit page) ->
+                    (
+                        {model | page = EditHabit {page | tag = str}}, Cmd.none 
                     )
-        First slot -> (
-            let
-                sameHabit = case slot.habits of
-                    Second s -> True
-                    _ -> False
-            in
-                if sameHabit then
-                    (accum, slot)
-                else
-                    (accum + 1
-                    , Slot
-                        (Animation.interrupt (slotSlideEnd accum) slotSlideStart)
-                        (case slot.habits of
-                            Both f s -> Second f
-                            Second s -> Second s
-                            First f -> Second f)
+                (ChangeEditPeriod str, EditHabit page) ->
+                    (
+                        {model | page = EditHabit {page | period = str}}, Cmd.none 
                     )
+                (ChangeNewDescription str, NewHabit page) ->
+                    (
+                        {model | page = NewHabit {page | description = str}}, Cmd.none 
+                    )
+                (ChangeNewTag str, NewHabit page) ->
+                    (
+                        {model | page = NewHabit {page | tag = str}}, Cmd.none 
+                    )
+                (ChangeNewPeriod str, NewHabit page) ->
+                    (
+                        {model | page = NewHabit {page | period = str}}, Cmd.none 
+                    )
+                (ChangeOptionsRecent str, ChangeOptions page) ->
+                    (
+                        {model | page = ChangeOptions {page | recent = str}}, Cmd.none 
+                    )
+                (ChangeOptionsUpcoming str, ChangeOptions page) ->
+                    (
+                        {model | page = ChangeOptions {page | upcoming = str}}, Cmd.none 
+                    )
+                (_, _) -> (model, Cmd.none)
             )
-        Second habit -> (
-            accum + 1,
-            Slot
-                (Animation.interrupt (slotSlideEnd accum) slotSlideStart)
-                (First habit)
-            )
-
-fillSlots : Model -> Model
-fillSlots model =
-    let
-        recentlyDone = isRecentlyDone model.time model.options
-        dueSoon = isDueSoon model.time model.options
-        isVisible task = (dueSoon task) || (recentlyDone task)
-        visibleHabits = (List.sortBy (\h -> Time.posixToMillis h.nextDue) (List.filter isVisible model.habits))
-        newSlots = foldlMap fillSlot 0 (zip model.slots visibleHabits)
-    in
-        {model | slots = newSlots}
-
-closeModal : Model -> Model
-closeModal model =
-    let
-        modalTransition = Maybe.map
-            (\modal -> {modal | background = closeBgStyle modal.background, content = closeContentStyle modal.content})
-            model.modal
-    in
-    { model | modal = modalTransition }
-
-type OR a b
-    = Both a b
-    | First a
-    | Second b
-
--- Zip that doesnt drop items
-zip : List a -> List b -> List (OR a b)
-zip a b =
-    case a of
-        aitem :: arest ->
-            case b of
-                bitem :: brest ->
-                    (Both aitem bitem :: zip arest brest)
-                _ -> (First aitem) :: zip arest []
-        _ ->
-            case b of
-                bitem :: brest ->
-                    ((Second bitem) :: zip [] brest)
-                _ -> []
-
-{- Fold a value left while mapping a function and passing the value in-}
-foldlMap : (b -> a -> (b, c)) -> b -> List a -> List c
-foldlMap fn initial l =
-    case l of
-        [] -> ([])
-        val :: rest -> 
-            ( let
-                (accum, r) = fn initial val 
-            in
-                r :: (foldlMap fn accum rest)
-            ) 
 
 -- VIEW
 emptyDiv = (div [] [])
 
-view : Model -> Html Msg
-view model =
+{-
+View habits as page:
+We track visible habits IN ORDER
+We track current page
+
+For a list of habits
+  work out what's visible (similar to slots)
+
+-}
+
+viewHabitLine : Posix -> Options -> Habit -> Html Msg
+viewHabitLine time options habit =
     div
-        [class "page"]
-        [ maybeViewModal model
-        , viewMenu model
-        , viewHabitList model
-        ]
-
-viewMenu : Model -> Html Msg
-viewMenu model =
-    section
-        [ class "menu" ]
-        [
-            button
-                [ class "add-task", onClick (OpenNewModal) ]
-                [ text "+" ]
-            , button
-                [ class "add-task", onClick (OpenOptionsModal) ]
-                [ text "O" ]
-        ]
-
-maybeViewModal: Model -> Html Msg
-maybeViewModal model =
-    Maybe.map
-        (viewModalTransition model)
-        model.modal |>
-        Maybe.withDefault emptyDiv
-
-viewModalTransition : Model -> ModalTransition -> Html Msg
-viewModalTransition model transition =
-    div [class "modal-container"]
-        [
-        div
-            (class "modal-background" :: Animation.render transition.background)
-            [ div
-                (class "modal-content" :: Animation.render transition.content)
-                [ viewModal model transition.modal]
+        [ class "page-line" ]
+        [ div 
+            [class "margin"]
+            [ button 
+                [ class "habit-edit"
+                , onClick (OpenEditPage habit.id)
+                ]
+                [ text "..." ]
+            ]
+        , div
+            [class "line-content"]
+            [ button 
+                [ class "habit-button"
+                , class (if isRecentlyDone time options habit then "habit-done" else "habit-todo")
+                , onClick (DoHabit habit.id)
+                ]
+                [ span 
+                    [class "habit-description"]
+                    [text habit.description]
+                , span 
+                    [class "habit-tag"]
+                    [text habit.tag] 
+                ]
             ]
         ]
 
-viewModal : Model -> Modal -> Html Msg
-viewModal model modal =
-    case modal of
-        Editing editModal ->
-                (viewEditingModal editModal model.habits)
+viewHabits: Int -> Posix -> Options -> List Habit -> Html Msg
+viewHabits lines time options habits =
+    if (List.length habits) >= lines then
+        div
+            []
+            (List.map (viewHabitLine time options) habits ++
+            [button
+                [ class "add-habit", onClick (OpenNewPage) ]
+                [ text "+" ]] ++
+            (List.range (List.length habits) (lines - 1) |> List.map emptyLine))
+    else
+        div
+            []
+            (List.map (viewHabitLine time options) habits ++
+            [addLine] ++
+            (List.range (List.length habits) (lines - 1) |> List.map emptyLine))
+
+viewHabitsPage: Int -> Model -> List Habit -> Html Msg
+viewHabitsPage lines model habits
+    = div
+        [class "page"]
+        [ div
+            [class "page-head"]
+            [ div
+                [class "margin"]
+                [ button
+                    [ class "add-habit", onClick (OpenOptionsPage) ]
+                    [ text "O" ] 
+                ]
+            ]
+        , viewHabits 20 model.time model.options habits
+        , div [class "page-foot"] []
+        ]
+
+emptyLine: Int -> Html Msg
+emptyLine _ = div
+        [class "page-line"]
+        [ div
+            [class "margin"]
+            []
+        , div
+            [class "line-content"]
+            []
+        ]
+
+addLine: Html Msg
+addLine = div
+        [class "page-line"]
+        [ div
+            [class "margin"]
+            [button
+                [ class "add-habit", onClick (OpenNewPage) ]
+                [ text "+" ]]
+        , div
+            [class "line-content"]
+            []
+        ]
+
+view : Model -> Html Msg
+view model =
+    div
+        [class "page-container"]
+        [maybeViewTransition model
+        , div
+            [class "middle"]
+            [viewPage model model.page]
+        ]
+
+maybeViewTransition: Model -> Html Msg
+maybeViewTransition model =
+    Maybe.map
+        (viewPageTransition model)
+        model.pageTransition |>
+        Maybe.withDefault emptyDiv
+
+viewPageTransition : Model -> PageTransition -> Html Msg
+viewPageTransition model transition =
+    let
+        classes = if transition.above then [class "transition-page", class "above"] else [class "transition-page", class "below"]
+    in
+    div
+        (classes ++  Animation.render transition.style)
+        [ viewPage model transition.previousPage]
+
+viewPage : Model -> Page -> Html Msg
+viewPage model page =
+    case page of
+        HabitList habitList ->
+            (viewHabitsPage 20 model habitList.visibleHabits)
+        EditHabit editModal ->
+            (viewEditingModal editModal model.habits)
         NewHabit newModal ->
-                (viewNewModal newModal model.habits)
+            (viewNewModal newModal model.habits)
         ChangeOptions optionsModal ->
-                (viewOptionsModal optionsModal)
+            (viewOptionsModal optionsModal)
 
 periodOptionsView : String -> String -> Html Msg
 periodOptionsView input for =
@@ -634,11 +591,23 @@ periodOptionsView input for =
             [id for]
             ((periodOptions periodUnit) ++ (periodOptions (periodUnit + 1)))
 
+makeLine: Html Msg -> Html Msg
+makeLine msg =
+    div
+    [ class "page-line" ]
+        [ div 
+            [class "margin"]
+            []
+        , div
+            [class "line-content"]
+            [msg]
+        ]
+
 habitFieldsView fields tags descChange tagChange periodChange
     = let
         tagOption tag = option [value tag] [text tag]
     in
-        [ label
+        (List.map makeLine [label
             []
             [text "I want to"]
         , input 
@@ -648,33 +617,36 @@ habitFieldsView fields tags descChange tagChange periodChange
             [text "Tag"]
         , input
             [ placeholder "Tag", value fields.tag, list "tag-list", onInput tagChange ] []
-        , datalist
-            [id "tag-list"]
-            (List.map tagOption tags)
         , label
             []
             [text "Repeated every"]
         , input 
             [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ] []
-        , periodOptionsView fields.period "period-list"
-        ]
+        ]) ++ [datalist
+            [id "tag-list"]
+            (List.map tagOption tags), periodOptionsView fields.period "period-list"]
+
 
 viewEditingModal : EditModal -> List Habit -> Html Msg
 viewEditingModal fields habits =
     div
-        [class "modal-view"]
-        (habitFieldsView
-            fields
-            (List.map .tag habits) 
-            (\s -> UpdateModal (ChangeEditDescription s))
-            (\s -> UpdateModal (ChangeEditTag s)) 
-            (\s -> UpdateModal (ChangeEditPeriod s)) ++
-        [div
-            [class "modal-view-buttons"]
-            [ button [ onClick (EditHabit fields) ] [text "Save"]
-            , button [ onClick (DeleteHabit fields.id) ] [text "Delete"]
-            , button [ onClick (CloseModal) ] [text "Cancel"]
-            ]])
+        [class "page"]
+        ([ div [class "page-head"] [] ] ++
+            (habitFieldsView
+                fields
+                (List.map .tag habits) 
+                (\s -> UpdateModal (ChangeEditDescription s))
+                (\s -> UpdateModal (ChangeEditTag s)) 
+                (\s -> UpdateModal (ChangeEditPeriod s)) ++
+            [makeLine (div
+                [class "modal-view-buttons"]
+                [ button [ onClick (DoEditHabit fields) ] [text "Save"]
+                , button [ onClick (DoDeleteHabit fields.id) ] [text "Delete"]
+                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
+                ])
+            ] ++
+            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []]))
 
 viewNewModal : NewModal -> List Habit -> Html Msg
 viewNewModal fields habits =
@@ -688,8 +660,8 @@ viewNewModal fields habits =
             (\s -> UpdateModal (ChangeNewPeriod s)) ++
         [div
             [class "modal-view-buttons"]
-            [ button [ onClick (AddHabit fields) ] [text "Save"]
-            , button [ onClick (CloseModal) ] [text "Cancel"]
+            [ button [ onClick (DoAddHabit fields) ] [text "Save"]
+            , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
             ]])
 
 viewOptionsModal : OptionsModal -> Html Msg
@@ -711,7 +683,7 @@ viewOptionsModal fields =
         , div
             [class "modal-view-buttons"]
             [ button [ onClick (SaveOptions fields) ] [text "Save"]
-            , button [ onClick (CloseModal) ] [text "Cancel"]
+            , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
             ]
         ]
 
@@ -729,51 +701,3 @@ isRecentlyDone time options habit =
 viewHabitFilter: Posix -> Options -> Habit -> Bool
 viewHabitFilter time options habit =
     isDueSoon time options habit || isRecentlyDone time options habit
-
-viewHabitList : Model -> Html Msg
-viewHabitList {time, habits, slots, options} =
-    div
-        [class "slots"]
-        (List.map (viewSlot time options) slots)
-
-viewSlot : Posix -> Options -> Slot -> Html Msg
-viewSlot time options slot =
-    (case slot.habits of
-        Both to from -> (
-            div
-                (class "slot" :: Animation.render slot.style)
-                [viewHabit time options to, viewHabit time options from]
-            )
-        First habit -> (
-            div
-                (class "slot" :: Animation.render slot.style)
-                [viewHabit time options habit, emptyDiv]
-            )
-        Second habit -> (
-            div
-                (class "slot" :: Animation.render slot.style)
-                [emptyDiv, viewHabit time options habit])
-            )
-
-viewHabit : Posix -> Options -> Habit -> Html Msg
-viewHabit time options habit =
-    div
-        [ class "habit-view" ]
-        [ button 
-            [ class "habit-edit"
-            , onClick (OpenEditModal habit.id)
-            ]
-            [ text "..." ]
-        , button 
-            [ class "habit-button"
-            , class (if isRecentlyDone time options habit then "habit-done" else "habit-todo")
-            , onClick (DoHabit habit.id)
-            ]
-            [ span 
-                [class "habit-description"]
-                [text habit.description]
-            , span 
-                [class "habit-tag"]
-                [text habit.tag] 
-            ]
-        ]

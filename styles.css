@@ -103,23 +103,9 @@ input {
 }
 
 html {
-  font: 1.5em/1.5 "Quicksand", -apple-system;
+  font: 1.5em "Quicksand", -apple-system;
   color: rgb(37, 37, 37);
   font-weight: medium;
-}
-
-.page {
-  overflow: hidden;
-  max-width: 400px;
-  min-width: 400px;
-  max-height: 565px;
-  min-height: 565px;
-
-  background-color: white;
-  margin-top: 1em;
-  box-shadow: 0px 0px 10px lightgrey;
-
-  border-radius: 0% 2% 2% 0%;
 }
 
 .habit-view {
@@ -131,15 +117,17 @@ html {
   overflow: visible;
 }
 
-.add-task,
+.add-habit,
 .habit-edit,
 .habit-button {
   border: none;
-  background-color: white;
+  background: none;
 }
 
+.add-habit,
+.habit-button,
 .habit-edit {
-  border-right: 0.5px solid #add8e6;
+  width: 100%;
 }
 
 .habit-button {
@@ -189,10 +177,10 @@ html {
   flex-direction: column;
 }
 
-.modal-view input,
-.modal-view button {
+.line-content input,
+.line-content button {
   border: none;
-  background: white;
+  background: none;
 }
 
 .modal-view label {
@@ -234,3 +222,116 @@ body {
 .menu {
   min-height: 50px;
 }
+
+/**
+* PAGE STYLING 
+*/
+
+.page {
+  background-color: white;
+  box-shadow: 0px 0px 10px lightgrey;
+  border-radius: 10px 10px 10px 10px;
+}
+
+/** TODO Figure out how to make this responsive **/
+.page {
+  min-width: 500px;
+  max-width: 500px;
+
+  overflow: hidden;
+}
+
+@media (max-width: 500px) {
+  .page {
+    min-width: 95vw;
+    max-width: 95vw;
+  }
+}
+
+.page-head {
+  min-height: 2em;
+  max-height: 2em;
+
+  border-bottom: 2px solid #add8e6;
+}
+
+.page-line {
+  display: flex;
+  flex-direction: row;
+  min-height: 1.1em;
+  max-height: 1.1em;
+  height: 1.1em;
+
+  border-bottom: 1px solid #add8e6;
+}
+
+.line-content {
+  margin-left: 0.1em;
+  width: 100%;
+}
+
+.page-foot {
+  min-height: 1.5em;
+  max-height: 1.5em;
+}
+
+/** Margin */
+.page::before {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 100%;
+  top: 0;
+  left: 2em;
+  bottom: 0;
+  border-width: 1px;
+  border-style: none solid none solid;
+  border-color: transparent pink;
+}
+
+.margin {
+  width: calc(2em + 4px);
+  min-width: calc(2em + 4px);
+  max-width: calc(2em + 4px);
+}
+
+.habit-tag {
+  font-size: 0.7em;
+  color: darkgrey;
+}
+
+.transition-page {
+  position: absolute;
+}
+
+.page-container {
+  position: relative;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.middle {
+  z-index: 2;
+  position: relative;
+}
+
+.above {
+  z-index: 3;
+}
+
+.below {
+  z-index: 1;
+}
+
+/**
+Common color scheme:
+Buttons are pink + underlined
+
+What about inputs and labels?
+
+Possible ways to distinuish things:
+Underlines
+Colour change
+Bold
+Borders
+**/
