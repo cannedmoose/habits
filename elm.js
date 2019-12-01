@@ -12256,6 +12256,7 @@ var $author$project$Main$initalPageTransitionStyle = A2(
 			$mdgriffith$elm_style_animation$Animation$right(
 			$mdgriffith$elm_style_animation$Animation$px(0))
 		]));
+var $author$project$Main$ClearTransition = {$: 'ClearTransition'};
 var $author$project$Main$SwapPages = {$: 'SwapPages'};
 var $mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
 	var _v0 = $elm$core$List$head(steps);
@@ -12323,7 +12324,8 @@ var $author$project$Main$pageTransitionStyle = $mdgriffith$elm_style_animation$A
 				[
 					$mdgriffith$elm_style_animation$Animation$right(
 					$mdgriffith$elm_style_animation$Animation$px(0))
-				]))
+				])),
+			$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
 		]));
 var $author$project$Main$openPageTransition = function (page) {
 	return {
@@ -14048,6 +14050,12 @@ var $author$project$Main$update = F2(
 							}),
 						$elm$core$Platform$Cmd$none);
 				}
+			case 'ClearTransition':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{pageTransition: $elm$core$Maybe$Nothing}),
+					$elm$core$Platform$Cmd$none);
 			case 'OpenHabitListPage':
 				var pageNumber = msg.a;
 				return _Utils_Tuple2(
@@ -15404,64 +15412,92 @@ var $author$project$Main$viewNewModal = F2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$class('modal-view')
+					$elm$html$Html$Attributes$class('page')
 				]),
 			_Utils_ap(
-				A5(
-					$author$project$Main$habitFieldsView,
-					fields,
-					A2(
-						$elm$core$List$map,
-						function ($) {
-							return $.tag;
-						},
-						habits),
-					function (s) {
-						return $author$project$Main$UpdateModal(
-							$author$project$Main$ChangeNewDescription(s));
-					},
-					function (s) {
-						return $author$project$Main$UpdateModal(
-							$author$project$Main$ChangeNewTag(s));
-					},
-					function (s) {
-						return $author$project$Main$UpdateModal(
-							$author$project$Main$ChangeNewPeriod(s));
-					}),
 				_List_fromArray(
 					[
 						A2(
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$class('modal-view-buttons')
+								$elm$html$Html$Attributes$class('page-head')
 							]),
+						_List_Nil)
+					]),
+				_Utils_ap(
+					A5(
+						$author$project$Main$habitFieldsView,
+						fields,
+						A2(
+							$elm$core$List$map,
+							function ($) {
+								return $.tag;
+							},
+							habits),
+						function (s) {
+							return $author$project$Main$UpdateModal(
+								$author$project$Main$ChangeNewDescription(s));
+						},
+						function (s) {
+							return $author$project$Main$UpdateModal(
+								$author$project$Main$ChangeNewTag(s));
+						},
+						function (s) {
+							return $author$project$Main$UpdateModal(
+								$author$project$Main$ChangeNewPeriod(s));
+						}),
+					_Utils_ap(
 						_List_fromArray(
 							[
+								$author$project$Main$makeLine(
 								A2(
-								$elm$html$Html$button,
-								_List_fromArray(
-									[
-										$elm$html$Html$Events$onClick(
-										$author$project$Main$DoAddHabit(fields))
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('Save')
-									])),
-								A2(
-								$elm$html$Html$button,
-								_List_fromArray(
-									[
-										$elm$html$Html$Events$onClick(
-										$author$project$Main$OpenHabitListPage(0))
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('Cancel')
-									]))
-							]))
-					])));
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('modal-view-buttons')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick(
+													$author$project$Main$DoAddHabit(fields))
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('Save')
+												])),
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick(
+													$author$project$Main$OpenHabitListPage(0))
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('Cancel')
+												]))
+										])))
+							]),
+						_Utils_ap(
+							A2(
+								$elm$core$List$map,
+								$author$project$Main$emptyLine,
+								A2($elm$core$List$range, 6, 20 - 1)),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('page-foot')
+										]),
+									_List_Nil)
+								]))))));
 	});
 var $author$project$Main$ChangeOptionsRecent = function (a) {
 	return {$: 'ChangeOptionsRecent', a: a};
@@ -15477,86 +15513,116 @@ var $author$project$Main$viewOptionsModal = function (fields) {
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
-				$elm$html$Html$Attributes$class('modal-view')
+				$elm$html$Html$Attributes$class('page')
 			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$label,
-				_List_Nil,
+		_Utils_ap(
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('page-head')
+						]),
+					_List_Nil)
+				]),
+			_Utils_ap(
 				_List_fromArray(
 					[
-						$elm$html$Html$text('Upcoming')
-					])),
-				A2(
-				$elm$html$Html$input,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$placeholder('Period'),
-						$elm$html$Html$Attributes$value(fields.upcoming),
-						$elm$html$Html$Attributes$list('upcoming-list'),
-						$elm$html$Html$Events$onInput(
-						function (s) {
-							return $author$project$Main$UpdateModal(
-								$author$project$Main$ChangeOptionsUpcoming(s));
-						})
-					]),
-				_List_Nil),
-				A2($author$project$Main$periodOptionsView, fields.upcoming, 'upcoming-list'),
-				A2(
-				$elm$html$Html$label,
-				_List_Nil,
-				_List_fromArray(
-					[
-						$elm$html$Html$text('Recent')
-					])),
-				A2(
-				$elm$html$Html$input,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$placeholder('Period'),
-						$elm$html$Html$Attributes$value(fields.recent),
-						$elm$html$Html$Attributes$list('recent-list'),
-						$elm$html$Html$Events$onInput(
-						function (s) {
-							return $author$project$Main$UpdateModal(
-								$author$project$Main$ChangeOptionsRecent(s));
-						})
-					]),
-				_List_Nil),
-				A2($author$project$Main$periodOptionsView, fields.recent, 'recent-list'),
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('modal-view-buttons')
-					]),
-				_List_fromArray(
-					[
+						$author$project$Main$makeLine(
 						A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Events$onClick(
-								$author$project$Main$SaveOptions(fields))
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Save')
-							])),
+							$elm$html$Html$label,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Upcoming')
+								]))),
+						$author$project$Main$makeLine(
 						A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Events$onClick(
-								$author$project$Main$OpenHabitListPage(0))
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Cancel')
-							]))
-					]))
-			]));
+							$elm$html$Html$input,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$value(fields.upcoming),
+									$elm$html$Html$Attributes$list('upcoming-list'),
+									$elm$html$Html$Events$onInput(
+									function (s) {
+										return $author$project$Main$UpdateModal(
+											$author$project$Main$ChangeOptionsUpcoming(s));
+									})
+								]),
+							_List_Nil)),
+						$author$project$Main$makeLine(
+						A2(
+							$elm$html$Html$label,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Recent')
+								]))),
+						$author$project$Main$makeLine(
+						A2(
+							$elm$html$Html$input,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$value(fields.upcoming),
+									$elm$html$Html$Attributes$list('recent-list'),
+									$elm$html$Html$Events$onInput(
+									function (s) {
+										return $author$project$Main$UpdateModal(
+											$author$project$Main$ChangeOptionsRecent(s));
+									})
+								]),
+							_List_Nil)),
+						$author$project$Main$makeLine(
+						A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('modal-view-buttons')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$SaveOptions(fields))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Save')
+										])),
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$OpenHabitListPage(0))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Cancel')
+										]))
+								])))
+					]),
+				_Utils_ap(
+					A2(
+						$elm$core$List$map,
+						$author$project$Main$emptyLine,
+						A2($elm$core$List$range, 4, 20 - 1)),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('page-foot')
+								]),
+							_List_Nil),
+							A2($author$project$Main$periodOptionsView, fields.upcoming, 'upcoming-list'),
+							A2($author$project$Main$periodOptionsView, fields.recent, 'recent-list')
+						])))));
 };
 var $author$project$Main$viewPage = F2(
 	function (model, page) {
@@ -15654,4 +15720,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditModal":{"args":[],"type":"{ id : Habit.Id, description : String.String, tag : String.String, period : String.String }"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewModal":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String }"},"Main.OptionsModal":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateModal":["Animation.Msg"],"SwapPages":[],"OpenEditPage":["Habit.Id"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdateModal":["Main.ModalUpdate"],"SaveOptions":["Main.OptionsModal"],"DoHabit":["Habit.Id"],"DoAddHabit":["Main.NewModal"],"DoDeleteHabit":["Habit.Id"],"DoEditHabit":["Main.EditModal"]}},"Habit.Id":{"args":[],"tags":{"HabitId":["Basics.Int"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Main.ModalUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditModal":{"args":[],"type":"{ id : Habit.Id, description : String.String, tag : String.String, period : String.String }"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewModal":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String }"},"Main.OptionsModal":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateModal":["Animation.Msg"],"SwapPages":[],"ClearTransition":[],"OpenEditPage":["Habit.Id"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdateModal":["Main.ModalUpdate"],"SaveOptions":["Main.OptionsModal"],"DoHabit":["Habit.Id"],"DoAddHabit":["Main.NewModal"],"DoDeleteHabit":["Habit.Id"],"DoEditHabit":["Main.EditModal"]}},"Habit.Id":{"args":[],"tags":{"HabitId":["Basics.Int"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Main.ModalUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));

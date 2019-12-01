@@ -116,6 +116,7 @@ pageTransitionStyle = Animation.interrupt
         [ Animation.to [ Animation.right (Animation.px -510) ]
         , Animation.Messenger.send (SwapPages)
         , Animation.to [ Animation.right (Animation.px 0) ]
+        , Animation.Messenger.send (ClearTransition)
         ]
 
 openPageTransition : Page -> PageTransition
@@ -234,6 +235,7 @@ type Msg
     | Tick Time.Posix
     | AnimateModal Animation.Msg
     | SwapPages
+    | ClearTransition
 
     -- Modals
     | OpenEditPage Habit.Id
@@ -283,6 +285,8 @@ update msg model =
             Just transition -> (
                 {model | pageTransition = Just {transition | above = not transition.above}}
                 , Cmd.none)
+        ClearTransition -> 
+            ({model | pageTransition = Nothing}, Cmd.none)
 
         OpenHabitListPage pageNumber ->
             (
@@ -651,41 +655,48 @@ viewEditingModal fields habits =
 viewNewModal : NewModal -> List Habit -> Html Msg
 viewNewModal fields habits =
     div
-        [class "modal-view"]
-        (habitFieldsView
-            fields
-            (List.map .tag habits)
-            (\s -> UpdateModal (ChangeNewDescription s))
-            (\s -> UpdateModal (ChangeNewTag s))
-            (\s -> UpdateModal (ChangeNewPeriod s)) ++
-        [div
-            [class "modal-view-buttons"]
-            [ button [ onClick (DoAddHabit fields) ] [text "Save"]
-            , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
-            ]])
+        [class "page"]
+        ([ div [class "page-head"] [] ] ++
+            (habitFieldsView
+                fields
+                (List.map .tag habits) 
+                (\s -> UpdateModal (ChangeNewDescription s))
+                (\s -> UpdateModal (ChangeNewTag s)) 
+                (\s -> UpdateModal (ChangeNewPeriod s)) ++
+            [makeLine (div
+                [class "modal-view-buttons"]
+                [ button [ onClick (DoAddHabit fields) ] [text "Save"]
+                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
+                ])
+            ] ++
+            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []]))
 
 viewOptionsModal : OptionsModal -> Html Msg
 viewOptionsModal fields =
     div
-        [class "modal-view"]
-        [ label
-            []
-            [text "Upcoming"]
-        , input 
-            [ placeholder "Period", value fields.upcoming, list "upcoming-list", onInput (\s -> UpdateModal (ChangeOptionsUpcoming s)) ] []
-        , periodOptionsView fields.upcoming "upcoming-list"
-        , label
-            []
-            [text "Recent"]
-        , input 
-            [ placeholder "Period", value fields.recent, list "recent-list", onInput (\s -> UpdateModal (ChangeOptionsRecent s)) ] []
-        , periodOptionsView fields.recent "recent-list"
-        , div
-            [class "modal-view-buttons"]
-            [ button [ onClick (SaveOptions fields) ] [text "Save"]
-            , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
-            ]
-        ]
+        [class "page"]
+        ([ div [class "page-head"] [] ] ++
+            [ makeLine (label [] [text "Upcoming"])
+            , makeLine (
+                input 
+                    [value fields.upcoming, list "upcoming-list", onInput (\s -> UpdateModal (ChangeOptionsUpcoming s)) ] []
+            )
+            , makeLine (label [] [text "Recent"])
+            , makeLine (
+                input 
+                    [value fields.upcoming, list "recent-list", onInput (\s -> UpdateModal (ChangeOptionsRecent s)) ] []
+            ), makeLine (div
+                [class "modal-view-buttons"]
+                [ button [ onClick (SaveOptions fields) ] [text "Save"]
+                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
+                ])
+            ] ++
+            ((List.range 4 (20 - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []
+            , periodOptionsView fields.upcoming "upcoming-list"
+            , periodOptionsView fields.recent "recent-list"
+            ])
 
 isDueSoon: Posix -> Options -> Habit -> Bool
 isDueSoon time options habit =
