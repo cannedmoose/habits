@@ -45,6 +45,7 @@ init flags =
      , uuid = storage.uuid
      , page = HabitList {visibleHabits = storage.habits, pageNumber = 0}
      , pageTransition = Nothing
+     , pageLines = 20
     } |> updateVisibleHabits
     , Cmd.none)
 
@@ -95,6 +96,7 @@ type alias Model =
     , page : Page
     , pageTransition : Maybe PageTransition
     , uuid : Int
+    , pageLines : Int
     }
 
 type Page
@@ -218,7 +220,7 @@ updateVisibleHabits model
             | visibleHabits = 
                 List.filter (viewHabitFilter model.time model.options) model.habits
                 |> List.sortBy (\h -> Time.posixToMillis h.nextDue)
-                |> List.take 20
+                |> List.take model.pageLines
             }
         }
         )
@@ -477,17 +479,17 @@ viewPage : Model -> Page -> Html Msg
 viewPage model page =
     case page of
         HabitList habitList ->
-            (viewHabitsPage 20 model habitList.visibleHabits)
+            (viewHabitsPage model habitList)
         EditHabit editPage ->
-            (viewEditingPage editPage model.habits)
+            (viewEditingPage model editPage)
         NewHabit newPage ->
-            (viewNewPage newPage model.habits)
+            (viewNewPage model newPage)
         ChangeOptions optionsPage ->
-            (viewOptionsPage optionsPage)
+            (viewOptionsPage model optionsPage)
 
 -- HABITS VIEW
-viewHabitsPage: Int -> Model -> List Habit -> Html Msg
-viewHabitsPage lines model habits
+viewHabitsPage: Model -> HabitListPage -> Html Msg
+viewHabitsPage model habits
     = div
         [class "page"]
         [ div
@@ -499,7 +501,7 @@ viewHabitsPage lines model habits
                     [ text "O" ] 
                 ]
             ]
-        , viewHabits 20 model.time model.options habits
+        , viewHabits model.pageLines model.time model.options habits.visibleHabits
         , div [class "page-foot"] []
         ]
 
@@ -544,14 +546,14 @@ viewHabitLine time options habit =
                 ])
 
 -- EDIT VIEW
-viewEditingPage : EditPage -> List Habit -> Html Msg
-viewEditingPage fields habits =
+viewEditingPage : Model -> EditPage -> Html Msg
+viewEditingPage model fields =
     div
         [class "page"]
         ([ div [class "page-head"] [] ] ++
             (habitFieldsView
                 fields
-                (List.map .tag habits) 
+                (List.map .tag model.habits) 
                 (\s -> UpdatePage (ChangeEditDescription s))
                 (\s -> UpdatePage (ChangeEditTag s)) 
                 (\s -> UpdatePage (ChangeEditPeriod s)) ++
@@ -562,18 +564,18 @@ viewEditingPage fields habits =
                 , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
                 ])
             ] ++
-            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
+            ((List.range 6 (model.pageLines - 1) |> List.map emptyLine)) ++
             [div [class "page-foot"] []]))
 
 -- NEW VIEW
-viewNewPage : NewPage -> List Habit -> Html Msg
-viewNewPage fields habits =
+viewNewPage : Model -> NewPage -> Html Msg
+viewNewPage model fields =
     div
         [class "page"]
         ([ div [class "page-head"] [] ] ++
             (habitFieldsView
                 fields
-                (List.map .tag habits) 
+                (List.map .tag model.habits) 
                 (\s -> UpdatePage (ChangeNewDescription s))
                 (\s -> UpdatePage (ChangeNewTag s)) 
                 (\s -> UpdatePage (ChangeNewPeriod s)) ++
@@ -583,12 +585,12 @@ viewNewPage fields habits =
                 , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
                 ])
             ] ++
-            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
+            ((List.range 6 (model.pageLines - 1) |> List.map emptyLine)) ++
             [div [class "page-foot"] []]))
 
 -- OPTIONS VIEW
-viewOptionsPage : OptionsPage -> Html Msg
-viewOptionsPage fields =
+viewOptionsPage : Model -> OptionsPage -> Html Msg
+viewOptionsPage model fields =
     div
         [class "page"]
         ([ div [class "page-head"] [] ] ++
@@ -607,7 +609,7 @@ viewOptionsPage fields =
                 , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
                 ])
             ] ++
-            ((List.range 4 (20 - 1) |> List.map emptyLine)) ++
+            ((List.range 4 (model.pageLines - 1) |> List.map emptyLine)) ++
             [div [class "page-foot"] []
             , periodOptionsView fields.upcoming "upcoming-list"
             , periodOptionsView fields.recent "recent-list"

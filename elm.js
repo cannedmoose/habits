@@ -11481,7 +11481,7 @@ var $author$project$Main$updateVisibleHabits = function (model) {
 						{
 							visibleHabits: A2(
 								$elm$core$List$take,
-								20,
+								model.pageLines,
 								A2(
 									$elm$core$List$sortBy,
 									function (h) {
@@ -11510,6 +11510,7 @@ var $author$project$Main$init = function (flags) {
 				options: storage.options,
 				page: $author$project$Main$HabitList(
 					{pageNumber: 0, visibleHabits: storage.habits}),
+				pageLines: 20,
 				pageTransition: $elm$core$Maybe$Nothing,
 				time: time,
 				uuid: storage.uuid
@@ -15193,7 +15194,7 @@ var $author$project$Main$habitFieldsView = F5(
 				]));
 	});
 var $author$project$Main$viewEditingPage = F2(
-	function (fields, habits) {
+	function (model, fields) {
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -15220,7 +15221,7 @@ var $author$project$Main$viewEditingPage = F2(
 							function ($) {
 								return $.tag;
 							},
-							habits),
+							model.habits),
 						function (s) {
 							return $author$project$Main$UpdatePage(
 								$author$project$Main$ChangeEditDescription(s));
@@ -15286,7 +15287,7 @@ var $author$project$Main$viewEditingPage = F2(
 							A2(
 								$elm$core$List$map,
 								$author$project$Main$emptyLine,
-								A2($elm$core$List$range, 6, 20 - 1)),
+								A2($elm$core$List$range, 6, model.pageLines - 1)),
 							_List_fromArray(
 								[
 									A2(
@@ -15423,8 +15424,8 @@ var $author$project$Main$viewHabits = F4(
 							$elm$core$List$length(habits),
 							lines - 1)))));
 	});
-var $author$project$Main$viewHabitsPage = F3(
-	function (lines, model, habits) {
+var $author$project$Main$viewHabitsPage = F2(
+	function (model, habits) {
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -15462,7 +15463,7 @@ var $author$project$Main$viewHabitsPage = F3(
 										]))
 								]))
 						])),
-					A4($author$project$Main$viewHabits, 20, model.time, model.options, habits),
+					A4($author$project$Main$viewHabits, model.pageLines, model.time, model.options, habits.visibleHabits),
 					A2(
 					$elm$html$Html$div,
 					_List_fromArray(
@@ -15485,7 +15486,7 @@ var $author$project$Main$DoAddHabit = function (a) {
 	return {$: 'DoAddHabit', a: a};
 };
 var $author$project$Main$viewNewPage = F2(
-	function (fields, habits) {
+	function (model, fields) {
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -15512,7 +15513,7 @@ var $author$project$Main$viewNewPage = F2(
 							function ($) {
 								return $.tag;
 							},
-							habits),
+							model.habits),
 						function (s) {
 							return $author$project$Main$UpdatePage(
 								$author$project$Main$ChangeNewDescription(s));
@@ -15567,7 +15568,7 @@ var $author$project$Main$viewNewPage = F2(
 							A2(
 								$elm$core$List$map,
 								$author$project$Main$emptyLine,
-								A2($elm$core$List$range, 6, 20 - 1)),
+								A2($elm$core$List$range, 6, model.pageLines - 1)),
 							_List_fromArray(
 								[
 									A2(
@@ -15588,147 +15589,148 @@ var $author$project$Main$ChangeOptionsUpcoming = function (a) {
 var $author$project$Main$SaveOptions = function (a) {
 	return {$: 'SaveOptions', a: a};
 };
-var $author$project$Main$viewOptionsPage = function (fields) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('page')
-			]),
-		_Utils_ap(
+var $author$project$Main$viewOptionsPage = F2(
+	function (model, fields) {
+		return A2(
+			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('page-head')
-						]),
-					_List_Nil)
+					$elm$html$Html$Attributes$class('page')
 				]),
 			_Utils_ap(
 				_List_fromArray(
 					[
 						A2(
-						$author$project$Main$viewLine,
-						$author$project$Main$emptyDiv,
-						A2(
-							$elm$html$Html$label,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Show upcoming to do')
-								]))),
-						A2(
-						$author$project$Main$viewLine,
-						$author$project$Main$emptyDiv,
-						A2(
-							$elm$html$Html$input,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$value(fields.upcoming),
-									$elm$html$Html$Attributes$list('upcoming-list'),
-									$elm$html$Html$Events$onInput(
-									function (s) {
-										return $author$project$Main$UpdatePage(
-											$author$project$Main$ChangeOptionsUpcoming(s));
-									})
-								]),
-							_List_Nil)),
-						A2(
-						$author$project$Main$viewLine,
-						$author$project$Main$emptyDiv,
-						A2(
-							$elm$html$Html$label,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Show recently done')
-								]))),
-						A2(
-						$author$project$Main$viewLine,
-						$author$project$Main$emptyDiv,
-						A2(
-							$elm$html$Html$input,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$value(fields.recent),
-									$elm$html$Html$Attributes$list('recent-list'),
-									$elm$html$Html$Events$onInput(
-									function (s) {
-										return $author$project$Main$UpdatePage(
-											$author$project$Main$ChangeOptionsRecent(s));
-									})
-								]),
-							_List_Nil)),
-						A2(
-						$author$project$Main$viewLine,
-						$author$project$Main$emptyDiv,
-						A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('button-line')
-								]),
-							_List_fromArray(
-								[
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick(
-											$author$project$Main$SaveOptions(fields))
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Save')
-										])),
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick(
-											$author$project$Main$OpenHabitListPage(0))
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Cancel')
-										]))
-								])))
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('page-head')
+							]),
+						_List_Nil)
 					]),
 				_Utils_ap(
-					A2(
-						$elm$core$List$map,
-						$author$project$Main$emptyLine,
-						A2($elm$core$List$range, 4, 20 - 1)),
 					_List_fromArray(
 						[
 							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('page-foot')
-								]),
-							_List_Nil),
-							A2($author$project$Main$periodOptionsView, fields.upcoming, 'upcoming-list'),
-							A2($author$project$Main$periodOptionsView, fields.recent, 'recent-list')
-						])))));
-};
+							$author$project$Main$viewLine,
+							$author$project$Main$emptyDiv,
+							A2(
+								$elm$html$Html$label,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Show upcoming to do')
+									]))),
+							A2(
+							$author$project$Main$viewLine,
+							$author$project$Main$emptyDiv,
+							A2(
+								$elm$html$Html$input,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$value(fields.upcoming),
+										$elm$html$Html$Attributes$list('upcoming-list'),
+										$elm$html$Html$Events$onInput(
+										function (s) {
+											return $author$project$Main$UpdatePage(
+												$author$project$Main$ChangeOptionsUpcoming(s));
+										})
+									]),
+								_List_Nil)),
+							A2(
+							$author$project$Main$viewLine,
+							$author$project$Main$emptyDiv,
+							A2(
+								$elm$html$Html$label,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Show recently done')
+									]))),
+							A2(
+							$author$project$Main$viewLine,
+							$author$project$Main$emptyDiv,
+							A2(
+								$elm$html$Html$input,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$value(fields.recent),
+										$elm$html$Html$Attributes$list('recent-list'),
+										$elm$html$Html$Events$onInput(
+										function (s) {
+											return $author$project$Main$UpdatePage(
+												$author$project$Main$ChangeOptionsRecent(s));
+										})
+									]),
+								_List_Nil)),
+							A2(
+							$author$project$Main$viewLine,
+							$author$project$Main$emptyDiv,
+							A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$class('button-line')
+									]),
+								_List_fromArray(
+									[
+										A2(
+										$elm$html$Html$button,
+										_List_fromArray(
+											[
+												$elm$html$Html$Events$onClick(
+												$author$project$Main$SaveOptions(fields))
+											]),
+										_List_fromArray(
+											[
+												$elm$html$Html$text('Save')
+											])),
+										A2(
+										$elm$html$Html$button,
+										_List_fromArray(
+											[
+												$elm$html$Html$Events$onClick(
+												$author$project$Main$OpenHabitListPage(0))
+											]),
+										_List_fromArray(
+											[
+												$elm$html$Html$text('Cancel')
+											]))
+									])))
+						]),
+					_Utils_ap(
+						A2(
+							$elm$core$List$map,
+							$author$project$Main$emptyLine,
+							A2($elm$core$List$range, 4, model.pageLines - 1)),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$class('page-foot')
+									]),
+								_List_Nil),
+								A2($author$project$Main$periodOptionsView, fields.upcoming, 'upcoming-list'),
+								A2($author$project$Main$periodOptionsView, fields.recent, 'recent-list')
+							])))));
+	});
 var $author$project$Main$viewPage = F2(
 	function (model, page) {
 		switch (page.$) {
 			case 'HabitList':
 				var habitList = page.a;
-				return A3($author$project$Main$viewHabitsPage, 20, model, habitList.visibleHabits);
+				return A2($author$project$Main$viewHabitsPage, model, habitList);
 			case 'EditHabit':
 				var editPage = page.a;
-				return A2($author$project$Main$viewEditingPage, editPage, model.habits);
+				return A2($author$project$Main$viewEditingPage, model, editPage);
 			case 'NewHabit':
 				var newPage = page.a;
-				return A2($author$project$Main$viewNewPage, newPage, model.habits);
+				return A2($author$project$Main$viewNewPage, model, newPage);
 			default:
 				var optionsPage = page.a;
-				return $author$project$Main$viewOptionsPage(optionsPage);
+				return A2($author$project$Main$viewOptionsPage, model, optionsPage);
 		}
 	});
 var $author$project$Main$viewPageTransition = F2(
