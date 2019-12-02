@@ -89,6 +89,15 @@ button,
 input {
   font-size: 100%;
   font: inherit;
+  padding: 0 0;
+  margin: 0 0;
+}
+
+button {
+  padding: 0 8px;
+  border: none;
+  background: none;
+  width: 100%;
 }
 
 @font-face {
@@ -117,19 +126,6 @@ html {
   overflow: visible;
 }
 
-.add-habit,
-.habit-edit,
-.habit-button {
-  border: none;
-  background: none;
-}
-
-.add-habit,
-.habit-button,
-.habit-edit {
-  width: 100%;
-}
-
 .habit-button {
   flex: 1;
   display: flex;
@@ -143,38 +139,7 @@ html {
 }
 
 .habit-done .habit-description {
-  text-decoration: line-through;
-}
-
-/* The Modal (background) */
-.modal-background {
-  position: relative; /* Stay in place */
-  left: 0;
-  top: 0;
-  width: 400px; /* Full width */
-  height: 100%; /* Full height */
-  max-height: 565px;
-  border-radius: 0% 2% 2% 0%;
-  overflow: auto; /* Enable scroll if needed */
-  background-color: rgb(0, 0, 0); /* Fallback color */
-  background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
-}
-
-.modal-container {
-  position: fixed;
-  z-index: 1; /* Sit on top */
-  height: 100%; /* Full height */
-}
-
-/* Modal Content/Box */
-.modal-content {
-  position: relative; /* Stay in place */
-  background-color: #ffffff;
-}
-
-.modal-view {
-  display: flex;
-  flex-direction: column;
+  text-decoration: line-through 3px;
 }
 
 .line-content input,
@@ -183,33 +148,27 @@ html {
   background: none;
 }
 
-.modal-view label {
-  border-bottom: 0.5px solid #add8e6;
+.line-content > input {
+  margin-left: 1em;
+  color: darkgreen;
 }
 
-.modal-view input {
-  border-bottom: 0.5px dotted #add8e6;
+.line-content > label {
+  margin-left: 8px;
 }
 
-.modal-view button {
+.line-content input:placeholder-shown {
+  color: grey;
+}
+
+.button-line {
+  display: flex;
+  flex-direction: row;
+}
+
+.button-line button {
   color: #cc0000;
-  text-decoration: underline #cc0000;
-}
-
-modal-view-buttons {
-  display: flex;
-  flex-direction: row;
-}
-
-.slot {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: row;
-}
-
-.slot > div {
-  min-width: 400px;
+  width: auto;
 }
 
 body {
@@ -217,12 +176,7 @@ body {
   display: flex;
   flex-direction: row;
   justify-content: center;
-  overflow: hidden;
   width: 100vw;
-}
-
-.menu {
-  min-height: 50px;
 }
 
 /**
@@ -233,10 +187,7 @@ body {
   background-color: white;
   box-shadow: 0px 0px 10px lightgrey;
   border-radius: 10px 10px 10px 10px;
-}
 
-/** TODO Figure out how to make this responsive **/
-.page {
   min-width: 500px;
   max-width: 500px;
 
@@ -248,6 +199,26 @@ body {
     min-width: 95vw;
     max-width: 95vw;
   }
+}
+
+/** Margin */
+.page::before {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 100%;
+  top: 0;
+  left: 2em;
+  bottom: 0;
+  border-width: 1px;
+  border-style: none solid none solid;
+  border-color: transparent pink;
+}
+
+.margin {
+  width: calc(2em + 4px);
+  min-width: calc(2em + 4px);
+  max-width: calc(2em + 4px);
 }
 
 .page-head {
@@ -277,26 +248,6 @@ body {
   max-height: 1.5em;
 }
 
-/** Margin */
-.page::before {
-  content: "";
-  position: absolute;
-  width: 4px;
-  height: 100%;
-  top: 0;
-  left: 2em;
-  bottom: 0;
-  border-width: 1px;
-  border-style: none solid none solid;
-  border-color: transparent pink;
-}
-
-.margin {
-  width: calc(2em + 4px);
-  min-width: calc(2em + 4px);
-  max-width: calc(2em + 4px);
-}
-
 .habit-tag {
   font-size: 0.7em;
   color: darkgrey;
@@ -324,16 +275,3 @@ body {
 .below {
   z-index: 1;
 }
-
-/**
-Common color scheme:
-Buttons are pink + underlined
-
-What about inputs and labels?
-
-Possible ways to distinuish things:
-Underlines
-Colour change
-Bold
-Borders
-**/

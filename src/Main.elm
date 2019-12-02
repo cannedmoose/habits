@@ -45,7 +45,8 @@ init flags =
      , uuid = storage.uuid
      , page = HabitList {visibleHabits = storage.habits, pageNumber = 0}
      , pageTransition = Nothing
-    }, Cmd.none)
+    } |> updateVisibleHabits
+    , Cmd.none)
 
 -- MODEL
 type alias Flags = {time : Int, model: JD.Value}
@@ -98,9 +99,9 @@ type alias Model =
 
 type Page
     = HabitList HabitListPage
-    | EditHabit EditModal
-    | NewHabit NewModal
-    | ChangeOptions OptionsModal
+    | EditHabit EditPage
+    | NewHabit NewPage
+    | ChangeOptions OptionsPage
 
 type alias PageTransition =
     { previousPage: Page
@@ -131,7 +132,7 @@ type alias HabitListPage =
     , pageNumber : Int
     }
 
-type alias EditModal =
+type alias EditPage =
     { id: Habit.Id
     , description: String
     , tag: String
@@ -146,25 +147,25 @@ editPageFromHabit habit =
     , period = Period.toString(habit.period) 
     }
 
-type alias NewModal =
+type alias NewPage =
     { description: String
     , tag: String
     , period: String
     }
-newNewModal : Page
-newNewModal =
+newNewPage : Page
+newNewPage =
     NewHabit 
     { description = ""
     , tag = ""
-    , period = "" 
+    , period = "1 Day" 
     }
 
-type alias OptionsModal =
+type alias OptionsPage =
     { recent: String
     , upcoming: String
     }
-optionsModalFromOptions : Options -> Page
-optionsModalFromOptions options =
+optionsPageFromOptions : Options -> Page
+optionsPageFromOptions options =
     ChangeOptions
         { recent = Period.toString(options.recent) 
         , upcoming = Period.toString(options.upcoming) 
@@ -186,7 +187,7 @@ type alias Anim = Animation.Messenger.State Msg
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
     case model.pageTransition of
-        Just m -> (Animation.subscription AnimateModal [ m.style ])
+        Just m -> (Animation.subscription AnimatePage [ m.style ])
         Nothing -> (Sub.none)
 
 timeSubscription : Model -> Sub Msg
@@ -204,6 +205,9 @@ storeModel (model, cmd)
     = (model, Cmd.batch [cmd, store (storageEncoder model)])
 
 -- UPDATE
+-- TODO use id?
+-- TODO paginate properly
+
 updateVisibleHabits: Model -> Model
 updateVisibleHabits model
     = case model.page of
@@ -211,13 +215,26 @@ updateVisibleHabits model
         { model 
         | page = HabitList
             { habitList 
-            | visibleHabits = List.filter (viewHabitFilter model.time model.options) model.habits
+            | visibleHabits = 
+                List.filter (viewHabitFilter model.time model.options) model.habits
+                |> List.sortBy (\h -> Time.posixToMillis h.nextDue)
+                |> List.take 20
             }
         }
         )
     _ -> model
 
-type ModalUpdate
+openHabitListPage: Int -> Model -> Model
+openHabitListPage pageNum model
+    =
+    let
+        page = HabitList {visibleHabits = [], pageNumber = pageNum}
+        pageTransition = Just (openPageTransition model.page)
+    in
+    { model | page = page, pageTransition = pageTransition } |> updateVisibleHabits
+openHabitList = openHabitListPage 0                
+
+type PageUpdate
     = ChangeEditDescription String
     | ChangeEditTag String
     | ChangeEditPeriod String
@@ -233,25 +250,25 @@ type Msg
 
     -- Subscriptions
     | Tick Time.Posix
-    | AnimateModal Animation.Msg
+    | AnimatePage Animation.Msg
     | SwapPages
     | ClearTransition
 
-    -- Modals
+    -- Pages
     | OpenEditPage Habit.Id
     | OpenNewPage
     | OpenOptionsPage
     | OpenHabitListPage Int
-    | UpdateModal ModalUpdate
+    | UpdatePage PageUpdate
 
     -- Options
-    | SaveOptions OptionsModal
+    | SaveOptions OptionsPage
 
     -- Tasks
     | DoHabit Habit.Id
-    | DoAddHabit NewModal
+    | DoAddHabit NewPage
     | DoDeleteHabit Habit.Id
-    | DoEditHabit EditModal
+    | DoEditHabit EditPage
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -266,7 +283,7 @@ update msg model =
                 , Cmd.none
             )
 
-        AnimateModal animMsg ->
+        AnimatePage animMsg ->
             case model.pageTransition of
             Nothing -> (model, Cmd.none)
             Just page -> ( 
@@ -289,14 +306,7 @@ update msg model =
             ({model | pageTransition = Nothing}, Cmd.none)
 
         OpenHabitListPage pageNumber ->
-            (
-                let
-                    page = HabitList {visibleHabits = [], pageNumber = 0}
-                    pageTransition = Just (openPageTransition model.page)
-                in
-                { model | page = page, pageTransition = pageTransition } |> updateVisibleHabits
-                , Cmd.none
-            )
+            (openHabitListPage pageNumber model, Cmd.none)
         
         OpenEditPage habitId ->
             (
@@ -317,7 +327,7 @@ update msg model =
                 let
                     pageTransition = Just (openPageTransition model.page)
                 in
-                { model | page = newNewModal, pageTransition = pageTransition }, Cmd.none
+                { model | page = newNewPage, pageTransition = pageTransition }, Cmd.none
             )
         
         OpenOptionsPage ->
@@ -325,7 +335,7 @@ update msg model =
                 let
                     pageTransition = Just (openPageTransition model.page)
                 in
-                { model | page = optionsModalFromOptions model.options, pageTransition = pageTransition}, Cmd.none
+                { model | page = optionsPageFromOptions model.options, pageTransition = pageTransition}, Cmd.none
             )
 
         SaveOptions optionsFields ->
@@ -337,7 +347,7 @@ update msg model =
                     , upcoming = (Period.parse optionsFields.upcoming)
                     }
             in
-                ( { model | options = updatedOptions }
+                ( { model | options = updatedOptions } |> openHabitList
                 , Cmd.none
                 ) |> storeModel
 
@@ -369,7 +379,7 @@ update msg model =
             in
                 (
                     { model | habits = newHabit :: model.habits
-                    , uuid = (model.uuid + 1) }
+                    , uuid = (model.uuid + 1) } |> openHabitList
                     , Cmd.none
                 ) |> storeModel
         
@@ -377,29 +387,30 @@ update msg model =
             (
                 { model 
                 | habits = List.filter (\h -> (Habit.id h) /= habitId) model.habits
-                } 
+                } |> openHabitList
                 , Cmd.none
             ) |> storeModel
         
-        DoEditHabit editModal ->
+        DoEditHabit editPage ->
             (
                 let
                     updatedHabits = List.map 
                         (\h -> 
-                            if h.id == editModal.id
+                            if h.id == editPage.id
                             then
-                                {h | description = editModal.description, tag = editModal.tag, period = (Period.parse editModal.period)} 
+                                {h | description = editPage.description, tag = editPage.tag, period = (Period.parse editPage.period)} 
                             else h
                         ) 
                         model.habits
                 in
                     {
                         model | habits = updatedHabits 
-                    }, Cmd.none
+                    } |> openHabitList
+                    , Cmd.none
             ) |> storeModel
 
-        UpdateModal modalUpdate -> (
-            case (modalUpdate, model.page) of
+        UpdatePage pageUpdate -> (
+            case (pageUpdate, model.page) of
                 (ChangeEditDescription str, EditHabit page) ->
                     (
                         {model | page = EditHabit {page | description = str}}, Cmd.none 
@@ -435,106 +446,7 @@ update msg model =
                 (_, _) -> (model, Cmd.none)
             )
 
--- VIEW
-emptyDiv = (div [] [])
-
-{-
-View habits as page:
-We track visible habits IN ORDER
-We track current page
-
-For a list of habits
-  work out what's visible (similar to slots)
-
--}
-
-viewHabitLine : Posix -> Options -> Habit -> Html Msg
-viewHabitLine time options habit =
-    div
-        [ class "page-line" ]
-        [ div 
-            [class "margin"]
-            [ button 
-                [ class "habit-edit"
-                , onClick (OpenEditPage habit.id)
-                ]
-                [ text "..." ]
-            ]
-        , div
-            [class "line-content"]
-            [ button 
-                [ class "habit-button"
-                , class (if isRecentlyDone time options habit then "habit-done" else "habit-todo")
-                , onClick (DoHabit habit.id)
-                ]
-                [ span 
-                    [class "habit-description"]
-                    [text habit.description]
-                , span 
-                    [class "habit-tag"]
-                    [text habit.tag] 
-                ]
-            ]
-        ]
-
-viewHabits: Int -> Posix -> Options -> List Habit -> Html Msg
-viewHabits lines time options habits =
-    if (List.length habits) >= lines then
-        div
-            []
-            (List.map (viewHabitLine time options) habits ++
-            [button
-                [ class "add-habit", onClick (OpenNewPage) ]
-                [ text "+" ]] ++
-            (List.range (List.length habits) (lines - 1) |> List.map emptyLine))
-    else
-        div
-            []
-            (List.map (viewHabitLine time options) habits ++
-            [addLine] ++
-            (List.range (List.length habits) (lines - 1) |> List.map emptyLine))
-
-viewHabitsPage: Int -> Model -> List Habit -> Html Msg
-viewHabitsPage lines model habits
-    = div
-        [class "page"]
-        [ div
-            [class "page-head"]
-            [ div
-                [class "margin"]
-                [ button
-                    [ class "add-habit", onClick (OpenOptionsPage) ]
-                    [ text "O" ] 
-                ]
-            ]
-        , viewHabits 20 model.time model.options habits
-        , div [class "page-foot"] []
-        ]
-
-emptyLine: Int -> Html Msg
-emptyLine _ = div
-        [class "page-line"]
-        [ div
-            [class "margin"]
-            []
-        , div
-            [class "line-content"]
-            []
-        ]
-
-addLine: Html Msg
-addLine = div
-        [class "page-line"]
-        [ div
-            [class "margin"]
-            [button
-                [ class "add-habit", onClick (OpenNewPage) ]
-                [ text "+" ]]
-        , div
-            [class "line-content"]
-            []
-        ]
-
+-- VIEW 
 view : Model -> Html Msg
 view model =
     div
@@ -566,13 +478,142 @@ viewPage model page =
     case page of
         HabitList habitList ->
             (viewHabitsPage 20 model habitList.visibleHabits)
-        EditHabit editModal ->
-            (viewEditingModal editModal model.habits)
-        NewHabit newModal ->
-            (viewNewModal newModal model.habits)
-        ChangeOptions optionsModal ->
-            (viewOptionsModal optionsModal)
+        EditHabit editPage ->
+            (viewEditingPage editPage model.habits)
+        NewHabit newPage ->
+            (viewNewPage newPage model.habits)
+        ChangeOptions optionsPage ->
+            (viewOptionsPage optionsPage)
 
+-- HABITS VIEW
+viewHabitsPage: Int -> Model -> List Habit -> Html Msg
+viewHabitsPage lines model habits
+    = div
+        [class "page"]
+        [ div
+            [class "page-head"]
+            [ div
+                [class "margin"]
+                [ button
+                    [ class "add-habit", onClick (OpenOptionsPage) ]
+                    [ text "O" ] 
+                ]
+            ]
+        , viewHabits 20 model.time model.options habits
+        , div [class "page-foot"] []
+        ]
+
+viewHabits: Int -> Posix -> Options -> List Habit -> Html Msg
+viewHabits lines time options habits =
+    if (List.length habits) >= lines then
+        div
+            []
+            (List.map (viewHabitLine time options) habits ++
+            [button
+                [ class "add-habit", onClick (OpenNewPage) ]
+                [ text "+" ]] ++
+            (List.range (List.length habits) (lines - 1) |> List.map emptyLine))
+    else
+        div
+            []
+            (List.map (viewHabitLine time options) habits ++
+            [viewLine (button
+                [ class "add-habit", onClick (OpenNewPage) ]
+                [ text "+" ]) emptyDiv] ++
+            (List.range (List.length habits) (lines - 1) |> List.map emptyLine))
+
+viewHabitLine : Posix -> Options -> Habit -> Html Msg
+viewHabitLine time options habit =
+    viewLine
+        (button 
+                [ class "habit-edit"
+                , onClick (OpenEditPage habit.id)
+                ]
+                [ text "..." ])
+        (button 
+                [ class "habit-button"
+                , class (if isRecentlyDone time options habit then "habit-done" else "habit-todo")
+                , onClick (DoHabit habit.id)
+                ]
+                [ span 
+                    [class "habit-description"]
+                    [text habit.description]
+                , span 
+                    [class "habit-tag"]
+                    [text habit.tag] 
+                ])
+
+-- EDIT VIEW
+viewEditingPage : EditPage -> List Habit -> Html Msg
+viewEditingPage fields habits =
+    div
+        [class "page"]
+        ([ div [class "page-head"] [] ] ++
+            (habitFieldsView
+                fields
+                (List.map .tag habits) 
+                (\s -> UpdatePage (ChangeEditDescription s))
+                (\s -> UpdatePage (ChangeEditTag s)) 
+                (\s -> UpdatePage (ChangeEditPeriod s)) ++
+            [viewLine emptyDiv (div
+                [class "button-line"]
+                [ button [ onClick (DoEditHabit fields) ] [text "Save"]
+                , button [ onClick (DoDeleteHabit fields.id) ] [text "Delete"]
+                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
+                ])
+            ] ++
+            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []]))
+
+-- NEW VIEW
+viewNewPage : NewPage -> List Habit -> Html Msg
+viewNewPage fields habits =
+    div
+        [class "page"]
+        ([ div [class "page-head"] [] ] ++
+            (habitFieldsView
+                fields
+                (List.map .tag habits) 
+                (\s -> UpdatePage (ChangeNewDescription s))
+                (\s -> UpdatePage (ChangeNewTag s)) 
+                (\s -> UpdatePage (ChangeNewPeriod s)) ++
+            [viewLine emptyDiv (div
+                [class "button-line"]
+                [ button [ onClick (DoAddHabit fields) ] [text "Save"]
+                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
+                ])
+            ] ++
+            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []]))
+
+-- OPTIONS VIEW
+viewOptionsPage : OptionsPage -> Html Msg
+viewOptionsPage fields =
+    div
+        [class "page"]
+        ([ div [class "page-head"] [] ] ++
+            [ viewLine emptyDiv (label [] [text "Show upcoming to do"])
+            , viewLine emptyDiv (
+                input 
+                    [value fields.upcoming, list "upcoming-list", onInput (\s -> UpdatePage (ChangeOptionsUpcoming s)) ] []
+            )
+            , viewLine emptyDiv (label [] [text "Show recently done"])
+            , viewLine emptyDiv (
+                input 
+                    [value fields.recent, list "recent-list", onInput (\s -> UpdatePage (ChangeOptionsRecent s)) ] []
+            ), viewLine emptyDiv (div
+                [class "button-line"]
+                [ button [ onClick (SaveOptions fields) ] [text "Save"]
+                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
+                ])
+            ] ++
+            ((List.range 4 (20 - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []
+            , periodOptionsView fields.upcoming "upcoming-list"
+            , periodOptionsView fields.recent "recent-list"
+            ])
+
+-- Oher helpers
 periodOptionsView : String -> String -> Html Msg
 periodOptionsView input for =
     let
@@ -595,108 +636,48 @@ periodOptionsView input for =
             [id for]
             ((periodOptions periodUnit) ++ (periodOptions (periodUnit + 1)))
 
-makeLine: Html Msg -> Html Msg
-makeLine msg =
-    div
-    [ class "page-line" ]
-        [ div 
-            [class "margin"]
-            []
-        , div
-            [class "line-content"]
-            [msg]
-        ]
-
 habitFieldsView fields tags descChange tagChange periodChange
     = let
         tagOption tag = option [value tag] [text tag]
     in
-        (List.map makeLine [label
+        (List.map (viewLine emptyDiv) [label
             []
             [text "I want to"]
         , input 
-            [ placeholder "Description", value fields.description, onInput descChange ] []
+            [ placeholder "Do Something", value fields.description, onInput descChange ] []
+        , label
+            []
+            [text "Every"]
+        , input 
+            [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ] []
         , label
             []
             [text "Tag"]
         , input
-            [ placeholder "Tag", value fields.tag, list "tag-list", onInput tagChange ] []
-        , label
-            []
-            [text "Repeated every"]
-        , input 
-            [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ] []
+            [ placeholder "Todo", value fields.tag, list "tag-list", onInput tagChange ] []
         ]) ++ [datalist
             [id "tag-list"]
             (List.map tagOption tags), periodOptionsView fields.period "period-list"]
 
+-- Line helpers
+emptyDiv = (div [] [])
 
-viewEditingModal : EditModal -> List Habit -> Html Msg
-viewEditingModal fields habits =
+viewLine : Html Msg -> Html Msg -> Html Msg
+viewLine margin line = 
     div
-        [class "page"]
-        ([ div [class "page-head"] [] ] ++
-            (habitFieldsView
-                fields
-                (List.map .tag habits) 
-                (\s -> UpdateModal (ChangeEditDescription s))
-                (\s -> UpdateModal (ChangeEditTag s)) 
-                (\s -> UpdateModal (ChangeEditPeriod s)) ++
-            [makeLine (div
-                [class "modal-view-buttons"]
-                [ button [ onClick (DoEditHabit fields) ] [text "Save"]
-                , button [ onClick (DoDeleteHabit fields.id) ] [text "Delete"]
-                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
-                ])
-            ] ++
-            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
-            [div [class "page-foot"] []]))
+        [ class "page-line" ]
+        [ div 
+            [class "margin"]
+            [ margin ]
+        , div
+            [class "line-content"]
+            [ line ]
+        ]
 
-viewNewModal : NewModal -> List Habit -> Html Msg
-viewNewModal fields habits =
-    div
-        [class "page"]
-        ([ div [class "page-head"] [] ] ++
-            (habitFieldsView
-                fields
-                (List.map .tag habits) 
-                (\s -> UpdateModal (ChangeNewDescription s))
-                (\s -> UpdateModal (ChangeNewTag s)) 
-                (\s -> UpdateModal (ChangeNewPeriod s)) ++
-            [makeLine (div
-                [class "modal-view-buttons"]
-                [ button [ onClick (DoAddHabit fields) ] [text "Save"]
-                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
-                ])
-            ] ++
-            ((List.range 6 (20 - 1) |> List.map emptyLine)) ++
-            [div [class "page-foot"] []]))
+emptyLine : a -> Html Msg
+emptyLine a = viewLine emptyDiv emptyDiv
 
-viewOptionsModal : OptionsModal -> Html Msg
-viewOptionsModal fields =
-    div
-        [class "page"]
-        ([ div [class "page-head"] [] ] ++
-            [ makeLine (label [] [text "Upcoming"])
-            , makeLine (
-                input 
-                    [value fields.upcoming, list "upcoming-list", onInput (\s -> UpdateModal (ChangeOptionsUpcoming s)) ] []
-            )
-            , makeLine (label [] [text "Recent"])
-            , makeLine (
-                input 
-                    [value fields.upcoming, list "recent-list", onInput (\s -> UpdateModal (ChangeOptionsRecent s)) ] []
-            ), makeLine (div
-                [class "modal-view-buttons"]
-                [ button [ onClick (SaveOptions fields) ] [text "Save"]
-                , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
-                ])
-            ] ++
-            ((List.range 4 (20 - 1) |> List.map emptyLine)) ++
-            [div [class "page-foot"] []
-            , periodOptionsView fields.upcoming "upcoming-list"
-            , periodOptionsView fields.recent "recent-list"
-            ])
+-- Due Helpers
 
 isDueSoon: Posix -> Options -> Habit -> Bool
 isDueSoon time options habit =
