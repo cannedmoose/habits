@@ -613,7 +613,7 @@ viewOptionsPage fields =
             , periodOptionsView fields.recent "recent-list"
             ])
 
--- Oher helpers
+-- Other helpers
 periodOptionsView : String -> String -> Html Msg
 periodOptionsView input for =
     let
