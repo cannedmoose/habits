@@ -221,13 +221,13 @@ storeModel : (Model, Cmd msg) -> (Model, Cmd msg)
 storeModel (model, cmd) 
     = (model, Cmd.batch [cmd, store (storageEncoder model)])
 
--- UPDATE
+-- UPDATE 
 -- TODO use id?
 -- TODO paginate properly
 
-habitOrderer : Posix -> Habit -> Int
-habitOrderer time habit =
-    if shouldBeMarkedAsDone time habit then
+habitOrderer : Posix -> Options -> Habit -> Int
+habitOrderer time options habit =
+    if shouldBeMarkedAsDone time options habit then
         Maybe.withDefault time habit.lastDone
             |> Time.posixToMillis
     else
@@ -242,7 +242,7 @@ updateVisibleHabits model
             { habitList 
             | visibleHabits = 
                 List.filter (viewHabitFilter model.time model.options) model.habits
-                |> List.sortBy (habitOrderer model.time)
+                |> List.sortBy (habitOrderer model.time model.options)
                 |> List.take model.pageLines
             }
         }
@@ -590,7 +590,7 @@ viewHabitLine time options habit =
                 [ text "..." ])
         (button 
                 [ class "habit-button"
-                , class (if shouldBeMarkedAsDone time habit then "habit-done" else "habit-todo")
+                , class (if shouldBeMarkedAsDone time options habit then "habit-done" else "habit-todo")
                 , onClick (DoHabit habit.id)
                 ]
                 [ span 
@@ -832,15 +832,14 @@ isRecentlyDone time options habit =
         |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
         |> Maybe.withDefault False
 
-shouldBeMarkedAsDone : Posix -> Habit -> Bool
-shouldBeMarkedAsDone time habit =
+shouldBeMarkedAsDone : Posix -> Options -> Habit -> Bool
+shouldBeMarkedAsDone time options habit =
     let
-        pastDue = posixToMillis (Habit.nextDue habit)
-            < posixToMillis time
+        due = isDueSoon time options habit
     in
     case habit.block of
-        Habit.Unblocked -> not pastDue
-        Habit.UnblockedBy hid -> not pastDue
+        Habit.Unblocked -> not due
+        Habit.UnblockedBy hid -> not due
         Habit.BlockedBy hid -> True
 
 viewHabitFilter: Posix -> Options -> Habit -> Bool

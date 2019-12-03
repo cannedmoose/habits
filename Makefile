@@ -4,4 +4,8 @@ elm.js : src/Main.elm
 
 .PHONY: clean
 clean:
-	rm -rf ./elm-stuff elm.js
+	rm -rf ./elm-stuff elm.js --optimize
+
+.PHONY: live
+live:
+	elm-live -h 0.0.0.0 src/Main.elm -- --output=elm.js --debug

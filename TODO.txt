@@ -4,9 +4,12 @@ P1 Cleanup EVERYTHING
 
 P1 dedupe tags
 
+P2 Online sync
 P2 DECODING FAILURE SHOULD CAUSE AN ERROR
+
 P2 add sliding for lines 
 P2 add headers to Pages (Editing, New, Options, TODO)
+
 P2 Pause
 
 
