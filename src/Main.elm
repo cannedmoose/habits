@@ -27,7 +27,7 @@ main : Program Flags Model Msg
 main =
     Browser.document
         { init = init
-        , view = \model -> { title = "Tasks", body = [view model] }
+        , view = \model -> { title = "Habits", body = [view model] }
         , update = update
         , subscriptions = subscriptions
         }
@@ -139,27 +139,43 @@ type alias EditPage =
     , description: String
     , tag: String
     , period: String
+    , block: Maybe Habit.Id
     }
+
 editPageFromHabit : Habit -> Page
 editPageFromHabit habit =
     EditHabit
     { id = habit.id
     , description = habit.description
     , tag = habit.tag
-    , period = Period.toString(habit.period) 
+    , period = Period.toString(habit.period)
+    , block = case habit.block of
+        Habit.BlockedBy id -> (Just id)
+        Habit.UnblockedBy id -> (Just id)
+        _ -> Nothing
+    }
+
+type alias HabitFields a =
+    { a 
+    | description: String
+    , tag: String
+    , period: String
+    , block: Maybe Habit.Id
     }
 
 type alias NewPage =
     { description: String
     , tag: String
     , period: String
+    , block: Maybe Habit.Id
     }
 newNewPage : Page
 newNewPage =
     NewHabit 
     { description = ""
     , tag = ""
-    , period = "1 Day" 
+    , period = "1 Day"
+    , block = Nothing
     }
 
 type alias OptionsPage =
@@ -193,8 +209,7 @@ animationSubscription model =
         Nothing -> (Sub.none)
 
 timeSubscription : Model -> Sub Msg
-timeSubscription model = Sub.none
-  -- Time.every 1000 Tick
+timeSubscription model = Time.every 1000 Tick
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -210,6 +225,14 @@ storeModel (model, cmd)
 -- TODO use id?
 -- TODO paginate properly
 
+habitOrderer : Posix -> Habit -> Int
+habitOrderer time habit =
+    if shouldBeMarkedAsDone time habit then
+        Maybe.withDefault time habit.lastDone
+            |> Time.posixToMillis
+    else
+        -1 * ((Time.posixToMillis habit.nextDue) - (Time.posixToMillis time))
+
 updateVisibleHabits: Model -> Model
 updateVisibleHabits model
     = case model.page of
@@ -219,7 +242,7 @@ updateVisibleHabits model
             { habitList 
             | visibleHabits = 
                 List.filter (viewHabitFilter model.time model.options) model.habits
-                |> List.sortBy (\h -> Time.posixToMillis h.nextDue)
+                |> List.sortBy (habitOrderer model.time)
                 |> List.take model.pageLines
             }
         }
@@ -240,9 +263,13 @@ type PageUpdate
     = ChangeEditDescription String
     | ChangeEditTag String
     | ChangeEditPeriod String
+    | ToggleEditBlocked
+    | ChangeEditBlocked Habit.Id
     | ChangeNewDescription String
     | ChangeNewTag String
     | ChangeNewPeriod String
+    | ToggleNewBlocked
+    | ChangeNewBlocked Habit.Id
     | ChangeOptionsRecent String
     | ChangeOptionsUpcoming String
 
@@ -355,35 +382,30 @@ update msg model =
 
         DoHabit habitId ->
             (
-                let
-                    updatedHabits = List.map 
-                        (\h -> 
-                            if h.id == habitId
-                            then Habit.do model.time h 
-                            else h
-                        ) 
-                        model.habits
-                in
-                    {
-                        model | habits = updatedHabits
-                    } |> updateVisibleHabits
-                    , Cmd.none
+                {
+                    model | habits = Habit.do model.time model.habits habitId
+                } |> updateVisibleHabits
+                , Cmd.none
             ) |> storeModel
         
         DoAddHabit fields ->
-            let
-                newHabit = Habit.newHabit
-                    model.time
-                    fields.description
-                    fields.tag
-                    (Habit.HabitId model.uuid)
-                    (Period.parse fields.period)
-            in
-                (
-                    { model | habits = newHabit :: model.habits
-                    , uuid = (model.uuid + 1) } |> openHabitList
-                    , Cmd.none
-                ) |> storeModel
+            case fields.description of
+                "" -> (model |> openHabitList, Cmd.none)
+                _ ->
+                    let
+                        newHabit = Habit.newHabit
+                            model.time
+                            fields.description
+                            fields.tag
+                            (Habit.HabitId model.uuid)
+                            (Period.parse fields.period)
+                            fields.block
+                    in
+                        (
+                            { model | habits = newHabit :: model.habits
+                            , uuid = (model.uuid + 1) } |> openHabitList
+                            , Cmd.none
+                        ) |> storeModel
         
         DoDeleteHabit habitId ->
             (
@@ -400,7 +422,15 @@ update msg model =
                         (\h -> 
                             if h.id == editPage.id
                             then
-                                {h | description = editPage.description, tag = editPage.tag, period = (Period.parse editPage.period)} 
+                                { h
+                                | description = editPage.description
+                                , tag = editPage.tag
+                                , period = (Period.parse editPage.period)
+                                , block = case (editPage.block, h.block) of
+                                    (Nothing , _) -> Habit.Unblocked
+                                    (Just hid, Habit.BlockedBy _) -> (Habit.BlockedBy hid)
+                                    (Just hid, _) -> (Habit.UnblockedBy hid)
+                                } 
                             else h
                         ) 
                         model.habits
@@ -425,6 +455,19 @@ update msg model =
                     (
                         {model | page = EditHabit {page | period = str}}, Cmd.none 
                     )
+                (ToggleEditBlocked, EditHabit page) ->
+                    (
+                        -- TODO Get an actual HabitId for this.
+                        {model | page = EditHabit {page | block = 
+                            case page.block of
+                            Nothing -> (Just (Habit.HabitId 0))
+                            Just _ -> Nothing
+                            }}, Cmd.none 
+                    )
+                (ChangeEditBlocked habitId, EditHabit page) ->
+                    (
+                        {model | page = EditHabit {page | block = Just habitId}}, Cmd.none 
+                    )
                 (ChangeNewDescription str, NewHabit page) ->
                     (
                         {model | page = NewHabit {page | description = str}}, Cmd.none 
@@ -436,6 +479,19 @@ update msg model =
                 (ChangeNewPeriod str, NewHabit page) ->
                     (
                         {model | page = NewHabit {page | period = str}}, Cmd.none 
+                    )
+                (ToggleNewBlocked, NewHabit page) ->
+                    (
+                        -- TODO Get an actual HabitId for this.
+                        {model | page = NewHabit {page | block = 
+                            case page.block of
+                            Nothing -> (Just (Habit.HabitId 0))
+                            Just _ -> Nothing
+                            }}, Cmd.none 
+                    )
+                (ChangeNewBlocked habitId, NewHabit page) ->
+                    (
+                        {model | page = NewHabit {page | block = Just habitId}}, Cmd.none 
                     )
                 (ChangeOptionsRecent str, ChangeOptions page) ->
                     (
@@ -534,7 +590,7 @@ viewHabitLine time options habit =
                 [ text "..." ])
         (button 
                 [ class "habit-button"
-                , class (if isRecentlyDone time options habit then "habit-done" else "habit-todo")
+                , class (if shouldBeMarkedAsDone time habit then "habit-done" else "habit-todo")
                 , onClick (DoHabit habit.id)
                 ]
                 [ span 
@@ -550,43 +606,49 @@ viewEditingPage : Model -> EditPage -> Html Msg
 viewEditingPage model fields =
     div
         [class "page"]
-        ([ div [class "page-head"] [] ] ++
-            (habitFieldsView
+        ([ div [class "page-head"] []
+         , habitFieldsView
                 fields
-                (List.map .tag model.habits) 
+                model.habits
+                (Just fields.id)
                 (\s -> UpdatePage (ChangeEditDescription s))
                 (\s -> UpdatePage (ChangeEditTag s)) 
-                (\s -> UpdatePage (ChangeEditPeriod s)) ++
-            [viewLine emptyDiv (div
+                (\s -> UpdatePage (ChangeEditPeriod s))
+                (UpdatePage ToggleEditBlocked)
+                (\h -> UpdatePage (ChangeEditBlocked h))
+         , viewLineContent (div
                 [class "button-line"]
                 [ button [ onClick (DoEditHabit fields) ] [text "Save"]
                 , button [ onClick (DoDeleteHabit fields.id) ] [text "Delete"]
                 , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
                 ])
-            ] ++
-            ((List.range 6 (model.pageLines - 1) |> List.map emptyLine)) ++
-            [div [class "page-foot"] []]))
+         ] ++
+            ((List.range 8 (model.pageLines - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []])
 
 -- NEW VIEW
 viewNewPage : Model -> NewPage -> Html Msg
 viewNewPage model fields =
     div
         [class "page"]
-        ([ div [class "page-head"] [] ] ++
-            (habitFieldsView
+        ([ div [class "page-head"] []
+         , habitFieldsView
                 fields
-                (List.map .tag model.habits) 
+                model.habits
+                Nothing
                 (\s -> UpdatePage (ChangeNewDescription s))
                 (\s -> UpdatePage (ChangeNewTag s)) 
-                (\s -> UpdatePage (ChangeNewPeriod s)) ++
-            [viewLine emptyDiv (div
+                (\s -> UpdatePage (ChangeNewPeriod s))
+                (UpdatePage ToggleNewBlocked)
+                (\h -> UpdatePage (ChangeNewBlocked h))
+         , viewLineContent (div
                 [class "button-line"]
                 [ button [ onClick (DoAddHabit fields) ] [text "Save"]
                 , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
                 ])
             ] ++
-            ((List.range 6 (model.pageLines - 1) |> List.map emptyLine)) ++
-            [div [class "page-foot"] []]))
+            ((List.range 8 (model.pageLines - 1) |> List.map emptyLine)) ++
+            [div [class "page-foot"] []])
 
 -- OPTIONS VIEW
 viewOptionsPage : Model -> OptionsPage -> Html Msg
@@ -594,16 +656,16 @@ viewOptionsPage model fields =
     div
         [class "page"]
         ([ div [class "page-head"] [] ] ++
-            [ viewLine emptyDiv (label [] [text "Show upcoming to do"])
-            , viewLine emptyDiv (
+            [ viewLineContent (label [] [text "Show upcoming"])
+            , viewLineContent (
                 input 
                     [value fields.upcoming, list "upcoming-list", onInput (\s -> UpdatePage (ChangeOptionsUpcoming s)) ] []
             )
-            , viewLine emptyDiv (label [] [text "Show recently done"])
-            , viewLine emptyDiv (
+            , viewLineContent (label [] [text "Show recently done"])
+            , viewLineContent (
                 input 
                     [value fields.recent, list "recent-list", onInput (\s -> UpdatePage (ChangeOptionsRecent s)) ] []
-            ), viewLine emptyDiv (div
+            ), viewLineContent (div
                 [class "button-line"]
                 [ button [ onClick (SaveOptions fields) ] [text "Save"]
                 , button [ onClick (OpenHabitListPage 0) ] [text "Cancel"]
@@ -638,28 +700,94 @@ periodOptionsView input for =
             [id for]
             ((periodOptions periodUnit) ++ (periodOptions (periodUnit + 1)))
 
-habitFieldsView fields tags descChange tagChange periodChange
+maybeToBool : Maybe a -> Bool
+maybeToBool m =
+    case m of
+        Nothing -> False
+        Just _ -> True
+
+onChange : (Habit.Id -> msg) -> Attribute msg
+onChange handler = 
+  on "change" (changeDecoder handler)
+
+changeDecoder2 handler i =
+    let
+        hid = Maybe.withDefault 0 (String.toInt i)
+    in
+        JD.succeed (handler (Habit.HabitId hid))
+
+changeDecoder : (Habit.Id -> msg) -> JD.Decoder msg
+changeDecoder handler
+    =  JD.at ["target", "value"] JD.string
+    |> JD.andThen (changeDecoder2 handler)
+
+
+
+habitSelectorOption : Habit.Id -> Habit -> Html Msg
+habitSelectorOption selectedHabit habit =
+    option
+        [ value (String.fromInt (Habit.idToInt habit.id))
+        , Html.Attributes.selected (selectedHabit == habit.id)
+        ]
+        [text habit.description]
+
+habitSelector : List Habit -> Maybe Habit.Id -> (Habit.Id -> Msg) -> Html Msg
+habitSelector habits selected change =
+    select
+        [onChange change, disabled (not (maybeToBool selected))]
+        (case selected of
+            Nothing -> []
+            Just habitId -> (List.map (habitSelectorOption habitId) habits))
+
+habitFieldsView : HabitFields a -> List Habit -> Maybe Habit.Id
+    -> (String -> Msg) -> (String -> Msg) -> (String -> Msg) -> Msg
+    -> (Habit.Id -> Msg) -> Html Msg
+habitFieldsView fields habits maybeHabit
+    descChange tagChange periodChange toggleBlock blockChange
     = let
         tagOption tag = option [value tag] [text tag]
+        tagOptions = List.map .tag habits |> List.map tagOption
+        filteredHabits = case maybeHabit of
+            Nothing -> habits
+            Just habitId -> List.filter (\h -> habitId /=h.id) habits
+        canBeBlocked = not (List.isEmpty filteredHabits)
+
     in
-        (List.map (viewLine emptyDiv) [label
+        Html.form
             []
-            [text "I want to"]
-        , input 
-            [ placeholder "Do Something", value fields.description, onInput descChange ] []
-        , label
-            []
-            [text "Every"]
-        , input 
-            [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ] []
-        , label
-            []
-            [text "Tag"]
-        , input
-            [ placeholder "Todo", value fields.tag, list "tag-list", onInput tagChange ] []
-        ]) ++ [datalist
-            [id "tag-list"]
-            (List.map tagOption tags), periodOptionsView fields.period "period-list"]
+            ([ asLineContent label
+                []
+                [text "I want to"]
+            , asLineContent input 
+                [ placeholder "Do Something", value fields.description, onInput descChange ] []
+            , asLineContent label
+                []
+                [text "every"]
+            , asLineContent input 
+                [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ] []
+            ] ++
+            
+            ( if canBeBlocked then
+                [ asLineContent div [class "fuckaround"]
+                    [ input [ type_ "checkbox", onClick toggleBlock, checked (maybeToBool fields.block)] []
+                    , label [] [text "after doing"]
+                    ]
+                , viewLineContent (habitSelector filteredHabits fields.block blockChange)
+                ]
+            else 
+                []
+            )
+            
+            ++
+            [ asLineContent label
+                []
+                [text "Tag"]
+            , asLineContent input
+                [ placeholder "Todo", value fields.tag, list "tag-list", onInput tagChange ] []
+            , datalist
+                [id "tag-list"]
+                tagOptions
+            , periodOptionsView fields.period "period-list"])
 
 -- Line helpers
 emptyDiv = (div [] [])
@@ -675,6 +803,12 @@ viewLine margin line =
             [class "line-content"]
             [ line ]
         ]
+
+viewLineContent : Html Msg -> Html Msg
+viewLineContent line = viewLine emptyDiv line
+
+asLineContent : (b -> c -> Html Msg) -> b -> c -> Html Msg
+asLineContent el attribs children = viewLine emptyDiv (el attribs children)
 
 emptyLine : a -> Html Msg
 emptyLine a = viewLine emptyDiv emptyDiv
@@ -692,6 +826,24 @@ isRecentlyDone time options habit =
         |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
         |> Maybe.withDefault False
 
+shouldBeMarkedAsDone : Posix -> Habit -> Bool
+shouldBeMarkedAsDone time habit =
+    let
+        pastDue = posixToMillis (Habit.nextDue habit)
+            < posixToMillis time
+    in
+    case habit.block of
+        Habit.Unblocked -> not pastDue
+        Habit.UnblockedBy hid -> not pastDue
+        Habit.BlockedBy hid -> True
+
 viewHabitFilter: Posix -> Options -> Habit -> Bool
 viewHabitFilter time options habit =
-    isDueSoon time options habit || isRecentlyDone time options habit
+    let
+        due = isDueSoon time options habit
+        recent = isRecentlyDone time options habit
+    in
+    case habit.block of
+        Habit.Unblocked -> due || recent
+        Habit.UnblockedBy hid -> due || recent
+        Habit.BlockedBy hid -> recent 

@@ -1,4 +1,4 @@
-module Habit exposing (Habit, description, tag, period, id, nextDue, lastDone, setDescription, setTag, setPeriod, do, newHabit, Id(..), decoder, encode)
+module Habit exposing (Habit, description, tag, period, id, nextDue, lastDone, setDescription, setTag, setPeriod, do, newHabit, Id(..), Block(..), decoder, encode, idToInt)
 import Period exposing (Period, addToPosix)
 import Time exposing (Posix)
 import Json.Decode exposing (Decoder, field, string, int)
@@ -12,13 +12,23 @@ type alias Habit =
   , lastDone : Maybe Posix 
   , nextDue : Posix
   , doneCount : Int
+  , block: Block
   }
 
 type Id = HabitId Int
 
-newHabit: Posix -> String -> String -> Id -> Period -> Habit
-newHabit time desc t i p =
-  Habit desc t i p Nothing time 0
+type Block
+  = BlockedBy Id
+  | UnblockedBy Id
+  | Unblocked
+
+newHabit: Posix -> String -> String -> Id -> Period -> Maybe Id -> Habit
+newHabit time desc t i p block =
+  Habit desc t i p Nothing time 0 (
+    case block of
+      Nothing -> Unblocked
+      Just hid -> UnblockedBy hid
+  )
 
 description: Habit -> String
 description habit = habit.description
@@ -47,13 +57,35 @@ nextDue habit = habit.nextDue
 lastDone: Habit -> Maybe Posix
 lastDone habit = habit.lastDone
 
-do: Posix -> Habit -> Habit
-do time habit =
-  { habit 
+doHabit : Posix -> Habit -> Habit
+doHabit time habit
+  = { habit 
   | lastDone = Just time
   , nextDue = addToPosix habit.period time
   , doneCount = habit.doneCount + 1
+  , block =
+    case habit.block of
+      UnblockedBy otherId -> BlockedBy otherId
+      BlockedBy otherId -> BlockedBy otherId
+      Unblocked -> Unblocked
   } 
+
+do: Posix -> List Habit -> Id -> List Habit
+do time habits habitId =
+  List.map 
+    (\h -> 
+        if h.id == habitId
+        then doHabit time h
+        else case h.block of
+          Unblocked -> h
+          UnblockedBy _ -> h
+          BlockedBy otherId -> (
+            if otherId == habitId then
+              { h | block = UnblockedBy otherId, nextDue = addToPosix h.period time }
+            else h
+            )
+    ) 
+    habits
 
 posixDecoder: Decoder Posix
 posixDecoder =
@@ -63,10 +95,36 @@ posixEncode: Posix -> Encode.Value
 posixEncode time =
   Encode.int (Time.posixToMillis time) 
 
+-- TODO Fix this shiz
+blockDecoder: Decoder Block
+blockDecoder = (field "status" string)
+  |> Json.Decode.andThen (\s -> 
+    case s of
+      "Blocked" -> (
+        Json.Decode.map BlockedBy ((field "id" int) |> Json.Decode.map HabitId)
+        )
+      "UnblockedBy" -> (
+        Json.Decode.map UnblockedBy ((field "id" int) |> Json.Decode.map HabitId)
+        )
+      _ -> (Json.Decode.succeed Unblocked)
+  )
 
+blockEncode: Block -> Encode.Value
+blockEncode block =
+  Encode.object (
+    case block of
+      Unblocked ->
+        [ ("status", Encode.string "Unblocked") ]
+      BlockedBy habit ->
+        [ ("status", Encode.string "Blocked")
+        , ("id", Encode.int (idToInt habit)) ]
+      UnblockedBy habit ->
+        [ ("status", Encode.string "UnblockedBy")
+        , ("id", Encode.int (idToInt habit)) ]
+  )
 decoder : Decoder Habit
 decoder =
-  Json.Decode.map7 Habit
+  Json.Decode.map8 Habit
       (field "description" string)
       (field "tag" string)
       ((field "id" int) |> Json.Decode.map HabitId)
@@ -74,6 +132,7 @@ decoder =
       (Json.Decode.maybe (field "lastDone" posixDecoder))
       (field "nextDue" posixDecoder)
       (field "doneCount" int)
+      (field "block" blockDecoder)
 
 idToInt (HabitId i) = i
 
@@ -86,6 +145,7 @@ encode habit =
     , ("period", Period.encode habit.period) 
     , ("nextDue", posixEncode habit.nextDue)
     , ("doneCount", Encode.int habit.doneCount)
+    , ("block", blockEncode habit.block)
   ] ++ (case habit.lastDone of
     Nothing -> []
     Just l -> [("lastDone", posixEncode l)]

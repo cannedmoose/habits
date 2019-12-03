@@ -1,1 +1,5 @@
-P1 Options modal
+P2 add headers to Pages (Editing, New, Options, TODO)
+P2 Fix options button (SVG?)
+P2 Pause
+P2 DECODING FAILURE SHOULD CAUSE AN ERROR
+P2 work on checkbox styling

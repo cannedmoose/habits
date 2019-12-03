@@ -5023,6 +5023,52 @@ var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString
 
 	return _Utils_Tuple3(newOffset, row, col);
 });
+
+
+
+function _Time_now(millisToPosix)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		callback(_Scheduler_succeed(millisToPosix(Date.now())));
+	});
+}
+
+var _Time_setInterval = F2(function(interval, task)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var id = setInterval(function() { _Scheduler_rawSpawn(task); }, interval);
+		return function() { clearInterval(id); };
+	});
+});
+
+function _Time_here()
+{
+	return _Scheduler_binding(function(callback)
+	{
+		callback(_Scheduler_succeed(
+			A2($elm$time$Time$customZone, -(new Date().getTimezoneOffset()), _List_Nil)
+		));
+	});
+}
+
+
+function _Time_getZoneName()
+{
+	return _Scheduler_binding(function(callback)
+	{
+		try
+		{
+			var name = $elm$time$Time$Name(Intl.DateTimeFormat().resolvedOptions().timeZone);
+		}
+		catch (e)
+		{
+			var name = $elm$time$Time$Offset(new Date().getTimezoneOffset());
+		}
+		callback(_Scheduler_succeed(name));
+	});
+}
 var $elm$core$List$cons = _List_cons;
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var $elm$core$Array$foldr = F3(
@@ -10641,13 +10687,45 @@ var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
 var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
-var $author$project$Habit$Habit = F7(
-	function (description, tag, id, period, lastDone, nextDue, doneCount) {
-		return {description: description, doneCount: doneCount, id: id, lastDone: lastDone, nextDue: nextDue, period: period, tag: tag};
+var $author$project$Habit$Habit = F8(
+	function (description, tag, id, period, lastDone, nextDue, doneCount, block) {
+		return {block: block, description: description, doneCount: doneCount, id: id, lastDone: lastDone, nextDue: nextDue, period: period, tag: tag};
 	});
 var $author$project$Habit$HabitId = function (a) {
 	return {$: 'HabitId', a: a};
 };
+var $author$project$Habit$BlockedBy = function (a) {
+	return {$: 'BlockedBy', a: a};
+};
+var $author$project$Habit$Unblocked = {$: 'Unblocked'};
+var $author$project$Habit$UnblockedBy = function (a) {
+	return {$: 'UnblockedBy', a: a};
+};
+var $author$project$Habit$blockDecoder = A2(
+	$elm$json$Json$Decode$andThen,
+	function (s) {
+		switch (s) {
+			case 'Blocked':
+				return A2(
+					$elm$json$Json$Decode$map,
+					$author$project$Habit$BlockedBy,
+					A2(
+						$elm$json$Json$Decode$map,
+						$author$project$Habit$HabitId,
+						A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$int)));
+			case 'UnblockedBy':
+				return A2(
+					$elm$json$Json$Decode$map,
+					$author$project$Habit$UnblockedBy,
+					A2(
+						$elm$json$Json$Decode$map,
+						$author$project$Habit$HabitId,
+						A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$int)));
+			default:
+				return $elm$json$Json$Decode$succeed($author$project$Habit$Unblocked);
+		}
+	},
+	A2($elm$json$Json$Decode$field, 'status', $elm$json$Json$Decode$string));
 var $author$project$Period$Days = function (a) {
 	return {$: 'Days', a: a};
 };
@@ -11211,7 +11289,7 @@ var $author$project$Period$parse = function (string) {
 			$elm$core$String$toLower(string)));
 };
 var $author$project$Period$decoder = A2($elm$json$Json$Decode$map, $author$project$Period$parse, $elm$json$Json$Decode$string);
-var $elm$json$Json$Decode$map7 = _Json_map7;
+var $elm$json$Json$Decode$map8 = _Json_map8;
 var $elm$json$Json$Decode$oneOf = _Json_oneOf;
 var $elm$json$Json$Decode$maybe = function (decoder) {
 	return $elm$json$Json$Decode$oneOf(
@@ -11222,8 +11300,8 @@ var $elm$json$Json$Decode$maybe = function (decoder) {
 			]));
 };
 var $author$project$Habit$posixDecoder = A2($elm$json$Json$Decode$map, $elm$time$Time$millisToPosix, $elm$json$Json$Decode$int);
-var $author$project$Habit$decoder = A8(
-	$elm$json$Json$Decode$map7,
+var $author$project$Habit$decoder = A9(
+	$elm$json$Json$Decode$map8,
 	$author$project$Habit$Habit,
 	A2($elm$json$Json$Decode$field, 'description', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'tag', $elm$json$Json$Decode$string),
@@ -11235,7 +11313,8 @@ var $author$project$Habit$decoder = A8(
 	$elm$json$Json$Decode$maybe(
 		A2($elm$json$Json$Decode$field, 'lastDone', $author$project$Habit$posixDecoder)),
 	A2($elm$json$Json$Decode$field, 'nextDue', $author$project$Habit$posixDecoder),
-	A2($elm$json$Json$Decode$field, 'doneCount', $elm$json$Json$Decode$int));
+	A2($elm$json$Json$Decode$field, 'doneCount', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'block', $author$project$Habit$blockDecoder));
 var $author$project$Main$Options = F2(
 	function (recent, upcoming) {
 		return {recent: recent, upcoming: upcoming};
@@ -11269,6 +11348,32 @@ var $elm$time$Time$posixToMillis = function (_v0) {
 	var millis = _v0.a;
 	return millis;
 };
+var $author$project$Habit$nextDue = function (habit) {
+	return habit.nextDue;
+};
+var $author$project$Main$shouldBeMarkedAsDone = F2(
+	function (time, habit) {
+		var pastDue = _Utils_cmp(
+			$elm$time$Time$posixToMillis(
+				$author$project$Habit$nextDue(habit)),
+			$elm$time$Time$posixToMillis(time)) < 0;
+		var _v0 = habit.block;
+		switch (_v0.$) {
+			case 'Unblocked':
+				return !pastDue;
+			case 'UnblockedBy':
+				var hid = _v0.a;
+				return !pastDue;
+			default:
+				var hid = _v0.a;
+				return true;
+		}
+	});
+var $author$project$Main$habitOrderer = F2(
+	function (time, habit) {
+		return A2($author$project$Main$shouldBeMarkedAsDone, time, habit) ? $elm$time$Time$posixToMillis(
+			A2($elm$core$Maybe$withDefault, time, habit.lastDone)) : ((-1) * ($elm$time$Time$posixToMillis(habit.nextDue) - $elm$time$Time$posixToMillis(time)));
+	});
 var $elm$core$List$sortBy = _List_sortBy;
 var $elm$core$List$takeReverse = F3(
 	function (n, list, kept) {
@@ -11420,9 +11525,6 @@ var $author$project$Period$addToPosix = F2(
 		return $elm$time$Time$millisToPosix(
 			$elm$time$Time$posixToMillis(time) + $author$project$Period$toMillis(period));
 	});
-var $author$project$Habit$nextDue = function (habit) {
-	return habit.nextDue;
-};
 var $author$project$Main$isDueSoon = F3(
 	function (time, options, habit) {
 		return _Utils_cmp(
@@ -11466,7 +11568,19 @@ var $author$project$Main$isRecentlyDone = F3(
 	});
 var $author$project$Main$viewHabitFilter = F3(
 	function (time, options, habit) {
-		return A3($author$project$Main$isDueSoon, time, options, habit) || A3($author$project$Main$isRecentlyDone, time, options, habit);
+		var recent = A3($author$project$Main$isRecentlyDone, time, options, habit);
+		var due = A3($author$project$Main$isDueSoon, time, options, habit);
+		var _v0 = habit.block;
+		switch (_v0.$) {
+			case 'Unblocked':
+				return due || recent;
+			case 'UnblockedBy':
+				var hid = _v0.a;
+				return due || recent;
+			default:
+				var hid = _v0.a;
+				return recent;
+		}
 	});
 var $author$project$Main$updateVisibleHabits = function (model) {
 	var _v0 = model.page;
@@ -11484,9 +11598,7 @@ var $author$project$Main$updateVisibleHabits = function (model) {
 								model.pageLines,
 								A2(
 									$elm$core$List$sortBy,
-									function (h) {
-										return $elm$time$Time$posixToMillis(h.nextDue);
-									},
+									$author$project$Main$habitOrderer(model.time),
 									A2(
 										$elm$core$List$filter,
 										A2($author$project$Main$viewHabitFilter, model.time, model.options),
@@ -11695,8 +11807,186 @@ var $author$project$Main$animationSubscription = function (model) {
 		return $elm$core$Platform$Sub$none;
 	}
 };
+var $author$project$Main$Tick = function (a) {
+	return {$: 'Tick', a: a};
+};
+var $elm$time$Time$Every = F2(
+	function (a, b) {
+		return {$: 'Every', a: a, b: b};
+	});
+var $elm$time$Time$State = F2(
+	function (taggers, processes) {
+		return {processes: processes, taggers: taggers};
+	});
+var $elm$time$Time$init = $elm$core$Task$succeed(
+	A2($elm$time$Time$State, $elm$core$Dict$empty, $elm$core$Dict$empty));
+var $elm$time$Time$addMySub = F2(
+	function (_v0, state) {
+		var interval = _v0.a;
+		var tagger = _v0.b;
+		var _v1 = A2($elm$core$Dict$get, interval, state);
+		if (_v1.$ === 'Nothing') {
+			return A3(
+				$elm$core$Dict$insert,
+				interval,
+				_List_fromArray(
+					[tagger]),
+				state);
+		} else {
+			var taggers = _v1.a;
+			return A3(
+				$elm$core$Dict$insert,
+				interval,
+				A2($elm$core$List$cons, tagger, taggers),
+				state);
+		}
+	});
+var $elm$time$Time$Name = function (a) {
+	return {$: 'Name', a: a};
+};
+var $elm$time$Time$Offset = function (a) {
+	return {$: 'Offset', a: a};
+};
+var $elm$time$Time$Zone = F2(
+	function (a, b) {
+		return {$: 'Zone', a: a, b: b};
+	});
+var $elm$time$Time$customZone = $elm$time$Time$Zone;
+var $elm$time$Time$setInterval = _Time_setInterval;
+var $elm$time$Time$spawnHelp = F3(
+	function (router, intervals, processes) {
+		if (!intervals.b) {
+			return $elm$core$Task$succeed(processes);
+		} else {
+			var interval = intervals.a;
+			var rest = intervals.b;
+			var spawnTimer = $elm$core$Process$spawn(
+				A2(
+					$elm$time$Time$setInterval,
+					interval,
+					A2($elm$core$Platform$sendToSelf, router, interval)));
+			var spawnRest = function (id) {
+				return A3(
+					$elm$time$Time$spawnHelp,
+					router,
+					rest,
+					A3($elm$core$Dict$insert, interval, id, processes));
+			};
+			return A2($elm$core$Task$andThen, spawnRest, spawnTimer);
+		}
+	});
+var $elm$time$Time$onEffects = F3(
+	function (router, subs, _v0) {
+		var processes = _v0.processes;
+		var rightStep = F3(
+			function (_v6, id, _v7) {
+				var spawns = _v7.a;
+				var existing = _v7.b;
+				var kills = _v7.c;
+				return _Utils_Tuple3(
+					spawns,
+					existing,
+					A2(
+						$elm$core$Task$andThen,
+						function (_v5) {
+							return kills;
+						},
+						$elm$core$Process$kill(id)));
+			});
+		var newTaggers = A3($elm$core$List$foldl, $elm$time$Time$addMySub, $elm$core$Dict$empty, subs);
+		var leftStep = F3(
+			function (interval, taggers, _v4) {
+				var spawns = _v4.a;
+				var existing = _v4.b;
+				var kills = _v4.c;
+				return _Utils_Tuple3(
+					A2($elm$core$List$cons, interval, spawns),
+					existing,
+					kills);
+			});
+		var bothStep = F4(
+			function (interval, taggers, id, _v3) {
+				var spawns = _v3.a;
+				var existing = _v3.b;
+				var kills = _v3.c;
+				return _Utils_Tuple3(
+					spawns,
+					A3($elm$core$Dict$insert, interval, id, existing),
+					kills);
+			});
+		var _v1 = A6(
+			$elm$core$Dict$merge,
+			leftStep,
+			bothStep,
+			rightStep,
+			newTaggers,
+			processes,
+			_Utils_Tuple3(
+				_List_Nil,
+				$elm$core$Dict$empty,
+				$elm$core$Task$succeed(_Utils_Tuple0)));
+		var spawnList = _v1.a;
+		var existingDict = _v1.b;
+		var killTask = _v1.c;
+		return A2(
+			$elm$core$Task$andThen,
+			function (newProcesses) {
+				return $elm$core$Task$succeed(
+					A2($elm$time$Time$State, newTaggers, newProcesses));
+			},
+			A2(
+				$elm$core$Task$andThen,
+				function (_v2) {
+					return A3($elm$time$Time$spawnHelp, router, spawnList, existingDict);
+				},
+				killTask));
+	});
+var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
+var $elm$time$Time$onSelfMsg = F3(
+	function (router, interval, state) {
+		var _v0 = A2($elm$core$Dict$get, interval, state.taggers);
+		if (_v0.$ === 'Nothing') {
+			return $elm$core$Task$succeed(state);
+		} else {
+			var taggers = _v0.a;
+			var tellTaggers = function (time) {
+				return $elm$core$Task$sequence(
+					A2(
+						$elm$core$List$map,
+						function (tagger) {
+							return A2(
+								$elm$core$Platform$sendToApp,
+								router,
+								tagger(time));
+						},
+						taggers));
+			};
+			return A2(
+				$elm$core$Task$andThen,
+				function (_v1) {
+					return $elm$core$Task$succeed(state);
+				},
+				A2($elm$core$Task$andThen, tellTaggers, $elm$time$Time$now));
+		}
+	});
+var $elm$time$Time$subMap = F2(
+	function (f, _v0) {
+		var interval = _v0.a;
+		var tagger = _v0.b;
+		return A2(
+			$elm$time$Time$Every,
+			interval,
+			A2($elm$core$Basics$composeL, f, tagger));
+	});
+_Platform_effectManagers['Time'] = _Platform_createManager($elm$time$Time$init, $elm$time$Time$onEffects, $elm$time$Time$onSelfMsg, 0, $elm$time$Time$subMap);
+var $elm$time$Time$subscription = _Platform_leaf('Time');
+var $elm$time$Time$every = F2(
+	function (interval, tagger) {
+		return $elm$time$Time$subscription(
+			A2($elm$time$Time$Every, interval, tagger));
+	});
 var $author$project$Main$timeSubscription = function (model) {
-	return $elm$core$Platform$Sub$none;
+	return A2($elm$time$Time$every, 1000, $author$project$Main$Tick);
 };
 var $author$project$Main$subscriptions = function (model) {
 	return $elm$core$Platform$Sub$batch(
@@ -11715,15 +12005,55 @@ var $author$project$Main$EditHabit = function (a) {
 var $author$project$Main$NewHabit = function (a) {
 	return {$: 'NewHabit', a: a};
 };
-var $author$project$Habit$do = F2(
+var $author$project$Habit$doHabit = F2(
 	function (time, habit) {
 		return _Utils_update(
 			habit,
 			{
+				block: function () {
+					var _v0 = habit.block;
+					switch (_v0.$) {
+						case 'UnblockedBy':
+							var otherId = _v0.a;
+							return $author$project$Habit$BlockedBy(otherId);
+						case 'BlockedBy':
+							var otherId = _v0.a;
+							return $author$project$Habit$BlockedBy(otherId);
+						default:
+							return $author$project$Habit$Unblocked;
+					}
+				}(),
 				doneCount: habit.doneCount + 1,
 				lastDone: $elm$core$Maybe$Just(time),
 				nextDue: A2($author$project$Period$addToPosix, habit.period, time)
 			});
+	});
+var $author$project$Habit$do = F3(
+	function (time, habits, habitId) {
+		return A2(
+			$elm$core$List$map,
+			function (h) {
+				if (_Utils_eq(h.id, habitId)) {
+					return A2($author$project$Habit$doHabit, time, h);
+				} else {
+					var _v0 = h.block;
+					switch (_v0.$) {
+						case 'Unblocked':
+							return h;
+						case 'UnblockedBy':
+							return h;
+						default:
+							var otherId = _v0.a;
+							return _Utils_eq(otherId, habitId) ? _Utils_update(
+								h,
+								{
+									block: $author$project$Habit$UnblockedBy(otherId),
+									nextDue: A2($author$project$Period$addToPosix, h.period, time)
+								}) : h;
+					}
+				}
+			},
+			habits);
 	});
 var $author$project$Period$addS = F2(
 	function (unit, str) {
@@ -11751,6 +12081,19 @@ var $author$project$Period$toString = function (period) {
 var $author$project$Main$editPageFromHabit = function (habit) {
 	return $author$project$Main$EditHabit(
 		{
+			block: function () {
+				var _v0 = habit.block;
+				switch (_v0.$) {
+					case 'BlockedBy':
+						var id = _v0.a;
+						return $elm$core$Maybe$Just(id);
+					case 'UnblockedBy':
+						var id = _v0.a;
+						return $elm$core$Maybe$Just(id);
+					default:
+						return $elm$core$Maybe$Nothing;
+				}
+			}(),
 			description: habit.description,
 			id: habit.id,
 			period: $author$project$Period$toString(habit.period),
@@ -11769,12 +12112,28 @@ var $elm$core$List$head = function (list) {
 var $author$project$Habit$id = function (habit) {
 	return habit.id;
 };
-var $author$project$Habit$newHabit = F5(
-	function (time, desc, t, i, p) {
-		return A7($author$project$Habit$Habit, desc, t, i, p, $elm$core$Maybe$Nothing, time, 0);
+var $author$project$Habit$newHabit = F6(
+	function (time, desc, t, i, p, block) {
+		return A8(
+			$author$project$Habit$Habit,
+			desc,
+			t,
+			i,
+			p,
+			$elm$core$Maybe$Nothing,
+			time,
+			0,
+			function () {
+				if (block.$ === 'Nothing') {
+					return $author$project$Habit$Unblocked;
+				} else {
+					var hid = block.a;
+					return $author$project$Habit$UnblockedBy(hid);
+				}
+			}());
 	});
 var $author$project$Main$newNewPage = $author$project$Main$NewHabit(
-	{description: '', period: '1 Day', tag: ''});
+	{block: $elm$core$Maybe$Nothing, description: '', period: '1 Day', tag: ''});
 var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
 	return {$: 'Easing', a: a};
 };
@@ -12548,15 +12907,53 @@ var $author$project$Main$optionsPageFromOptions = function (options) {
 			upcoming: $author$project$Period$toString(options.upcoming)
 		});
 };
-var $author$project$Period$encode = function (period) {
-	return $elm$json$Json$Encode$string(
-		$author$project$Period$toString(period));
-};
 var $author$project$Habit$idToInt = function (_v0) {
 	var i = _v0.a;
 	return i;
 };
 var $elm$json$Json$Encode$int = _Json_wrap;
+var $author$project$Habit$blockEncode = function (block) {
+	return $elm$json$Json$Encode$object(
+		function () {
+			switch (block.$) {
+				case 'Unblocked':
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('Unblocked'))
+						]);
+				case 'BlockedBy':
+					var habit = block.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('Blocked')),
+							_Utils_Tuple2(
+							'id',
+							$elm$json$Json$Encode$int(
+								$author$project$Habit$idToInt(habit)))
+						]);
+				default:
+					var habit = block.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('UnblockedBy')),
+							_Utils_Tuple2(
+							'id',
+							$elm$json$Json$Encode$int(
+								$author$project$Habit$idToInt(habit)))
+						]);
+			}
+		}());
+};
+var $author$project$Period$encode = function (period) {
+	return $elm$json$Json$Encode$string(
+		$author$project$Period$toString(period));
+};
 var $author$project$Habit$posixEncode = function (time) {
 	return $elm$json$Json$Encode$int(
 		$elm$time$Time$posixToMillis(time));
@@ -12584,7 +12981,10 @@ var $author$project$Habit$encode = function (habit) {
 					$author$project$Habit$posixEncode(habit.nextDue)),
 					_Utils_Tuple2(
 					'doneCount',
-					$elm$json$Json$Encode$int(habit.doneCount))
+					$elm$json$Json$Encode$int(habit.doneCount)),
+					_Utils_Tuple2(
+					'block',
+					$author$project$Habit$blockEncode(habit.block))
 				]),
 			function () {
 				var _v0 = habit.lastDone;
@@ -14280,38 +14680,40 @@ var $author$project$Main$update = F2(
 				var habitId = msg.a;
 				return $author$project$Main$storeModel(
 					_Utils_Tuple2(
-						function () {
-							var updatedHabits = A2(
-								$elm$core$List$map,
-								function (h) {
-									return _Utils_eq(h.id, habitId) ? A2($author$project$Habit$do, model.time, h) : h;
-								},
-								model.habits);
-							return $author$project$Main$updateVisibleHabits(
-								_Utils_update(
-									model,
-									{habits: updatedHabits}));
-						}(),
-						$elm$core$Platform$Cmd$none));
-			case 'DoAddHabit':
-				var fields = msg.a;
-				var newHabit = A5(
-					$author$project$Habit$newHabit,
-					model.time,
-					fields.description,
-					fields.tag,
-					$author$project$Habit$HabitId(model.uuid),
-					$author$project$Period$parse(fields.period));
-				return $author$project$Main$storeModel(
-					_Utils_Tuple2(
-						$author$project$Main$openHabitList(
+						$author$project$Main$updateVisibleHabits(
 							_Utils_update(
 								model,
 								{
-									habits: A2($elm$core$List$cons, newHabit, model.habits),
-									uuid: model.uuid + 1
+									habits: A3($author$project$Habit$do, model.time, model.habits, habitId)
 								})),
 						$elm$core$Platform$Cmd$none));
+			case 'DoAddHabit':
+				var fields = msg.a;
+				var _v5 = fields.description;
+				if (_v5 === '') {
+					return _Utils_Tuple2(
+						$author$project$Main$openHabitList(model),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var newHabit = A6(
+						$author$project$Habit$newHabit,
+						model.time,
+						fields.description,
+						fields.tag,
+						$author$project$Habit$HabitId(model.uuid),
+						$author$project$Period$parse(fields.period),
+						fields.block);
+					return $author$project$Main$storeModel(
+						_Utils_Tuple2(
+							$author$project$Main$openHabitList(
+								_Utils_update(
+									model,
+									{
+										habits: A2($elm$core$List$cons, newHabit, model.habits),
+										uuid: model.uuid + 1
+									})),
+							$elm$core$Platform$Cmd$none));
+				}
 			case 'DoDeleteHabit':
 				var habitId = msg.a;
 				return $author$project$Main$storeModel(
@@ -14341,6 +14743,21 @@ var $author$project$Main$update = F2(
 									return _Utils_eq(h.id, editPage.id) ? _Utils_update(
 										h,
 										{
+											block: function () {
+												var _v6 = _Utils_Tuple2(editPage.block, h.block);
+												if (_v6.a.$ === 'Nothing') {
+													var _v7 = _v6.a;
+													return $author$project$Habit$Unblocked;
+												} else {
+													if (_v6.b.$ === 'BlockedBy') {
+														var hid = _v6.a.a;
+														return $author$project$Habit$BlockedBy(hid);
+													} else {
+														var hid = _v6.a.a;
+														return $author$project$Habit$UnblockedBy(hid);
+													}
+												}
+											}(),
 											description: editPage.description,
 											period: $author$project$Period$parse(editPage.period),
 											tag: editPage.tag
@@ -14355,15 +14772,15 @@ var $author$project$Main$update = F2(
 						$elm$core$Platform$Cmd$none));
 			default:
 				var pageUpdate = msg.a;
-				var _v5 = _Utils_Tuple2(pageUpdate, model.page);
-				_v5$8:
+				var _v8 = _Utils_Tuple2(pageUpdate, model.page);
+				_v8$12:
 				while (true) {
-					switch (_v5.b.$) {
+					switch (_v8.b.$) {
 						case 'EditHabit':
-							switch (_v5.a.$) {
+							switch (_v8.a.$) {
 								case 'ChangeEditDescription':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14375,8 +14792,8 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeEditTag':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14388,8 +14805,8 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeEditPeriod':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14400,14 +14817,52 @@ var $author$project$Main$update = F2(
 														{period: str}))
 											}),
 										$elm$core$Platform$Cmd$none);
+								case 'ToggleEditBlocked':
+									var _v9 = _v8.a;
+									var page = _v8.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$EditHabit(
+													_Utils_update(
+														page,
+														{
+															block: function () {
+																var _v10 = page.block;
+																if (_v10.$ === 'Nothing') {
+																	return $elm$core$Maybe$Just(
+																		$author$project$Habit$HabitId(0));
+																} else {
+																	return $elm$core$Maybe$Nothing;
+																}
+															}()
+														}))
+											}),
+										$elm$core$Platform$Cmd$none);
+								case 'ChangeEditBlocked':
+									var habitId = _v8.a.a;
+									var page = _v8.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$EditHabit(
+													_Utils_update(
+														page,
+														{
+															block: $elm$core$Maybe$Just(habitId)
+														}))
+											}),
+										$elm$core$Platform$Cmd$none);
 								default:
-									break _v5$8;
+									break _v8$12;
 							}
 						case 'NewHabit':
-							switch (_v5.a.$) {
+							switch (_v8.a.$) {
 								case 'ChangeNewDescription':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14419,8 +14874,8 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeNewTag':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14432,8 +14887,8 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeNewPeriod':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14444,14 +14899,52 @@ var $author$project$Main$update = F2(
 														{period: str}))
 											}),
 										$elm$core$Platform$Cmd$none);
+								case 'ToggleNewBlocked':
+									var _v11 = _v8.a;
+									var page = _v8.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$NewHabit(
+													_Utils_update(
+														page,
+														{
+															block: function () {
+																var _v12 = page.block;
+																if (_v12.$ === 'Nothing') {
+																	return $elm$core$Maybe$Just(
+																		$author$project$Habit$HabitId(0));
+																} else {
+																	return $elm$core$Maybe$Nothing;
+																}
+															}()
+														}))
+											}),
+										$elm$core$Platform$Cmd$none);
+								case 'ChangeNewBlocked':
+									var habitId = _v8.a.a;
+									var page = _v8.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$NewHabit(
+													_Utils_update(
+														page,
+														{
+															block: $elm$core$Maybe$Just(habitId)
+														}))
+											}),
+										$elm$core$Platform$Cmd$none);
 								default:
-									break _v5$8;
+									break _v8$12;
 							}
 						case 'ChangeOptions':
-							switch (_v5.a.$) {
+							switch (_v8.a.$) {
 								case 'ChangeOptionsRecent':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14463,8 +14956,8 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeOptionsUpcoming':
-									var str = _v5.a.a;
-									var page = _v5.b.a;
+									var str = _v8.a.a;
+									var page = _v8.b.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -14476,10 +14969,10 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								default:
-									break _v5$8;
+									break _v8$12;
 							}
 						default:
-							break _v5$8;
+							break _v8$12;
 					}
 				}
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
@@ -15008,6 +15501,9 @@ var $mdgriffith$elm_style_animation$Animation$Render$render = function (animatio
 	return _Utils_ap(styleAttr, otherAttrs);
 };
 var $mdgriffith$elm_style_animation$Animation$render = $mdgriffith$elm_style_animation$Animation$Render$render;
+var $author$project$Main$ChangeEditBlocked = function (a) {
+	return {$: 'ChangeEditBlocked', a: a};
+};
 var $author$project$Main$ChangeEditDescription = function (a) {
 	return {$: 'ChangeEditDescription', a: a};
 };
@@ -15026,6 +15522,7 @@ var $author$project$Main$DoEditHabit = function (a) {
 var $author$project$Main$OpenHabitListPage = function (a) {
 	return {$: 'OpenHabitListPage', a: a};
 };
+var $author$project$Main$ToggleEditBlocked = {$: 'ToggleEditBlocked'};
 var $author$project$Main$UpdatePage = function (a) {
 	return {$: 'UpdatePage', a: a};
 };
@@ -15060,10 +15557,102 @@ var $author$project$Main$viewLine = F2(
 var $author$project$Main$emptyLine = function (a) {
 	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, $author$project$Main$emptyDiv);
 };
+var $author$project$Main$asLineContent = F3(
+	function (el, attribs, children) {
+		return A2(
+			$author$project$Main$viewLine,
+			$author$project$Main$emptyDiv,
+			A2(el, attribs, children));
+	});
+var $elm$json$Json$Encode$bool = _Json_wrap;
+var $elm$html$Html$Attributes$boolProperty = F2(
+	function (key, bool) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$bool(bool));
+	});
+var $elm$html$Html$Attributes$checked = $elm$html$Html$Attributes$boolProperty('checked');
 var $elm$html$Html$datalist = _VirtualDom_node('datalist');
+var $elm$html$Html$form = _VirtualDom_node('form');
+var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
+var $elm$html$Html$option = _VirtualDom_node('option');
+var $elm$html$Html$Attributes$selected = $elm$html$Html$Attributes$boolProperty('selected');
+var $author$project$Main$habitSelectorOption = F2(
+	function (selectedHabit, habit) {
+		return A2(
+			$elm$html$Html$option,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$value(
+					$elm$core$String$fromInt(
+						$author$project$Habit$idToInt(habit.id))),
+					$elm$html$Html$Attributes$selected(
+					_Utils_eq(selectedHabit, habit.id))
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(habit.description)
+				]));
+	});
+var $author$project$Main$maybeToBool = function (m) {
+	if (m.$ === 'Nothing') {
+		return false;
+	} else {
+		return true;
+	}
+};
+var $author$project$Main$changeDecoder2 = F2(
+	function (handler, i) {
+		var hid = A2(
+			$elm$core$Maybe$withDefault,
+			0,
+			$elm$core$String$toInt(i));
+		return $elm$json$Json$Decode$succeed(
+			handler(
+				$author$project$Habit$HabitId(hid)));
+	});
+var $author$project$Main$changeDecoder = function (handler) {
+	return A2(
+		$elm$json$Json$Decode$andThen,
+		$author$project$Main$changeDecoder2(handler),
+		A2(
+			$elm$json$Json$Decode$at,
+			_List_fromArray(
+				['target', 'value']),
+			$elm$json$Json$Decode$string));
+};
+var $author$project$Main$onChange = function (handler) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'change',
+		$author$project$Main$changeDecoder(handler));
+};
+var $elm$html$Html$select = _VirtualDom_node('select');
+var $author$project$Main$habitSelector = F3(
+	function (habits, selected, change) {
+		return A2(
+			$elm$html$Html$select,
+			_List_fromArray(
+				[
+					$author$project$Main$onChange(change),
+					$elm$html$Html$Attributes$disabled(
+					!$author$project$Main$maybeToBool(selected))
+				]),
+			function () {
+				if (selected.$ === 'Nothing') {
+					return _List_Nil;
+				} else {
+					var habitId = selected.a;
+					return A2(
+						$elm$core$List$map,
+						$author$project$Main$habitSelectorOption(habitId),
+						habits);
+				}
+			}());
+	});
 var $elm$html$Html$label = _VirtualDom_node('label');
 var $elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
-var $elm$html$Html$option = _VirtualDom_node('option');
 var $author$project$Main$periodOptionsView = F2(
 	function (input, _for) {
 		var periodUnit = A2(
@@ -15110,8 +15699,11 @@ var $author$project$Main$periodOptionsView = F2(
 				periodOptions(periodUnit + 1)));
 	});
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
-var $author$project$Main$habitFieldsView = F5(
-	function (fields, tags, descChange, tagChange, periodChange) {
+var $author$project$Main$viewLineContent = function (line) {
+	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, line);
+};
+var $author$project$Main$habitFieldsView = F8(
+	function (fields, habits, maybeHabit, descChange, tagChange, periodChange, toggleBlock, blockChange) {
 		var tagOption = function (tag) {
 			return A2(
 				$elm$html$Html$option,
@@ -15124,20 +15716,45 @@ var $author$project$Main$habitFieldsView = F5(
 						$elm$html$Html$text(tag)
 					]));
 		};
-		return _Utils_ap(
+		var tagOptions = A2(
+			$elm$core$List$map,
+			tagOption,
 			A2(
 				$elm$core$List$map,
-				$author$project$Main$viewLine($author$project$Main$emptyDiv),
+				function ($) {
+					return $.tag;
+				},
+				habits));
+		var filteredHabits = function () {
+			if (maybeHabit.$ === 'Nothing') {
+				return habits;
+			} else {
+				var habitId = maybeHabit.a;
+				return A2(
+					$elm$core$List$filter,
+					function (h) {
+						return !_Utils_eq(habitId, h.id);
+					},
+					habits);
+			}
+		}();
+		var canBeBlocked = !$elm$core$List$isEmpty(filteredHabits);
+		return A2(
+			$elm$html$Html$form,
+			_List_Nil,
+			_Utils_ap(
 				_List_fromArray(
 					[
-						A2(
+						A3(
+						$author$project$Main$asLineContent,
 						$elm$html$Html$label,
 						_List_Nil,
 						_List_fromArray(
 							[
 								$elm$html$Html$text('I want to')
 							])),
-						A2(
+						A3(
+						$author$project$Main$asLineContent,
 						$elm$html$Html$input,
 						_List_fromArray(
 							[
@@ -15146,14 +15763,16 @@ var $author$project$Main$habitFieldsView = F5(
 								$elm$html$Html$Events$onInput(descChange)
 							]),
 						_List_Nil),
-						A2(
+						A3(
+						$author$project$Main$asLineContent,
 						$elm$html$Html$label,
 						_List_Nil,
 						_List_fromArray(
 							[
-								$elm$html$Html$text('Every')
+								$elm$html$Html$text('every')
 							])),
-						A2(
+						A3(
+						$author$project$Main$asLineContent,
 						$elm$html$Html$input,
 						_List_fromArray(
 							[
@@ -15162,36 +15781,71 @@ var $author$project$Main$habitFieldsView = F5(
 								$elm$html$Html$Attributes$list('period-list'),
 								$elm$html$Html$Events$onInput(periodChange)
 							]),
-						_List_Nil),
-						A2(
-						$elm$html$Html$label,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Tag')
-							])),
-						A2(
-						$elm$html$Html$input,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$placeholder('Todo'),
-								$elm$html$Html$Attributes$value(fields.tag),
-								$elm$html$Html$Attributes$list('tag-list'),
-								$elm$html$Html$Events$onInput(tagChange)
-							]),
 						_List_Nil)
-					])),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$datalist,
+					]),
+				_Utils_ap(
+					canBeBlocked ? _List_fromArray(
+						[
+							A3(
+							$author$project$Main$asLineContent,
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('fuckaround')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$input,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$type_('checkbox'),
+											$elm$html$Html$Events$onClick(toggleBlock),
+											$elm$html$Html$Attributes$checked(
+											$author$project$Main$maybeToBool(fields.block))
+										]),
+									_List_Nil),
+									A2(
+									$elm$html$Html$label,
+									_List_Nil,
+									_List_fromArray(
+										[
+											$elm$html$Html$text('after doing')
+										]))
+								])),
+							$author$project$Main$viewLineContent(
+							A3($author$project$Main$habitSelector, filteredHabits, fields.block, blockChange))
+						]) : _List_Nil,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$id('tag-list')
-						]),
-					A2($elm$core$List$map, tagOption, tags)),
-					A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
-				]));
+							A3(
+							$author$project$Main$asLineContent,
+							$elm$html$Html$label,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Tag')
+								])),
+							A3(
+							$author$project$Main$asLineContent,
+							$elm$html$Html$input,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$placeholder('Todo'),
+									$elm$html$Html$Attributes$value(fields.tag),
+									$elm$html$Html$Attributes$list('tag-list'),
+									$elm$html$Html$Events$onInput(tagChange)
+								]),
+							_List_Nil),
+							A2(
+							$elm$html$Html$datalist,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$id('tag-list')
+								]),
+							tagOptions),
+							A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
+						]))));
 	});
 var $author$project$Main$viewEditingPage = F2(
 	function (model, fields) {
@@ -15210,18 +15864,12 @@ var $author$project$Main$viewEditingPage = F2(
 							[
 								$elm$html$Html$Attributes$class('page-head')
 							]),
-						_List_Nil)
-					]),
-				_Utils_ap(
-					A5(
+						_List_Nil),
+						A8(
 						$author$project$Main$habitFieldsView,
 						fields,
-						A2(
-							$elm$core$List$map,
-							function ($) {
-								return $.tag;
-							},
-							model.habits),
+						model.habits,
+						$elm$core$Maybe$Just(fields.id),
 						function (s) {
 							return $author$project$Main$UpdatePage(
 								$author$project$Main$ChangeEditDescription(s));
@@ -15233,71 +15881,71 @@ var $author$project$Main$viewEditingPage = F2(
 						function (s) {
 							return $author$project$Main$UpdatePage(
 								$author$project$Main$ChangeEditPeriod(s));
+						},
+						$author$project$Main$UpdatePage($author$project$Main$ToggleEditBlocked),
+						function (h) {
+							return $author$project$Main$UpdatePage(
+								$author$project$Main$ChangeEditBlocked(h));
 						}),
-					_Utils_ap(
-						_List_fromArray(
-							[
-								A2(
-								$author$project$Main$viewLine,
-								$author$project$Main$emptyDiv,
-								A2(
-									$elm$html$Html$div,
-									_List_fromArray(
-										[
-											$elm$html$Html$Attributes$class('button-line')
-										]),
-									_List_fromArray(
-										[
-											A2(
-											$elm$html$Html$button,
-											_List_fromArray(
-												[
-													$elm$html$Html$Events$onClick(
-													$author$project$Main$DoEditHabit(fields))
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Save')
-												])),
-											A2(
-											$elm$html$Html$button,
-											_List_fromArray(
-												[
-													$elm$html$Html$Events$onClick(
-													$author$project$Main$DoDeleteHabit(fields.id))
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Delete')
-												])),
-											A2(
-											$elm$html$Html$button,
-											_List_fromArray(
-												[
-													$elm$html$Html$Events$onClick(
-													$author$project$Main$OpenHabitListPage(0))
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Cancel')
-												]))
-										])))
-							]),
-						_Utils_ap(
-							A2(
-								$elm$core$List$map,
-								$author$project$Main$emptyLine,
-								A2($elm$core$List$range, 6, model.pageLines - 1)),
+						$author$project$Main$viewLineContent(
+						A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('button-line')
+								]),
 							_List_fromArray(
 								[
 									A2(
-									$elm$html$Html$div,
+									$elm$html$Html$button,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$class('page-foot')
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$DoEditHabit(fields))
 										]),
-									_List_Nil)
-								]))))));
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Save')
+										])),
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$DoDeleteHabit(fields.id))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Delete')
+										])),
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$OpenHabitListPage(0))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Cancel')
+										]))
+								])))
+					]),
+				_Utils_ap(
+					A2(
+						$elm$core$List$map,
+						$author$project$Main$emptyLine,
+						A2($elm$core$List$range, 8, model.pageLines - 1)),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('page-foot')
+								]),
+							_List_Nil)
+						]))));
 	});
 var $author$project$Main$OpenOptionsPage = {$: 'OpenOptionsPage'};
 var $author$project$Main$OpenNewPage = {$: 'OpenNewPage'};
@@ -15329,7 +15977,7 @@ var $author$project$Main$viewHabitLine = F3(
 					[
 						$elm$html$Html$Attributes$class('habit-button'),
 						$elm$html$Html$Attributes$class(
-						A3($author$project$Main$isRecentlyDone, time, options, habit) ? 'habit-done' : 'habit-todo'),
+						A2($author$project$Main$shouldBeMarkedAsDone, time, habit) ? 'habit-done' : 'habit-todo'),
 						$elm$html$Html$Events$onClick(
 						$author$project$Main$DoHabit(habit.id))
 					]),
@@ -15473,6 +16121,9 @@ var $author$project$Main$viewHabitsPage = F2(
 					_List_Nil)
 				]));
 	});
+var $author$project$Main$ChangeNewBlocked = function (a) {
+	return {$: 'ChangeNewBlocked', a: a};
+};
 var $author$project$Main$ChangeNewDescription = function (a) {
 	return {$: 'ChangeNewDescription', a: a};
 };
@@ -15485,6 +16136,7 @@ var $author$project$Main$ChangeNewTag = function (a) {
 var $author$project$Main$DoAddHabit = function (a) {
 	return {$: 'DoAddHabit', a: a};
 };
+var $author$project$Main$ToggleNewBlocked = {$: 'ToggleNewBlocked'};
 var $author$project$Main$viewNewPage = F2(
 	function (model, fields) {
 		return A2(
@@ -15502,18 +16154,12 @@ var $author$project$Main$viewNewPage = F2(
 							[
 								$elm$html$Html$Attributes$class('page-head')
 							]),
-						_List_Nil)
-					]),
-				_Utils_ap(
-					A5(
+						_List_Nil),
+						A8(
 						$author$project$Main$habitFieldsView,
 						fields,
-						A2(
-							$elm$core$List$map,
-							function ($) {
-								return $.tag;
-							},
-							model.habits),
+						model.habits,
+						$elm$core$Maybe$Nothing,
 						function (s) {
 							return $author$project$Main$UpdatePage(
 								$author$project$Main$ChangeNewDescription(s));
@@ -15525,60 +16171,60 @@ var $author$project$Main$viewNewPage = F2(
 						function (s) {
 							return $author$project$Main$UpdatePage(
 								$author$project$Main$ChangeNewPeriod(s));
+						},
+						$author$project$Main$UpdatePage($author$project$Main$ToggleNewBlocked),
+						function (h) {
+							return $author$project$Main$UpdatePage(
+								$author$project$Main$ChangeNewBlocked(h));
 						}),
-					_Utils_ap(
-						_List_fromArray(
-							[
-								A2(
-								$author$project$Main$viewLine,
-								$author$project$Main$emptyDiv,
-								A2(
-									$elm$html$Html$div,
-									_List_fromArray(
-										[
-											$elm$html$Html$Attributes$class('button-line')
-										]),
-									_List_fromArray(
-										[
-											A2(
-											$elm$html$Html$button,
-											_List_fromArray(
-												[
-													$elm$html$Html$Events$onClick(
-													$author$project$Main$DoAddHabit(fields))
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Save')
-												])),
-											A2(
-											$elm$html$Html$button,
-											_List_fromArray(
-												[
-													$elm$html$Html$Events$onClick(
-													$author$project$Main$OpenHabitListPage(0))
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Cancel')
-												]))
-										])))
-							]),
-						_Utils_ap(
-							A2(
-								$elm$core$List$map,
-								$author$project$Main$emptyLine,
-								A2($elm$core$List$range, 6, model.pageLines - 1)),
+						$author$project$Main$viewLineContent(
+						A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('button-line')
+								]),
 							_List_fromArray(
 								[
 									A2(
-									$elm$html$Html$div,
+									$elm$html$Html$button,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$class('page-foot')
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$DoAddHabit(fields))
 										]),
-									_List_Nil)
-								]))))));
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Save')
+										])),
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$OpenHabitListPage(0))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Cancel')
+										]))
+								])))
+					]),
+				_Utils_ap(
+					A2(
+						$elm$core$List$map,
+						$author$project$Main$emptyLine,
+						A2($elm$core$List$range, 8, model.pageLines - 1)),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('page-foot')
+								]),
+							_List_Nil)
+						]))));
 	});
 var $author$project$Main$ChangeOptionsRecent = function (a) {
 	return {$: 'ChangeOptionsRecent', a: a};
@@ -15611,19 +16257,15 @@ var $author$project$Main$viewOptionsPage = F2(
 				_Utils_ap(
 					_List_fromArray(
 						[
-							A2(
-							$author$project$Main$viewLine,
-							$author$project$Main$emptyDiv,
+							$author$project$Main$viewLineContent(
 							A2(
 								$elm$html$Html$label,
 								_List_Nil,
 								_List_fromArray(
 									[
-										$elm$html$Html$text('Show upcoming to do')
+										$elm$html$Html$text('Show upcoming')
 									]))),
-							A2(
-							$author$project$Main$viewLine,
-							$author$project$Main$emptyDiv,
+							$author$project$Main$viewLineContent(
 							A2(
 								$elm$html$Html$input,
 								_List_fromArray(
@@ -15637,9 +16279,7 @@ var $author$project$Main$viewOptionsPage = F2(
 										})
 									]),
 								_List_Nil)),
-							A2(
-							$author$project$Main$viewLine,
-							$author$project$Main$emptyDiv,
+							$author$project$Main$viewLineContent(
 							A2(
 								$elm$html$Html$label,
 								_List_Nil,
@@ -15647,9 +16287,7 @@ var $author$project$Main$viewOptionsPage = F2(
 									[
 										$elm$html$Html$text('Show recently done')
 									]))),
-							A2(
-							$author$project$Main$viewLine,
-							$author$project$Main$emptyDiv,
+							$author$project$Main$viewLineContent(
 							A2(
 								$elm$html$Html$input,
 								_List_fromArray(
@@ -15663,9 +16301,7 @@ var $author$project$Main$viewOptionsPage = F2(
 										})
 									]),
 								_List_Nil)),
-							A2(
-							$author$project$Main$viewLine,
-							$author$project$Main$emptyDiv,
+							$author$project$Main$viewLineContent(
 							A2(
 								$elm$html$Html$div,
 								_List_fromArray(
@@ -15796,7 +16432,7 @@ var $author$project$Main$main = $elm$browser$Browser$document(
 					[
 						$author$project$Main$view(model)
 					]),
-				title: 'Tasks'
+				title: 'Habits'
 			};
 		}
 	});
@@ -15812,4 +16448,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditPage":{"args":[],"type":"{ id : Habit.Id, description : String.String, tag : String.String, period : String.String }"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewPage":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String }"},"Main.OptionsPage":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimatePage":["Animation.Msg"],"SwapPages":[],"ClearTransition":[],"OpenEditPage":["Habit.Id"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdatePage":["Main.PageUpdate"],"SaveOptions":["Main.OptionsPage"],"DoHabit":["Habit.Id"],"DoAddHabit":["Main.NewPage"],"DoDeleteHabit":["Habit.Id"],"DoEditHabit":["Main.EditPage"]}},"Habit.Id":{"args":[],"tags":{"HabitId":["Basics.Int"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Main.PageUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditPage":{"args":[],"type":"{ id : Habit.Id, description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.Id }"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewPage":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.Id }"},"Main.OptionsPage":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimatePage":["Animation.Msg"],"SwapPages":[],"ClearTransition":[],"OpenEditPage":["Habit.Id"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdatePage":["Main.PageUpdate"],"SaveOptions":["Main.OptionsPage"],"DoHabit":["Habit.Id"],"DoAddHabit":["Main.NewPage"],"DoDeleteHabit":["Habit.Id"],"DoEditHabit":["Main.EditPage"]}},"Habit.Id":{"args":[],"tags":{"HabitId":["Basics.Int"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Main.PageUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ToggleEditBlocked":[],"ChangeEditBlocked":["Habit.Id"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ToggleNewBlocked":[],"ChangeNewBlocked":["Habit.Id"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
