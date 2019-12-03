@@ -135,6 +135,7 @@ html {
 }
 
 .habit-button span {
+  white-space: nowrap;
   display: inline-block;
 }
 
