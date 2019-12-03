@@ -15816,36 +15816,42 @@ var $author$project$Main$habitFieldsView = F8(
 							$author$project$Main$viewLineContent(
 							A3($author$project$Main$habitSelector, filteredHabits, fields.block, blockChange))
 						]) : _List_Nil,
-					_List_fromArray(
-						[
-							A3(
-							$author$project$Main$asLineContent,
-							$elm$html$Html$label,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Tag')
-								])),
-							A3(
-							$author$project$Main$asLineContent,
-							$elm$html$Html$input,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$placeholder('Todo'),
-									$elm$html$Html$Attributes$value(fields.tag),
-									$elm$html$Html$Attributes$list('tag-list'),
-									$elm$html$Html$Events$onInput(tagChange)
-								]),
-							_List_Nil),
-							A2(
-							$elm$html$Html$datalist,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$id('tag-list')
-								]),
-							tagOptions),
-							A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
-						]))));
+					_Utils_ap(
+						_List_fromArray(
+							[
+								A3(
+								$author$project$Main$asLineContent,
+								$elm$html$Html$label,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Tag')
+									])),
+								A3(
+								$author$project$Main$asLineContent,
+								$elm$html$Html$input,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$placeholder('Todo'),
+										$elm$html$Html$Attributes$value(fields.tag),
+										$elm$html$Html$Attributes$list('tag-list'),
+										$elm$html$Html$Events$onInput(tagChange)
+									]),
+								_List_Nil),
+								A2(
+								$elm$html$Html$datalist,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$id('tag-list')
+									]),
+								tagOptions),
+								A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
+							]),
+						canBeBlocked ? _List_Nil : _List_fromArray(
+							[
+								$author$project$Main$viewLineContent($author$project$Main$emptyDiv),
+								$author$project$Main$viewLineContent($author$project$Main$emptyDiv)
+							])))));
 	});
 var $author$project$Main$viewEditingPage = F2(
 	function (model, fields) {

@@ -787,7 +787,13 @@ habitFieldsView fields habits maybeHabit
             , datalist
                 [id "tag-list"]
                 tagOptions
-            , periodOptionsView fields.period "period-list"])
+            , periodOptionsView fields.period "period-list"]
+            ++
+            (
+                if canBeBlocked then []
+                else [viewLineContent emptyDiv, viewLineContent emptyDiv]
+            )
+            )
 
 -- Line helpers
 emptyDiv = (div [] [])

@@ -1,5 +1,11 @@
-P2 add headers to Pages (Editing, New, Options, TODO)
-P2 Fix options button (SVG?)
-P2 Pause
+P1 Change options icon
+
+P1 Cleanup EVERYTHING
+
 P2 DECODING FAILURE SHOULD CAUSE AN ERROR
-P2 work on checkbox styling
+P2 add sliding for lines 
+P2 add headers to Pages (Editing, New, Options, TODO)
+P2 Pause
+
+
+P2 Think about page builder

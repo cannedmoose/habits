@@ -149,6 +149,7 @@ html {
 }
 
 .line-content > select {
+  margin-top: 4px;
   margin-left: 1em;
 }
 .line-content > input {
@@ -285,13 +286,16 @@ body {
   align-content: center;
 }
 .fuckaround input {
-  margin: 0 8px;
+  margin: 6px 8px;
 }
 
-select {
+.select {
   font: inherit;
   font-size: 0.8em;
   color: green;
+
+  width: fit-content;
+  max-width: 100%;
   border: none;
   display: block;
   box-sizing: border-box;
