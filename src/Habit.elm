@@ -1,4 +1,4 @@
-module Habit exposing (Block(..), Habit, Id(..), decoder, description, do, encode, id, idToInt, lastDone, newHabit, nextDue, period, setDescription, setPeriod, setTag, tag)
+module Habit exposing (..)
 
 import Json.Decode exposing (Decoder, field, int, string)
 import Json.Encode as Encode
@@ -9,7 +9,7 @@ import Time exposing (Posix)
 type alias Habit =
     { description : String
     , tag : String
-    , id : Id
+    , id : HabitId
     , period : Period
     , lastDone : Maybe Posix
     , nextDue : Posix
@@ -18,17 +18,17 @@ type alias Habit =
     }
 
 
-type Id
-    = HabitId Int
+type HabitId
+    = Id Int
 
 
 type Block
-    = BlockedBy Id
-    | UnblockedBy Id
+    = BlockedBy HabitId
+    | UnblockedBy HabitId
     | Unblocked
 
 
-newHabit : Posix -> String -> String -> Id -> Period -> Maybe Id -> Habit
+newHabit : Posix -> String -> String -> HabitId -> Period -> Maybe HabitId -> Habit
 newHabit time desc t i p block =
     Habit desc
         t
@@ -76,7 +76,7 @@ setPeriod p habit =
     { habit | period = p }
 
 
-id : Habit -> Id
+id : Habit -> HabitId
 id habit =
     habit.id
 
@@ -110,7 +110,7 @@ doHabit time habit =
     }
 
 
-do : Posix -> List Habit -> Id -> List Habit
+do : Posix -> List Habit -> HabitId -> List Habit
 do time habits habitId =
     List.map
         (\h ->
@@ -156,10 +156,10 @@ blockDecoder =
             (\s ->
                 case s of
                     "Blocked" ->
-                        Json.Decode.map BlockedBy (field "id" int |> Json.Decode.map HabitId)
+                        Json.Decode.map BlockedBy (field "id" int |> Json.Decode.map Id)
 
                     "UnblockedBy" ->
-                        Json.Decode.map UnblockedBy (field "id" int |> Json.Decode.map HabitId)
+                        Json.Decode.map UnblockedBy (field "id" int |> Json.Decode.map Id)
 
                     _ ->
                         Json.Decode.succeed Unblocked
@@ -190,7 +190,7 @@ decoder =
     Json.Decode.map8 Habit
         (field "description" string)
         (field "tag" string)
-        (field "id" int |> Json.Decode.map HabitId)
+        (field "id" int |> Json.Decode.map Id)
         (field "period" Period.decoder)
         (Json.Decode.maybe (field "lastDone" posixDecoder))
         (field "nextDue" posixDecoder)
@@ -198,8 +198,12 @@ decoder =
         (field "block" blockDecoder)
 
 
-idToInt (HabitId i) =
+idToInt (Id i) =
     i
+
+
+idFromInt int =
+    Id int
 
 
 encode : Habit -> Encode.Value

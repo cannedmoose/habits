@@ -4,7 +4,7 @@ import Animation
 import Animation.Messenger
 import Browser
 import Ease
-import Habit exposing (Habit)
+import Habit exposing (Habit, HabitId)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -171,11 +171,11 @@ type alias HabitListPage =
 
 
 type alias EditPage =
-    { id : Habit.Id
+    { id : HabitId
     , description : String
     , tag : String
     , period : String
-    , block : Maybe Habit.Id
+    , block : Maybe HabitId
     }
 
 
@@ -204,7 +204,7 @@ type alias HabitFields a =
         | description : String
         , tag : String
         , period : String
-        , block : Maybe Habit.Id
+        , block : Maybe HabitId
     }
 
 
@@ -212,7 +212,7 @@ type alias NewPage =
     { description : String
     , tag : String
     , period : String
-    , block : Maybe Habit.Id
+    , block : Maybe HabitId
     }
 
 
@@ -348,12 +348,12 @@ type PageUpdate
     | ChangeEditTag String
     | ChangeEditPeriod String
     | ToggleEditBlocked
-    | ChangeEditBlocked Habit.Id
+    | ChangeEditBlocked HabitId
     | ChangeNewDescription String
     | ChangeNewTag String
     | ChangeNewPeriod String
     | ToggleNewBlocked
-    | ChangeNewBlocked Habit.Id
+    | ChangeNewBlocked HabitId
     | ChangeOptionsRecent String
     | ChangeOptionsUpcoming String
 
@@ -367,7 +367,7 @@ type Msg
     | SwapPages
     | ClearTransition
       -- Pages
-    | OpenEditPage Habit.Id
+    | OpenEditPage HabitId
     | OpenNewPage
     | OpenOptionsPage
     | OpenHabitListPage Int
@@ -375,9 +375,9 @@ type Msg
       -- Options
     | SaveOptions OptionsPage
       -- Tasks
-    | DoHabit Habit.Id
+    | DoHabit HabitId
     | DoAddHabit NewPage
-    | DoDeleteHabit Habit.Id
+    | DoDeleteHabit HabitId
     | DoEditHabit EditPage
 
 
@@ -504,7 +504,7 @@ update msg model =
                                 model.time
                                 fields.description
                                 fields.tag
-                                (Habit.HabitId model.uuid)
+                                (Habit.idFromInt model.uuid)
                                 (Period.parse fields.period)
                                 fields.block
                     in
@@ -587,7 +587,7 @@ update msg model =
                                     | block =
                                         case page.block of
                                             Nothing ->
-                                                Just (Habit.HabitId 0)
+                                                Just (Habit.idFromInt 0)
 
                                             Just _ ->
                                                 Nothing
@@ -625,7 +625,7 @@ update msg model =
                                     | block =
                                         case page.block of
                                             Nothing ->
-                                                Just (Habit.HabitId 0)
+                                                Just (Habit.idFromInt 0)
 
                                             Just _ ->
                                                 Nothing
@@ -927,7 +927,7 @@ maybeToBool m =
             True
 
 
-onChange : (Habit.Id -> msg) -> Attribute msg
+onChange : (HabitId -> msg) -> Attribute msg
 onChange handler =
     on "change" (changeDecoder handler)
 
@@ -937,16 +937,16 @@ changeDecoder2 handler i =
         hid =
             Maybe.withDefault 0 (String.toInt i)
     in
-    JD.succeed (handler (Habit.HabitId hid))
+    JD.succeed (handler (Habit.idFromInt hid))
 
 
-changeDecoder : (Habit.Id -> msg) -> JD.Decoder msg
+changeDecoder : (HabitId -> msg) -> JD.Decoder msg
 changeDecoder handler =
     JD.at [ "target", "value" ] JD.string
         |> JD.andThen (changeDecoder2 handler)
 
 
-habitSelectorOption : Habit.Id -> Habit -> Html Msg
+habitSelectorOption : HabitId -> Habit -> Html Msg
 habitSelectorOption selectedHabit habit =
     option
         [ value (String.fromInt (Habit.idToInt habit.id))
@@ -955,7 +955,7 @@ habitSelectorOption selectedHabit habit =
         [ text habit.description ]
 
 
-habitSelector : List Habit -> Maybe Habit.Id -> (Habit.Id -> Msg) -> Html Msg
+habitSelector : List Habit -> Maybe HabitId -> (HabitId -> Msg) -> Html Msg
 habitSelector habits selected change =
     select
         [ onChange change, disabled (not (maybeToBool selected)) ]
@@ -971,12 +971,12 @@ habitSelector habits selected change =
 habitFieldsView :
     HabitFields a
     -> List Habit
-    -> Maybe Habit.Id
+    -> Maybe HabitId
     -> (String -> Msg)
     -> (String -> Msg)
     -> (String -> Msg)
     -> Msg
-    -> (Habit.Id -> Msg)
+    -> (HabitId -> Msg)
     -> Html Msg
 habitFieldsView fields habits maybeHabit descChange tagChange periodChange toggleBlock blockChange =
     let

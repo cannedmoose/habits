@@ -5295,7 +5295,7 @@ var $author$project$Habit$Habit = F8(
 	function (description, tag, id, period, lastDone, nextDue, doneCount, block) {
 		return {M: block, ah: description, ai: doneCount, aj: id, ak: lastDone, _: nextDue, P: period, am: tag};
 	});
-var $author$project$Habit$HabitId = $elm$core$Basics$identity;
+var $author$project$Habit$Id = $elm$core$Basics$identity;
 var $author$project$Habit$BlockedBy = function (a) {
 	return {$: 0, a: a};
 };
@@ -6948,6 +6948,9 @@ var $elm$core$List$head = function (list) {
 };
 var $author$project$Habit$id = function (habit) {
 	return habit.aj;
+};
+var $author$project$Habit$idFromInt = function (_int) {
+	return _int;
 };
 var $elm$core$Basics$neq = _Utils_notEqual;
 var $author$project$Habit$newHabit = F6(
@@ -9600,7 +9603,7 @@ var $author$project$Main$update = F2(
 						model.u,
 						fields.ah,
 						fields.am,
-						model.H,
+						$author$project$Habit$idFromInt(model.H),
 						$author$project$Period$parse(fields.P),
 						fields.M);
 					return $author$project$Main$storeModel(
@@ -9731,7 +9734,8 @@ var $author$project$Main$update = F2(
 															M: function () {
 																var _v10 = page.M;
 																if (_v10.$ === 1) {
-																	return $elm$core$Maybe$Just(0);
+																	return $elm$core$Maybe$Just(
+																		$author$project$Habit$idFromInt(0));
 																} else {
 																	return $elm$core$Maybe$Nothing;
 																}
@@ -9812,7 +9816,8 @@ var $author$project$Main$update = F2(
 															M: function () {
 																var _v12 = page.M;
 																if (_v12.$ === 1) {
-																	return $elm$core$Maybe$Just(0);
+																	return $elm$core$Maybe$Just(
+																		$author$project$Habit$idFromInt(0));
 																} else {
 																	return $elm$core$Maybe$Nothing;
 																}
@@ -10558,7 +10563,8 @@ var $author$project$Main$changeDecoder2 = F2(
 			0,
 			$elm$core$String$toInt(i));
 		return $elm$json$Json$Decode$succeed(
-			handler(hid));
+			handler(
+				$author$project$Habit$idFromInt(hid)));
 	});
 var $author$project$Main$changeDecoder = function (handler) {
 	return A2(
