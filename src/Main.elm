@@ -3,6 +3,7 @@ port module Main exposing (..)
 import Animation
 import Animation.Messenger
 import Browser
+import Dict exposing (..)
 import Ease
 import Habit exposing (Habit, HabitId)
 import Html exposing (..)
@@ -12,6 +13,7 @@ import Json.Decode as JD
 import Json.Encode as JE
 import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
+import Set exposing (..)
 import Time exposing (Posix, posixToMillis)
 
 
@@ -51,7 +53,7 @@ init flags =
       , habits = storage.habits
       , options = storage.options
       , uuid = storage.uuid
-      , page = HabitList { visibleHabits = storage.habits, pageNumber = 0 }
+      , page = HabitList { visibleHabits = Dict.values storage.habits, pageNumber = 0 }
       , pageTransition = Nothing
       , pageLines = 20
       }
@@ -71,13 +73,19 @@ type alias Flags =
 type alias StorageModel =
     { uuid : Int
     , options : Options
-    , habits : List Habit
+    , habits : Dict HabitId Habit
     }
 
 
 defaultStorageModel : StorageModel
 defaultStorageModel =
-    StorageModel 0 defaultOptions []
+    StorageModel 0 defaultOptions Dict.empty
+
+
+habitDictFromList : List Habit -> Dict HabitId Habit
+habitDictFromList habits =
+    List.map (\h -> ( h.id, h )) habits
+        |> Dict.fromList
 
 
 storageDecoder : JD.Decoder StorageModel
@@ -85,7 +93,12 @@ storageDecoder =
     JD.map3 StorageModel
         (JD.field "uuid" JD.int)
         (JD.field "options" optionsDecoder)
-        (JD.field "habits" (JD.list Habit.decoder))
+        (JD.field "habits"
+            (JD.map
+                habitDictFromList
+                (JD.list Habit.decoder)
+            )
+        )
 
 
 storageEncoder : Model -> JE.Value
@@ -93,7 +106,7 @@ storageEncoder model =
     JE.object
         [ ( "uuid", JE.int model.uuid )
         , ( "options", optionsEncoder model.options )
-        , ( "habits", JE.list Habit.encode model.habits )
+        , ( "habits", JE.list Habit.encode (Dict.values model.habits) )
         ]
 
 
@@ -114,7 +127,7 @@ optionsEncoder options =
 
 type alias Model =
     { time : Posix
-    , habits : List Habit
+    , habits : Dict HabitId Habit
     , options : Options
     , page : Page
     , pageTransition : Maybe PageTransition
@@ -317,7 +330,7 @@ updateVisibleHabits model =
                     HabitList
                         { habitList
                             | visibleHabits =
-                                List.filter (viewHabitFilter model.time model.options) model.habits
+                                List.filter (viewHabitFilter model.time model.options) (Dict.values model.habits)
                                     |> List.sortBy (habitOrderer model.time model.options)
                                     |> List.take model.pageLines
                         }
@@ -431,7 +444,7 @@ update msg model =
         OpenEditPage habitId ->
             ( let
                 habit =
-                    List.filter (\h -> h.id == habitId) model.habits
+                    List.filter (\h -> h.id == habitId) (Dict.values model.habits)
                         |> List.head
 
                 makePageTransition _ =
@@ -504,12 +517,12 @@ update msg model =
                                 model.time
                                 fields.description
                                 fields.tag
-                                (Habit.idFromInt model.uuid)
+                                model.uuid
                                 (Period.parse fields.period)
                                 fields.block
                     in
                     ( { model
-                        | habits = newHabit :: model.habits
+                        | habits = Dict.insert newHabit.id newHabit model.habits
                         , uuid = model.uuid + 1
                       }
                         |> openHabitList
@@ -519,7 +532,8 @@ update msg model =
 
         DoDeleteHabit habitId ->
             ( { model
-                | habits = List.filter (\h -> Habit.id h /= habitId) model.habits
+                -- TODO handle blocks in other habits
+                | habits = Dict.remove habitId model.habits
               }
                 |> openHabitList
             , Cmd.none
@@ -527,11 +541,12 @@ update msg model =
                 |> storeModel
 
         DoEditHabit editPage ->
-            ( let
-                updatedHabits =
-                    List.map
-                        (\h ->
-                            if h.id == editPage.id then
+            ( { model
+                | habits =
+                    Dict.update
+                        editPage.id
+                        (Maybe.map
+                            (\h ->
                                 { h
                                     | description = editPage.description
                                     , tag = editPage.tag
@@ -547,14 +562,9 @@ update msg model =
                                             ( Just hid, _ ) ->
                                                 Habit.UnblockedBy hid
                                 }
-
-                            else
-                                h
+                            )
                         )
                         model.habits
-              in
-              { model
-                | habits = updatedHabits
               }
                 |> openHabitList
             , Cmd.none
@@ -587,7 +597,7 @@ update msg model =
                                     | block =
                                         case page.block of
                                             Nothing ->
-                                                Just (Habit.idFromInt 0)
+                                                Just 0
 
                                             Just _ ->
                                                 Nothing
@@ -625,7 +635,7 @@ update msg model =
                                     | block =
                                         case page.block of
                                             Nothing ->
-                                                Just (Habit.idFromInt 0)
+                                                Just 0
 
                                             Just _ ->
                                                 Nothing
@@ -798,7 +808,7 @@ viewEditingPage model fields =
         ([ div [ class "page-head" ] []
          , habitFieldsView
             fields
-            model.habits
+            (Dict.values model.habits)
             (Just fields.id)
             (\s -> UpdatePage (ChangeEditDescription s))
             (\s -> UpdatePage (ChangeEditTag s))
@@ -830,7 +840,7 @@ viewNewPage model fields =
         ([ div [ class "page-head" ] []
          , habitFieldsView
             fields
-            model.habits
+            (Dict.values model.habits)
             Nothing
             (\s -> UpdatePage (ChangeNewDescription s))
             (\s -> UpdatePage (ChangeNewTag s))
@@ -937,7 +947,7 @@ changeDecoder2 handler i =
         hid =
             Maybe.withDefault 0 (String.toInt i)
     in
-    JD.succeed (handler (Habit.idFromInt hid))
+    JD.succeed (handler hid)
 
 
 changeDecoder : (HabitId -> msg) -> JD.Decoder msg
@@ -949,7 +959,7 @@ changeDecoder handler =
 habitSelectorOption : HabitId -> Habit -> Html Msg
 habitSelectorOption selectedHabit habit =
     option
-        [ value (String.fromInt (Habit.idToInt habit.id))
+        [ value (String.fromInt habit.id)
         , Html.Attributes.selected (selectedHabit == habit.id)
         ]
         [ text habit.description ]

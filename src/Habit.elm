@@ -1,5 +1,6 @@
 module Habit exposing (..)
 
+import Dict exposing (..)
 import Json.Decode exposing (Decoder, field, int, string)
 import Json.Encode as Encode
 import Period exposing (Period, addToPosix)
@@ -18,8 +19,8 @@ type alias Habit =
     }
 
 
-type HabitId
-    = Id Int
+type alias HabitId =
+    Int
 
 
 type Block
@@ -110,28 +111,12 @@ doHabit time habit =
     }
 
 
-do : Posix -> List Habit -> HabitId -> List Habit
+do : Posix -> Dict HabitId Habit -> HabitId -> Dict HabitId Habit
 do time habits habitId =
-    List.map
-        (\h ->
-            if h.id == habitId then
-                doHabit time h
-
-            else
-                case h.block of
-                    Unblocked ->
-                        h
-
-                    UnblockedBy _ ->
-                        h
-
-                    BlockedBy otherId ->
-                        if otherId == habitId then
-                            { h | block = UnblockedBy otherId, nextDue = addToPosix h.period time }
-
-                        else
-                            h
-        )
+    -- TODO update blocked habits
+    Dict.update
+        habitId
+        (Maybe.map (doHabit time))
         habits
 
 
@@ -156,10 +141,10 @@ blockDecoder =
             (\s ->
                 case s of
                     "Blocked" ->
-                        Json.Decode.map BlockedBy (field "id" int |> Json.Decode.map Id)
+                        Json.Decode.map BlockedBy (field "id" int)
 
                     "UnblockedBy" ->
-                        Json.Decode.map UnblockedBy (field "id" int |> Json.Decode.map Id)
+                        Json.Decode.map UnblockedBy (field "id" int)
 
                     _ ->
                         Json.Decode.succeed Unblocked
@@ -175,12 +160,12 @@ blockEncode block =
 
             BlockedBy habit ->
                 [ ( "status", Encode.string "Blocked" )
-                , ( "id", Encode.int (idToInt habit) )
+                , ( "id", Encode.int habit )
                 ]
 
             UnblockedBy habit ->
                 [ ( "status", Encode.string "UnblockedBy" )
-                , ( "id", Encode.int (idToInt habit) )
+                , ( "id", Encode.int habit )
                 ]
         )
 
@@ -190,7 +175,7 @@ decoder =
     Json.Decode.map8 Habit
         (field "description" string)
         (field "tag" string)
-        (field "id" int |> Json.Decode.map Id)
+        (field "id" int)
         (field "period" Period.decoder)
         (Json.Decode.maybe (field "lastDone" posixDecoder))
         (field "nextDue" posixDecoder)
@@ -198,20 +183,12 @@ decoder =
         (field "block" blockDecoder)
 
 
-idToInt (Id i) =
-    i
-
-
-idFromInt int =
-    Id int
-
-
 encode : Habit -> Encode.Value
 encode habit =
     Encode.object
         ([ ( "description", Encode.string habit.description )
          , ( "tag", Encode.string habit.tag )
-         , ( "id", Encode.int (idToInt habit.id) )
+         , ( "id", Encode.int habit.id )
          , ( "period", Period.encode habit.period )
          , ( "nextDue", posixEncode habit.nextDue )
          , ( "doneCount", Encode.int habit.doneCount )
