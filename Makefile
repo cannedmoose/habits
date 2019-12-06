@@ -1,10 +1,10 @@
 
 elm.js : src/Main.elm
-	elm make src/Main.elm --output=elm.js
+	elm make src/Main.elm --output=elm.js --optimize
 
 .PHONY: clean
 clean:
-	rm -rf ./elm-stuff elm.js --optimize
+	rm -rf ./elm-stuff elm.js
 
 .PHONY: live
 live:
