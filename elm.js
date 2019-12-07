@@ -10671,6 +10671,7 @@ var $elm$browser$Browser$document = _Browser_document;
 var $author$project$Main$HabitList = function (a) {
 	return {$: 'HabitList', a: a};
 };
+var $author$project$Main$NoTransition = {$: 'NoTransition'};
 var $author$project$Main$StorageModel = F3(
 	function (uuid, options, habits) {
 		return {habits: habits, options: options, uuid: uuid};
@@ -11346,7 +11347,7 @@ var $author$project$Main$init = function (flags) {
 			page: $author$project$Main$HabitList(
 				{pageNumber: 0}),
 			pageLines: 20,
-			pageTransition: $elm$core$Maybe$Nothing,
+			pageTransition: $author$project$Main$NoTransition,
 			time: time,
 			uuid: storage.uuid
 		},
@@ -11519,7 +11520,7 @@ var $mdgriffith$elm_style_animation$Animation$subscription = F2(
 	});
 var $author$project$Main$animationSubscription = function (model) {
 	var _v0 = model.pageTransition;
-	if (_v0.$ === 'Just') {
+	if (_v0.$ === 'Transition') {
 		var m = _v0.a;
 		return A2(
 			$mdgriffith$elm_style_animation$Animation$subscription,
@@ -11727,6 +11728,9 @@ var $author$project$Main$EditHabit = function (a) {
 };
 var $author$project$Main$NewHabit = function (a) {
 	return {$: 'NewHabit', a: a};
+};
+var $author$project$Main$Transition = function (a) {
+	return {$: 'Transition', a: a};
 };
 var $elm$time$Time$posixToMillis = function (_v0) {
 	var millis = _v0.a;
@@ -12633,22 +12637,24 @@ var $author$project$Main$pageTransitionStyle = $mdgriffith$elm_style_animation$A
 				])),
 			$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
 		]));
-var $author$project$Main$openPageTransition = function (page) {
-	return {
-		above: true,
-		previousPage: page,
-		style: $author$project$Main$pageTransitionStyle($author$project$Main$initalPageTransitionStyle)
-	};
+var $author$project$Main$openPageTransition = function (model) {
+	return $author$project$Main$Transition(
+		{
+			above: true,
+			previous: model,
+			style: $author$project$Main$pageTransitionStyle($author$project$Main$initalPageTransitionStyle)
+		});
 };
 var $author$project$Main$openHabitListPage = F2(
 	function (pageNum, model) {
-		var pageTransition = $elm$core$Maybe$Just(
-			$author$project$Main$openPageTransition(model.page));
 		var page = $author$project$Main$HabitList(
 			{pageNumber: pageNum});
 		return _Utils_update(
 			model,
-			{page: page, pageTransition: pageTransition});
+			{
+				page: page,
+				pageTransition: $author$project$Main$openPageTransition(model)
+			});
 	});
 var $author$project$Main$openHabitList = $author$project$Main$openHabitListPage(0);
 var $author$project$Main$optionsPageFromOptions = function (options) {
@@ -14306,30 +14312,27 @@ var $author$project$Main$update = F2(
 			case 'AnimatePage':
 				var animMsg = msg.a;
 				var _v1 = model.pageTransition;
-				if (_v1.$ === 'Nothing') {
+				if (_v1.$ === 'NoTransition') {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
-					var page = _v1.a;
-					var updateStyle = function (s) {
-						return A2($mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, s);
-					};
-					var _v2 = updateStyle(page.style);
+					var transition = _v1.a;
+					var _v2 = A2($mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, transition.style);
 					var style = _v2.a;
 					var cmd = _v2.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
 							{
-								pageTransition: $elm$core$Maybe$Just(
+								pageTransition: $author$project$Main$Transition(
 									_Utils_update(
-										page,
+										transition,
 										{style: style}))
 							}),
 						cmd);
 				}
 			case 'SwapPages':
 				var _v3 = model.pageTransition;
-				if (_v3.$ === 'Nothing') {
+				if (_v3.$ === 'NoTransition') {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
 					var transition = _v3.a;
@@ -14337,7 +14340,7 @@ var $author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{
-								pageTransition: $elm$core$Maybe$Just(
+								pageTransition: $author$project$Main$Transition(
 									_Utils_update(
 										transition,
 										{above: !transition.above}))
@@ -14348,7 +14351,7 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{pageTransition: $elm$core$Maybe$Nothing}),
+						{pageTransition: $author$project$Main$NoTransition}),
 					$elm$core$Platform$Cmd$none);
 			case 'OpenHabitListPage':
 				var pageNumber = msg.a;
@@ -14359,10 +14362,6 @@ var $author$project$Main$update = F2(
 				var habitId = msg.a;
 				return _Utils_Tuple2(
 					function () {
-						var makePageTransition = function (_v4) {
-							return $elm$core$Maybe$Just(
-								$author$project$Main$openPageTransition(model.page));
-						};
 						var habit = A2($elm$core$Dict$get, habitId, model.habits);
 						var page = A2(
 							$elm$core$Maybe$withDefault,
@@ -14371,7 +14370,12 @@ var $author$project$Main$update = F2(
 						var pageTransition = A2(
 							$elm$core$Maybe$withDefault,
 							model.pageTransition,
-							A2($elm$core$Maybe$map, makePageTransition, habit));
+							A2(
+								$elm$core$Maybe$map,
+								function (_v4) {
+									return $author$project$Main$openPageTransition(model);
+								},
+								habit));
 						return _Utils_update(
 							model,
 							{page: page, pageTransition: pageTransition});
@@ -14379,26 +14383,21 @@ var $author$project$Main$update = F2(
 					$elm$core$Platform$Cmd$none);
 			case 'OpenNewPage':
 				return _Utils_Tuple2(
-					function () {
-						var pageTransition = $elm$core$Maybe$Just(
-							$author$project$Main$openPageTransition(model.page));
-						return _Utils_update(
-							model,
-							{page: $author$project$Main$newNewPage, pageTransition: pageTransition});
-					}(),
+					_Utils_update(
+						model,
+						{
+							page: $author$project$Main$newNewPage,
+							pageTransition: $author$project$Main$openPageTransition(model)
+						}),
 					$elm$core$Platform$Cmd$none);
 			case 'OpenOptionsPage':
 				return _Utils_Tuple2(
-					function () {
-						var pageTransition = $elm$core$Maybe$Just(
-							$author$project$Main$openPageTransition(model.page));
-						return _Utils_update(
-							model,
-							{
-								page: $author$project$Main$optionsPageFromOptions(model.options),
-								pageTransition: pageTransition
-							});
-					}(),
+					_Utils_update(
+						model,
+						{
+							page: $author$project$Main$optionsPageFromOptions(model.options),
+							pageTransition: $author$project$Main$openPageTransition(model)
+						}),
 					$elm$core$Platform$Cmd$none);
 			case 'SaveOptions':
 				var optionsFields = msg.a;
@@ -16044,7 +16043,7 @@ var $author$project$Main$viewHabitsPage = F2(
 										]),
 									_List_fromArray(
 										[
-											$elm$html$Html$text('O')
+											$elm$html$Html$text('-')
 										]))
 								]))
 						])),
@@ -16306,35 +16305,14 @@ var $author$project$Main$viewPage = F2(
 				return A2($author$project$Main$viewOptionsPage, model, optionsPage);
 		}
 	});
-var $author$project$Main$viewPageTransition = F2(
-	function (model, transition) {
-		var classes = transition.above ? _List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('transition-page'),
-				$elm$html$Html$Attributes$class('above')
-			]) : _List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('transition-page'),
-				$elm$html$Html$Attributes$class('below')
-			]);
-		return A2(
-			$elm$html$Html$div,
-			_Utils_ap(
-				classes,
-				$mdgriffith$elm_style_animation$Animation$render(transition.style)),
-			_List_fromArray(
-				[
-					A2($author$project$Main$viewPage, model, transition.previousPage)
-				]));
-	});
 var $author$project$Main$maybeViewTransition = function (model) {
-	return A2(
-		$elm$core$Maybe$withDefault,
-		$author$project$Main$emptyDiv,
-		A2(
-			$elm$core$Maybe$map,
-			$author$project$Main$viewPageTransition(model),
-			model.pageTransition));
+	var _v0 = model.pageTransition;
+	if (_v0.$ === 'NoTransition') {
+		return $author$project$Main$emptyDiv;
+	} else {
+		var transition = _v0.a;
+		return A2($author$project$Main$viewPageTransition, model, transition);
+	}
 };
 var $author$project$Main$view = function (model) {
 	return A2(
@@ -16358,6 +16336,27 @@ var $author$project$Main$view = function (model) {
 					]))
 			]));
 };
+var $author$project$Main$viewPageTransition = F2(
+	function (model, transition) {
+		var classes = transition.above ? _List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('transition-page'),
+				$elm$html$Html$Attributes$class('above')
+			]) : _List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('transition-page'),
+				$elm$html$Html$Attributes$class('below')
+			]);
+		return A2(
+			$elm$html$Html$div,
+			_Utils_ap(
+				classes,
+				$mdgriffith$elm_style_animation$Animation$render(transition.style)),
+			_List_fromArray(
+				[
+					$author$project$Main$view(transition.previous)
+				]));
+	});
 var $author$project$Main$main = $elm$browser$Browser$document(
 	{
 		init: $author$project$Main$init,

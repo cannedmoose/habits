@@ -42,7 +42,7 @@ init flags =
       , options = storage.options
       , uuid = storage.uuid
       , page = HabitList { pageNumber = 0 }
-      , pageTransition = Nothing
+      , pageTransition = NoTransition
       , pageLines = 20
       }
     , Cmd.none
@@ -64,60 +64,12 @@ type alias StorageModel =
     }
 
 
-defaultStorageModel : StorageModel
-defaultStorageModel =
-    StorageModel 0 defaultOptions Dict.empty
-
-
-habitDictFromList : List Habit -> Dict HabitId Habit
-habitDictFromList habits =
-    List.map (\h -> ( h.id, h )) habits
-        |> Dict.fromList
-
-
-storageDecoder : JD.Decoder StorageModel
-storageDecoder =
-    JD.map3 StorageModel
-        (JD.field "uuid" JD.int)
-        (JD.field "options" optionsDecoder)
-        (JD.field "habits"
-            (JD.map
-                habitDictFromList
-                (JD.list Habit.decoder)
-            )
-        )
-
-
-storageEncoder : Model -> JE.Value
-storageEncoder model =
-    JE.object
-        [ ( "uuid", JE.int model.uuid )
-        , ( "options", optionsEncoder model.options )
-        , ( "habits", JE.list Habit.encode (Dict.values model.habits) )
-        ]
-
-
-optionsDecoder : JD.Decoder Options
-optionsDecoder =
-    JD.map2 Options
-        (JD.field "recent" Period.decoder)
-        (JD.field "upcoming" Period.decoder)
-
-
-optionsEncoder : Options -> JE.Value
-optionsEncoder options =
-    JE.object
-        [ ( "recent", Period.encode options.recent )
-        , ( "upcoming", Period.encode options.upcoming )
-        ]
-
-
 type alias Model =
     { time : Posix
     , habits : Dict HabitId Habit
     , options : Options
     , page : Page
-    , pageTransition : Maybe PageTransition
+    , pageTransition : PageTransition
     , uuid : Int
     , pageLines : Int
     }
@@ -130,38 +82,16 @@ type Page
     | ChangeOptions OptionsPage
 
 
-type alias PageTransition =
-    { previousPage : Page
-    , style : Anim
-    , above : Bool
-    }
-
-
-initalPageTransitionStyle =
-    Animation.styleWith
-        (Animation.easing
-            { duration = 750
-            , ease = Ease.inOutQuart
-            }
-        )
-        [ Animation.right (Animation.px 0) ]
-
-
-pageTransitionStyle =
-    Animation.interrupt
-        [ Animation.to [ Animation.right (Animation.px -510) ]
-        , Animation.Messenger.send SwapPages
-        , Animation.to [ Animation.right (Animation.px 0) ]
-        , Animation.Messenger.send ClearTransition
-        ]
-
-
-openPageTransition : Page -> PageTransition
-openPageTransition page =
-    { previousPage = page
-    , style = pageTransitionStyle initalPageTransitionStyle
-    , above = True
-    }
+type
+    PageTransition
+    -- TODO Should have a list of models so it's not nested?
+    -- ATM in progress animations freeze when a page transition happens
+    = NoTransition
+    | Transition
+        { previous : Model
+        , style : Anim
+        , above : Bool
+        }
 
 
 type alias HabitListPage =
@@ -262,10 +192,10 @@ type alias Anim =
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
     case model.pageTransition of
-        Just m ->
+        Transition m ->
             Animation.subscription AnimatePage [ m.style ]
 
-        Nothing ->
+        NoTransition ->
             Sub.none
 
 
@@ -317,11 +247,8 @@ openHabitListPage pageNum model =
     let
         page =
             HabitList { pageNumber = pageNum }
-
-        pageTransition =
-            Just (openPageTransition model.page)
     in
-    { model | page = page, pageTransition = pageTransition }
+    { model | page = page, pageTransition = openPageTransition model }
 
 
 openHabitList =
@@ -382,33 +309,30 @@ update msg model =
 
         AnimatePage animMsg ->
             case model.pageTransition of
-                Nothing ->
+                NoTransition ->
                     ( model, Cmd.none )
 
-                Just page ->
+                Transition transition ->
                     let
-                        updateStyle s =
-                            Animation.Messenger.update animMsg s
-
                         ( style, cmd ) =
-                            updateStyle page.style
+                            Animation.Messenger.update animMsg transition.style
                     in
-                    ( { model | pageTransition = Just { page | style = style } }
+                    ( { model | pageTransition = Transition { transition | style = style } }
                     , cmd
                     )
 
         SwapPages ->
             case model.pageTransition of
-                Nothing ->
+                NoTransition ->
                     ( model, Cmd.none )
 
-                Just transition ->
-                    ( { model | pageTransition = Just { transition | above = not transition.above } }
+                Transition transition ->
+                    ( { model | pageTransition = Transition { transition | above = not transition.above } }
                     , Cmd.none
                     )
 
         ClearTransition ->
-            ( { model | pageTransition = Nothing }, Cmd.none )
+            ( { model | pageTransition = NoTransition }, Cmd.none )
 
         OpenHabitListPage pageNumber ->
             ( openHabitListPage pageNumber model, Cmd.none )
@@ -418,15 +342,12 @@ update msg model =
                 habit =
                     Dict.get habitId model.habits
 
-                makePageTransition _ =
-                    Just (openPageTransition model.page)
-
                 page =
                     Maybe.map editPageFromHabit habit
                         |> Maybe.withDefault model.page
 
                 pageTransition =
-                    Maybe.map makePageTransition habit
+                    Maybe.map (\_ -> openPageTransition model) habit
                         |> Maybe.withDefault model.pageTransition
               in
               { model | page = page, pageTransition = pageTransition }
@@ -434,20 +355,15 @@ update msg model =
             )
 
         OpenNewPage ->
-            ( let
-                pageTransition =
-                    Just (openPageTransition model.page)
-              in
-              { model | page = newNewPage, pageTransition = pageTransition }
+            ( { model | page = newNewPage, pageTransition = openPageTransition model }
             , Cmd.none
             )
 
         OpenOptionsPage ->
-            ( let
-                pageTransition =
-                    Just (openPageTransition model.page)
-              in
-              { model | page = optionsPageFromOptions model.options, pageTransition = pageTransition }
+            ( { model
+                | page = optionsPageFromOptions model.options
+                , pageTransition = openPageTransition model
+              }
             , Cmd.none
             )
 
@@ -650,13 +566,15 @@ view model =
 
 maybeViewTransition : Model -> Html Msg
 maybeViewTransition model =
-    Maybe.map
-        (viewPageTransition model)
-        model.pageTransition
-        |> Maybe.withDefault emptyDiv
+    case model.pageTransition of
+        NoTransition ->
+            emptyDiv
+
+        Transition transition ->
+            viewPageTransition model transition
 
 
-viewPageTransition : Model -> PageTransition -> Html Msg
+viewPageTransition : Model -> { above : Bool, previous : Model, style : Anim } -> Html Msg
 viewPageTransition model transition =
     let
         classes =
@@ -668,7 +586,9 @@ viewPageTransition model transition =
     in
     div
         (classes ++ Animation.render transition.style)
-        [ viewPage model transition.previousPage ]
+        [ view
+            transition.previous
+        ]
 
 
 viewPage : Model -> Page -> Html Msg
@@ -701,7 +621,7 @@ viewHabitsPage model habits =
                 [ class "margin" ]
                 [ button
                     [ class "add-habit", onClick OpenOptionsPage ]
-                    [ text "O" ]
+                    [ text "-" ]
                 ]
             ]
         , viewHabits model
@@ -711,7 +631,7 @@ viewHabitsPage model habits =
 
 viewHabits : Model -> Html Msg
 viewHabits model =
-    -- TODO handle multiple pages
+    -- TODO handle multiple pages of habits
     let
         { pageLines, time, options, habits } =
             model
@@ -1112,6 +1032,90 @@ viewHabitFilter time options habit =
 
         Habit.BlockedBy hid ->
             recent
+
+
+
+-- Transitions
+
+
+initalPageTransitionStyle =
+    Animation.styleWith
+        (Animation.easing
+            { duration = 750
+            , ease = Ease.inOutQuart
+            }
+        )
+        [ Animation.right (Animation.px 0) ]
+
+
+pageTransitionStyle =
+    Animation.interrupt
+        [ Animation.to [ Animation.right (Animation.px -510) ]
+        , Animation.Messenger.send SwapPages
+        , Animation.to [ Animation.right (Animation.px 0) ]
+        , Animation.Messenger.send ClearTransition
+        ]
+
+
+openPageTransition : Model -> PageTransition
+openPageTransition model =
+    Transition
+        { previous = model
+        , style = pageTransitionStyle initalPageTransitionStyle
+        , above = True
+        }
+
+
+
+-- Encode/Decode
+
+
+defaultStorageModel : StorageModel
+defaultStorageModel =
+    StorageModel 0 defaultOptions Dict.empty
+
+
+habitDictFromList : List Habit -> Dict HabitId Habit
+habitDictFromList habits =
+    List.map (\h -> ( h.id, h )) habits
+        |> Dict.fromList
+
+
+storageDecoder : JD.Decoder StorageModel
+storageDecoder =
+    JD.map3 StorageModel
+        (JD.field "uuid" JD.int)
+        (JD.field "options" optionsDecoder)
+        (JD.field "habits"
+            (JD.map
+                habitDictFromList
+                (JD.list Habit.decoder)
+            )
+        )
+
+
+storageEncoder : Model -> JE.Value
+storageEncoder model =
+    JE.object
+        [ ( "uuid", JE.int model.uuid )
+        , ( "options", optionsEncoder model.options )
+        , ( "habits", JE.list Habit.encode (Dict.values model.habits) )
+        ]
+
+
+optionsDecoder : JD.Decoder Options
+optionsDecoder =
+    JD.map2 Options
+        (JD.field "recent" Period.decoder)
+        (JD.field "upcoming" Period.decoder)
+
+
+optionsEncoder : Options -> JE.Value
+optionsEncoder options =
+    JE.object
+        [ ( "recent", Period.encode options.recent )
+        , ( "upcoming", Period.encode options.upcoming )
+        ]
 
 
 
