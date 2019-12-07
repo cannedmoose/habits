@@ -4,6 +4,13 @@ P1 Cleanup EVERYTHING
 
 P1 dedupe tags
 
+P1 CLEANUP
+  Remove (Dict.value) in as many places as possible
+  Make visible habits a function that returns a set
+  JUST PASS THE MODEL EVERYWHERE
+
+  Store old values for page transitions (harder...)
+
 P2 Online sync
 P2 DECODING FAILURE SHOULD CAUSE AN ERROR
 

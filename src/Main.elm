@@ -17,18 +17,6 @@ import Set exposing (..)
 import Time exposing (Posix, posixToMillis)
 
 
-
--- TODO figure out why we can't import this...
-
-
-rgba r g b a =
-    { red = r
-    , green = g
-    , blue = b
-    , alpha = a
-    }
-
-
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -53,11 +41,10 @@ init flags =
       , habits = storage.habits
       , options = storage.options
       , uuid = storage.uuid
-      , page = HabitList { visibleHabits = Dict.values storage.habits, pageNumber = 0 }
+      , page = HabitList { pageNumber = 0 }
       , pageTransition = Nothing
       , pageLines = 20
       }
-        |> updateVisibleHabits
     , Cmd.none
     )
 
@@ -178,8 +165,7 @@ openPageTransition page =
 
 
 type alias HabitListPage =
-    { visibleHabits : List Habit
-    , pageNumber : Int
+    { pageNumber : Int
     }
 
 
@@ -311,45 +297,31 @@ storeModel ( model, cmd ) =
 -- TODO paginate properly
 
 
-habitOrderer : Posix -> Options -> Habit -> Int
-habitOrderer time options habit =
-    if shouldBeMarkedAsDone time options habit then
-        Maybe.withDefault time habit.lastDone
+habitOrderer : Model -> Habit -> Int
+habitOrderer model habit =
+    if shouldBeMarkedAsDone model habit then
+        Maybe.withDefault model.time habit.lastDone
             |> Time.posixToMillis
 
     else
-        -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis time)
+        -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
 
 
-updateVisibleHabits : Model -> Model
-updateVisibleHabits model =
-    case model.page of
-        HabitList habitList ->
-            { model
-                | page =
-                    HabitList
-                        { habitList
-                            | visibleHabits =
-                                List.filter (viewHabitFilter model.time model.options) (Dict.values model.habits)
-                                    |> List.sortBy (habitOrderer model.time model.options)
-                                    |> List.take model.pageLines
-                        }
-            }
-
-        _ ->
-            model
+visibleHabits : Model -> Dict HabitId Habit
+visibleHabits model =
+    Dict.filter (\_ -> viewHabitFilter model.time model.options) model.habits
 
 
 openHabitListPage : Int -> Model -> Model
 openHabitListPage pageNum model =
     let
         page =
-            HabitList { visibleHabits = [], pageNumber = pageNum }
+            HabitList { pageNumber = pageNum }
 
         pageTransition =
             Just (openPageTransition model.page)
     in
-    { model | page = page, pageTransition = pageTransition } |> updateVisibleHabits
+    { model | page = page, pageTransition = pageTransition }
 
 
 openHabitList =
@@ -404,7 +376,7 @@ update msg model =
             ( model, Cmd.none )
 
         Tick time ->
-            ( { model | time = time } |> updateVisibleHabits
+            ( { model | time = time }
             , Cmd.none
             )
 
@@ -444,8 +416,7 @@ update msg model =
         OpenEditPage habitId ->
             ( let
                 habit =
-                    List.filter (\h -> h.id == habitId) (Dict.values model.habits)
-                        |> List.head
+                    Dict.get habitId model.habits
 
                 makePageTransition _ =
                     Just (openPageTransition model.page)
@@ -500,7 +471,6 @@ update msg model =
             ( { model
                 | habits = Habit.do model.time model.habits habitId
               }
-                |> updateVisibleHabits
             , Cmd.none
             )
                 |> storeModel
@@ -734,58 +704,58 @@ viewHabitsPage model habits =
                     [ text "O" ]
                 ]
             ]
-        , viewHabits model.pageLines model.time model.options habits.visibleHabits
+        , viewHabits model
         , div [ class "page-foot" ] []
         ]
 
 
-viewHabits : Int -> Posix -> Options -> List Habit -> Html Msg
-viewHabits lines time options habits =
-    if List.length habits >= lines then
-        div
-            []
-            (List.map (viewHabitLine time options) habits
-                ++ [ button
-                        [ class "add-habit", onClick OpenNewPage ]
-                        [ text "+" ]
-                   ]
-                ++ (List.range (List.length habits) (lines - 1) |> List.map emptyLine)
-            )
+viewHabits : Model -> Html Msg
+viewHabits model =
+    -- TODO handle multiple pages
+    let
+        { pageLines, time, options, habits } =
+            model
 
-    else
-        div
-            []
-            (List.map (viewHabitLine time options) habits
-                ++ [ viewLine
-                        (button
-                            [ class "add-habit", onClick OpenNewPage ]
-                            [ text "+" ]
-                        )
-                        emptyDiv
-                   ]
-                ++ (List.range (List.length habits) (lines - 1) |> List.map emptyLine)
-            )
+        visible =
+            visibleHabits model
+                |> Dict.toList
+                |> List.sortBy (\( id, h ) -> habitOrderer model h)
+                |> List.take model.pageLines
+    in
+    div
+        []
+        (List.map (viewHabitLine model) visible
+            ++ viewLine
+                (button
+                    [ class "add-habit", onClick OpenNewPage ]
+                    [ text "+" ]
+                )
+                emptyDiv
+            :: (List.range (List.length visible) (pageLines - 1)
+                    |> List.map emptyLine
+               )
+        )
 
 
-viewHabitLine : Posix -> Options -> Habit -> Html Msg
-viewHabitLine time options habit =
+viewHabitLine : Model -> ( HabitId, Habit ) -> Html Msg
+viewHabitLine model ( habitId, habit ) =
     viewLine
         (button
             [ class "habit-edit"
-            , onClick (OpenEditPage habit.id)
+            , onClick (OpenEditPage habitId)
             ]
             [ text "..." ]
         )
         (button
             [ class "habit-button"
             , class
-                (if shouldBeMarkedAsDone time options habit then
+                (if shouldBeMarkedAsDone model habit then
                     "habit-done"
 
                  else
                     "habit-todo"
                 )
-            , onClick (DoHabit habit.id)
+            , onClick (DoHabit habitId)
             ]
             [ span
                 [ class "habit-description" ]
@@ -1107,8 +1077,8 @@ isRecentlyDone time options habit =
         |> Maybe.withDefault False
 
 
-shouldBeMarkedAsDone : Posix -> Options -> Habit -> Bool
-shouldBeMarkedAsDone time options habit =
+shouldBeMarkedAsDone : Model -> Habit -> Bool
+shouldBeMarkedAsDone { time, options } habit =
     let
         due =
             isDueSoon time options habit
@@ -1142,3 +1112,22 @@ viewHabitFilter time options habit =
 
         Habit.BlockedBy hid ->
             recent
+
+
+
+-- UTILS
+
+
+flip : (a -> b -> c) -> b -> a -> c
+flip fn b a =
+    fn a b
+
+
+curry : (( a, b ) -> c) -> a -> b -> c
+curry fn a b =
+    fn ( a, b )
+
+
+uncurry : (a -> b -> c) -> ( a, b ) -> c
+uncurry fn ( a, b ) =
+    fn a b
