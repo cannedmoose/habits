@@ -10687,6 +10687,13 @@ var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
 var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $author$project$Store$simpleStore = {
+	items: $elm$core$Dict$empty,
+	nextId: function (s) {
+		return _Utils_Tuple2(s + 1, s + 1);
+	},
+	state: 0
+};
 var $author$project$Habit$Habit = F8(
 	function (description, tag, id, period, lastDone, nextDue, doneCount, block) {
 		return {block: block, description: description, doneCount: doneCount, id: id, lastDone: lastDone, nextDue: nextDue, period: period, tag: tag};
@@ -11346,7 +11353,7 @@ var $author$project$Main$init = function (flags) {
 			page: $author$project$Main$HabitList(
 				{pageNumber: 0}),
 			pageLines: 20,
-			pageTransitions: $elm$core$Dict$empty,
+			pageTransitions: $author$project$Store$simpleStore,
 			time: time,
 			uuid: storage.uuid
 		},
@@ -11517,6 +11524,9 @@ var $mdgriffith$elm_style_animation$Animation$subscription = F2(
 			msg,
 			$elm$browser$Browser$Events$onAnimationFrame($mdgriffith$elm_style_animation$Animation$Model$Tick)) : $elm$core$Platform$Sub$none;
 	});
+var $author$project$Store$values = function (store) {
+	return $elm$core$Dict$values(store.items);
+};
 var $author$project$Main$animationSubscription = function (model) {
 	return A2(
 		$mdgriffith$elm_style_animation$Animation$subscription,
@@ -11527,7 +11537,7 @@ var $author$project$Main$animationSubscription = function (model) {
 				var m = _v0.a;
 				return m.style;
 			},
-			$elm$core$Dict$values(model.pageTransitions)));
+			$author$project$Store$values(model.pageTransitions)));
 };
 var $author$project$Main$Tick = function (a) {
 	return {$: 'Tick', a: a};
@@ -11730,6 +11740,14 @@ var $author$project$Main$NewHabit = function (a) {
 var $author$project$Main$Transition = function (a) {
 	return {$: 'Transition', a: a};
 };
+var $author$project$Store$delete = F2(
+	function (id, store) {
+		return _Utils_update(
+			store,
+			{
+				items: A2($elm$core$Dict$remove, id, store.items)
+			});
+	});
 var $elm$time$Time$posixToMillis = function (_v0) {
 	var millis = _v0.a;
 	return millis;
@@ -11845,6 +11863,38 @@ var $author$project$Main$editPageFromHabit = function (habit) {
 			tag: habit.tag
 		});
 };
+var $author$project$Store$insert = F2(
+	function (value, store) {
+		var _v0 = store.nextId(store.state);
+		var newId = _v0.a;
+		var newState = _v0.b;
+		var newItems = A3($elm$core$Dict$insert, newId, value, store.items);
+		return _Utils_update(
+			store,
+			{items: newItems, state: newState});
+	});
+var $author$project$Store$fromDict = F3(
+	function (dict, state, nextId) {
+		return {items: dict, nextId: nextId, state: state};
+	});
+var $author$project$Store$map = F2(
+	function (fn, store) {
+		return A3(
+			$author$project$Store$fromDict,
+			A2($elm$core$Dict$map, fn, store.items),
+			store.state,
+			store.nextId);
+	});
+var $author$project$Store$mapValues = F2(
+	function (fn, store) {
+		return A2(
+			$author$project$Store$map,
+			F2(
+				function (i, v) {
+					return fn(v);
+				}),
+			store);
+	});
 var $author$project$Habit$newHabit = F6(
 	function (time, desc, t, i, p, block) {
 		return A8(
@@ -11867,23 +11917,6 @@ var $author$project$Habit$newHabit = F6(
 	});
 var $author$project$Main$newNewPage = $author$project$Main$NewHabit(
 	{block: $elm$core$Maybe$Nothing, description: '', period: '1 Day', tag: ''});
-var $elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$Main$nextDictEntry = function (dict) {
-	return A2(
-		$elm$core$Maybe$withDefault,
-		0,
-		$elm$core$List$head(
-			$elm$core$List$reverse(
-				$elm$core$Dict$keys(dict)))) + 1;
-};
 var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
 	return {$: 'Easing', a: a};
 };
@@ -12471,6 +12504,15 @@ var $mdgriffith$elm_style_animation$Animation$Render$groupWhile = F2(
 				A2($mdgriffith$elm_style_animation$Animation$Render$groupWhile, eq, zs));
 		}
 	});
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $elm$core$List$member = F2(
 	function (x, xs) {
 		return A2(
@@ -12578,6 +12620,9 @@ var $author$project$Main$ClearTransition = function (a) {
 var $author$project$Main$SwapPages = function (a) {
 	return {$: 'SwapPages', a: a};
 };
+var $author$project$Store$getNextId = function (store) {
+	return store.nextId(store.state).a;
+};
 var $mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
 	var _v0 = $elm$core$List$head(steps);
 	if (_v0.$ === 'Nothing') {
@@ -12641,7 +12686,7 @@ var $author$project$Main$pageTransitionStyle = function (model) {
 					])),
 				$mdgriffith$elm_style_animation$Animation$Messenger$send(
 				$author$project$Main$SwapPages(
-					$author$project$Main$nextDictEntry(model.pageTransitions))),
+					$author$project$Store$getNextId(model.pageTransitions))),
 				$mdgriffith$elm_style_animation$Animation$to(
 				_List_fromArray(
 					[
@@ -12650,7 +12695,7 @@ var $author$project$Main$pageTransitionStyle = function (model) {
 					])),
 				$mdgriffith$elm_style_animation$Animation$Messenger$send(
 				$author$project$Main$ClearTransition(
-					$author$project$Main$nextDictEntry(model.pageTransitions)))
+					$author$project$Store$getNextId(model.pageTransitions)))
 			]));
 };
 var $author$project$Main$openPageTransition = function (model) {
@@ -12659,16 +12704,9 @@ var $author$project$Main$openPageTransition = function (model) {
 			above: true,
 			previous: _Utils_update(
 				model,
-				{pageTransitions: $elm$core$Dict$empty}),
+				{pageTransitions: $author$project$Store$simpleStore}),
 			style: A2($author$project$Main$pageTransitionStyle, model, $author$project$Main$initalPageTransitionStyle)
 		});
-};
-var $author$project$Main$newTransition = function (model) {
-	return A3(
-		$elm$core$Dict$insert,
-		$author$project$Main$nextDictEntry(model.pageTransitions),
-		$author$project$Main$openPageTransition(model),
-		model.pageTransitions);
 };
 var $author$project$Main$openHabitListPage = F2(
 	function (pageNum, model) {
@@ -12678,7 +12716,10 @@ var $author$project$Main$openHabitListPage = F2(
 			model,
 			{
 				page: page,
-				pageTransitions: $author$project$Main$newTransition(model)
+				pageTransitions: A2(
+					$author$project$Store$insert,
+					$author$project$Main$openPageTransition(model),
+					model.pageTransitions)
 			});
 	});
 var $author$project$Main$openHabitList = $author$project$Main$openHabitListPage(0);
@@ -14319,6 +14360,23 @@ var $mdgriffith$elm_style_animation$Animation$Messenger$update = F2(
 	function (tick, animation) {
 		return A2($mdgriffith$elm_style_animation$Animation$Model$updateAnimation, tick, animation);
 	});
+var $author$project$Store$maybeUpdate = F3(
+	function (id, fn, store) {
+		var newItems = A3($elm$core$Dict$update, id, fn, store.items);
+		return _Utils_update(
+			store,
+			{items: newItems});
+	});
+var $author$project$Store$update = F3(
+	function (id, fn, store) {
+		return A3(
+			$author$project$Store$maybeUpdate,
+			id,
+			function (mv) {
+				return A2($elm$core$Maybe$map, fn, mv);
+			},
+			store);
+	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -14337,32 +14395,30 @@ var $author$project$Main$update = F2(
 			case 'AnimatePage':
 				var animMsg = msg.a;
 				var transMap = A2(
-					$elm$core$Dict$map,
-					F2(
-						function (index, _v1) {
-							var transition = _v1.a;
-							var _v2 = A2($mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, transition.style);
-							var style = _v2.a;
-							var cmd = _v2.b;
-							return _Utils_Tuple2(
-								$author$project$Main$Transition(
-									_Utils_update(
-										transition,
-										{style: style})),
-								cmd);
-						}),
+					$author$project$Store$mapValues,
+					function (_v1) {
+						var transition = _v1.a;
+						var _v2 = A2($mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, transition.style);
+						var style = _v2.a;
+						var cmd = _v2.b;
+						return _Utils_Tuple2(
+							$author$project$Main$Transition(
+								_Utils_update(
+									transition,
+									{style: style})),
+							cmd);
+					},
 					model.pageTransitions);
 				var newTransitions = A2(
-					$elm$core$Dict$map,
-					F2(
-						function (index, t) {
-							return t.a;
-						}),
+					$author$project$Store$mapValues,
+					function (t) {
+						return t.a;
+					},
 					transMap);
 				var cmds = A2(
 					$elm$core$List$map,
 					$elm$core$Tuple$second,
-					$elm$core$Dict$values(transMap));
+					$author$project$Store$values(transMap));
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
@@ -14375,16 +14431,15 @@ var $author$project$Main$update = F2(
 						model,
 						{
 							pageTransitions: A3(
-								$elm$core$Dict$update,
+								$author$project$Store$update,
 								index,
-								$elm$core$Maybe$map(
-									function (_v3) {
-										var t = _v3.a;
-										return $author$project$Main$Transition(
-											_Utils_update(
-												t,
-												{above: false}));
-									}),
+								function (_v3) {
+									var t = _v3.a;
+									return $author$project$Main$Transition(
+										_Utils_update(
+											t,
+											{above: false}));
+								},
 								model.pageTransitions)
 						}),
 					$elm$core$Platform$Cmd$none);
@@ -14394,7 +14449,7 @@ var $author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
-							pageTransitions: A2($elm$core$Dict$remove, index, model.pageTransitions)
+							pageTransitions: A2($author$project$Store$delete, index, model.pageTransitions)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'OpenHabitListPage':
@@ -14414,7 +14469,10 @@ var $author$project$Main$update = F2(
 							model,
 							{
 								page: $author$project$Main$editPageFromHabit(habit),
-								pageTransitions: $author$project$Main$newTransition(model)
+								pageTransitions: A2(
+									$author$project$Store$insert,
+									$author$project$Main$openPageTransition(model),
+									model.pageTransitions)
 							}),
 						$elm$core$Platform$Cmd$none);
 				}
@@ -14424,7 +14482,10 @@ var $author$project$Main$update = F2(
 						model,
 						{
 							page: $author$project$Main$newNewPage,
-							pageTransitions: $author$project$Main$newTransition(model)
+							pageTransitions: A2(
+								$author$project$Store$insert,
+								$author$project$Main$openPageTransition(model),
+								model.pageTransitions)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'OpenOptionsPage':
@@ -14433,7 +14494,10 @@ var $author$project$Main$update = F2(
 						model,
 						{
 							page: $author$project$Main$optionsPageFromOptions(model.options),
-							pageTransitions: $author$project$Main$newTransition(model)
+							pageTransitions: A2(
+								$author$project$Store$insert,
+								$author$project$Main$openPageTransition(model),
+								model.pageTransitions)
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'SaveOptions':
@@ -16397,7 +16461,7 @@ var $author$project$Main$maybeViewTransition = function (model) {
 		A2(
 			$elm$core$List$map,
 			$author$project$Main$viewPageTransition(model),
-			$elm$core$Dict$values(model.pageTransitions)));
+			$author$project$Store$values(model.pageTransitions)));
 };
 var $author$project$Main$view = function (model) {
 	return A2(

@@ -3,7 +3,7 @@ port module Main exposing (..)
 import Animation
 import Animation.Messenger
 import Browser
-import Dict exposing (..)
+import Dict exposing (Dict)
 import Ease
 import Habit exposing (Habit, HabitId)
 import Html exposing (..)
@@ -14,6 +14,7 @@ import Json.Encode as JE
 import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
 import Set exposing (..)
+import Store exposing (SimpleStore, Store)
 import Time exposing (Posix, posixToMillis)
 
 
@@ -46,7 +47,7 @@ init flags =
       , options = storage.options
       , uuid = storage.uuid
       , page = HabitList { pageNumber = 0 }
-      , pageTransitions = Dict.empty
+      , pageTransitions = Store.simpleStore
       , pageLines = 20
       }
     , Cmd.none
@@ -73,7 +74,7 @@ type alias Model =
     , habits : Dict HabitId Habit
     , options : Options
     , page : Page
-    , pageTransitions : Dict Int PageTransition
+    , pageTransitions : SimpleStore PageTransition
     , uuid : Int
     , pageLines : Int
     }
@@ -189,7 +190,10 @@ animationSubscription : Model -> Sub Msg
 animationSubscription model =
     Animation.subscription
         AnimatePage
-        (List.map (\(Transition m) -> m.style) (Dict.values model.pageTransitions))
+        (List.map
+            (\(Transition m) -> m.style)
+            (Store.values model.pageTransitions)
+        )
 
 
 timeSubscription : Model -> Sub Msg
@@ -273,8 +277,8 @@ update msg model =
         AnimatePage animMsg ->
             let
                 transMap =
-                    Dict.map
-                        (\index (Transition transition) ->
+                    Store.mapValues
+                        (\(Transition transition) ->
                             let
                                 ( style, cmd ) =
                                     Animation.Messenger.update animMsg transition.style
@@ -284,24 +288,28 @@ update msg model =
                         model.pageTransitions
 
                 cmds =
-                    Dict.values transMap
+                    Store.values transMap
                         |> List.map Tuple.second
 
                 newTransitions =
-                    Dict.map (\index t -> Tuple.first t) transMap
+                    Store.mapValues (\t -> Tuple.first t) transMap
             in
             ( { model | pageTransitions = newTransitions }, Cmd.batch cmds )
 
         SwapPages index ->
             ( { model
                 | pageTransitions =
-                    Dict.update index (Maybe.map (\(Transition t) -> Transition { t | above = False })) model.pageTransitions
+                    Store.update index (\(Transition t) -> Transition { t | above = False }) model.pageTransitions
               }
             , Cmd.none
             )
 
         ClearTransition index ->
-            ( { model | pageTransitions = Dict.remove index model.pageTransitions }, Cmd.none )
+            ( { model
+                | pageTransitions = Store.delete index model.pageTransitions
+              }
+            , Cmd.none
+            )
 
         OpenHabitListPage pageNumber ->
             ( openHabitListPage pageNumber model, Cmd.none )
@@ -316,19 +324,25 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just habit ->
-                    ( { model | page = editPageFromHabit habit, pageTransitions = newTransition model }
+                    ( { model
+                        | page = editPageFromHabit habit
+                        , pageTransitions = Store.insert (openPageTransition model) model.pageTransitions
+                      }
                     , Cmd.none
                     )
 
         OpenNewPage ->
-            ( { model | page = newNewPage, pageTransitions = newTransition model }
+            ( { model
+                | page = newNewPage
+                , pageTransitions = Store.insert (openPageTransition model) model.pageTransitions
+              }
             , Cmd.none
             )
 
         OpenOptionsPage ->
             ( { model
                 | page = optionsPageFromOptions model.options
-                , pageTransitions = newTransition model
+                , pageTransitions = Store.insert (openPageTransition model) model.pageTransitions
               }
             , Cmd.none
             )
@@ -556,7 +570,7 @@ openHabitListPage pageNum model =
         page =
             HabitList { pageNumber = pageNum }
     in
-    { model | page = page, pageTransitions = newTransition model }
+    { model | page = page, pageTransitions = Store.insert (openPageTransition model) model.pageTransitions }
 
 
 openHabitList =
@@ -584,7 +598,7 @@ maybeViewTransition model =
         []
         (List.map
             (viewPageTransition model)
-            (Dict.values model.pageTransitions)
+            (Store.values model.pageTransitions)
         )
 
 
@@ -891,6 +905,10 @@ habitSelector habits selected change =
         )
 
 
+
+-- TODO FIX THIS
+
+
 habitFieldsView :
     HabitFields a
     -> List Habit
@@ -1071,35 +1089,22 @@ initalPageTransitionStyle =
         [ Animation.right (Animation.px 0) ]
 
 
-nextDictEntry dict =
-    (List.reverse (Dict.keys dict)
-        |> List.head
-        |> Maybe.withDefault 0
-    )
-        + 1
-
-
 pageTransitionStyle model =
     Animation.interrupt
         [ Animation.to [ Animation.right (Animation.px -510) ]
-        , Animation.Messenger.send (SwapPages (nextDictEntry model.pageTransitions))
+        , Animation.Messenger.send (SwapPages (Store.getNextId model.pageTransitions))
         , Animation.to [ Animation.right (Animation.px 0) ]
-        , Animation.Messenger.send (ClearTransition (nextDictEntry model.pageTransitions))
+        , Animation.Messenger.send (ClearTransition (Store.getNextId model.pageTransitions))
         ]
 
 
 openPageTransition : Model -> PageTransition
 openPageTransition model =
     Transition
-        { previous = { model | pageTransitions = Dict.empty }
+        { previous = { model | pageTransitions = Store.simpleStore }
         , style = pageTransitionStyle model initalPageTransitionStyle
         , above = True
         }
-
-
-newTransition : Model -> Dict Int PageTransition
-newTransition model =
-    Dict.insert (nextDictEntry model.pageTransitions) (openPageTransition model) model.pageTransitions
 
 
 
@@ -1171,23 +1176,3 @@ curry fn a b =
 uncurry : (a -> b -> c) -> ( a, b ) -> c
 uncurry fn ( a, b ) =
     fn a b
-
-
-
-{-
-      Store a b = {
-          Dict Id a
-          state
-          nextId : State -> Id
-          }
-
-      insert
-      keys
-      values
-      next id
-      (is it ordered?)
-      next id should be a function? - then we can take things from it...
-
-   Useful for page transitions
-   Habits
--}
