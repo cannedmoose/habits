@@ -17,6 +17,10 @@ import Set exposing (..)
 import Time exposing (Posix, posixToMillis)
 
 
+type alias Anim =
+    Animation.Messenger.State Msg
+
+
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -42,7 +46,7 @@ init flags =
       , options = storage.options
       , uuid = storage.uuid
       , page = HabitList { pageNumber = 0 }
-      , pageTransition = NoTransition
+      , pageTransitions = Dict.empty
       , pageLines = 20
       }
     , Cmd.none
@@ -69,7 +73,7 @@ type alias Model =
     , habits : Dict HabitId Habit
     , options : Options
     , page : Page
-    , pageTransition : PageTransition
+    , pageTransitions : Dict Int PageTransition
     , uuid : Int
     , pageLines : Int
     }
@@ -82,12 +86,8 @@ type Page
     | ChangeOptions OptionsPage
 
 
-type
-    PageTransition
-    -- TODO Should have a list of models so it's not nested?
-    -- ATM in progress animations freeze when a page transition happens
-    = NoTransition
-    | Transition
+type PageTransition
+    = Transition
         { previous : Model
         , style : Anim
         , above : Bool
@@ -105,6 +105,15 @@ type alias EditPage =
     , tag : String
     , period : String
     , block : Maybe HabitId
+    }
+
+
+type alias HabitFields a =
+    { a
+        | description : String
+        , tag : String
+        , period : String
+        , block : Maybe HabitId
     }
 
 
@@ -126,15 +135,6 @@ editPageFromHabit habit =
                 _ ->
                     Nothing
         }
-
-
-type alias HabitFields a =
-    { a
-        | description : String
-        , tag : String
-        , period : String
-        , block : Maybe HabitId
-    }
 
 
 type alias NewPage =
@@ -181,22 +181,15 @@ defaultOptions =
     }
 
 
-type alias Anim =
-    Animation.Messenger.State Msg
-
-
 
 -- SUBSCRIPTIONS
 
 
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
-    case model.pageTransition of
-        Transition m ->
-            Animation.subscription AnimatePage [ m.style ]
-
-        NoTransition ->
-            Sub.none
+    Animation.subscription
+        AnimatePage
+        (List.map (\(Transition m) -> m.style) (Dict.values model.pageTransitions))
 
 
 timeSubscription : Model -> Sub Msg
@@ -223,36 +216,6 @@ storeModel ( model, cmd ) =
 
 
 -- UPDATE
--- TODO use id?
--- TODO paginate properly
-
-
-habitOrderer : Model -> Habit -> Int
-habitOrderer model habit =
-    if shouldBeMarkedAsDone model habit then
-        Maybe.withDefault model.time habit.lastDone
-            |> Time.posixToMillis
-
-    else
-        -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
-
-
-visibleHabits : Model -> Dict HabitId Habit
-visibleHabits model =
-    Dict.filter (\_ -> viewHabitFilter model.time model.options) model.habits
-
-
-openHabitListPage : Int -> Model -> Model
-openHabitListPage pageNum model =
-    let
-        page =
-            HabitList { pageNumber = pageNum }
-    in
-    { model | page = page, pageTransition = openPageTransition model }
-
-
-openHabitList =
-    openHabitListPage 0
 
 
 type PageUpdate
@@ -276,8 +239,8 @@ type Msg
       -- Subscriptions
     | Tick Time.Posix
     | AnimatePage Animation.Msg
-    | SwapPages
-    | ClearTransition
+    | SwapPages Int
+    | ClearTransition Int
       -- Pages
     | OpenEditPage HabitId
     | OpenNewPage
@@ -308,61 +271,64 @@ update msg model =
             )
 
         AnimatePage animMsg ->
-            case model.pageTransition of
-                NoTransition ->
-                    ( model, Cmd.none )
+            let
+                transMap =
+                    Dict.map
+                        (\index (Transition transition) ->
+                            let
+                                ( style, cmd ) =
+                                    Animation.Messenger.update animMsg transition.style
+                            in
+                            ( Transition { transition | style = style }, cmd )
+                        )
+                        model.pageTransitions
 
-                Transition transition ->
-                    let
-                        ( style, cmd ) =
-                            Animation.Messenger.update animMsg transition.style
-                    in
-                    ( { model | pageTransition = Transition { transition | style = style } }
-                    , cmd
-                    )
+                cmds =
+                    Dict.values transMap
+                        |> List.map Tuple.second
 
-        SwapPages ->
-            case model.pageTransition of
-                NoTransition ->
-                    ( model, Cmd.none )
+                newTransitions =
+                    Dict.map (\index t -> Tuple.first t) transMap
+            in
+            ( { model | pageTransitions = newTransitions }, Cmd.batch cmds )
 
-                Transition transition ->
-                    ( { model | pageTransition = Transition { transition | above = not transition.above } }
-                    , Cmd.none
-                    )
+        SwapPages index ->
+            ( { model
+                | pageTransitions =
+                    Dict.update index (Maybe.map (\(Transition t) -> Transition { t | above = False })) model.pageTransitions
+              }
+            , Cmd.none
+            )
 
-        ClearTransition ->
-            ( { model | pageTransition = NoTransition }, Cmd.none )
+        ClearTransition index ->
+            ( { model | pageTransitions = Dict.remove index model.pageTransitions }, Cmd.none )
 
         OpenHabitListPage pageNumber ->
             ( openHabitListPage pageNumber model, Cmd.none )
 
         OpenEditPage habitId ->
-            ( let
-                habit =
+            let
+                maybeHabit =
                     Dict.get habitId model.habits
+            in
+            case maybeHabit of
+                Nothing ->
+                    ( model, Cmd.none )
 
-                page =
-                    Maybe.map editPageFromHabit habit
-                        |> Maybe.withDefault model.page
-
-                pageTransition =
-                    Maybe.map (\_ -> openPageTransition model) habit
-                        |> Maybe.withDefault model.pageTransition
-              in
-              { model | page = page, pageTransition = pageTransition }
-            , Cmd.none
-            )
+                Just habit ->
+                    ( { model | page = editPageFromHabit habit, pageTransitions = newTransition model }
+                    , Cmd.none
+                    )
 
         OpenNewPage ->
-            ( { model | page = newNewPage, pageTransition = openPageTransition model }
+            ( { model | page = newNewPage, pageTransitions = newTransition model }
             , Cmd.none
             )
 
         OpenOptionsPage ->
             ( { model
                 | page = optionsPageFromOptions model.options
-                , pageTransition = openPageTransition model
+                , pageTransitions = newTransition model
               }
             , Cmd.none
             )
@@ -418,8 +384,28 @@ update msg model =
 
         DoDeleteHabit habitId ->
             ( { model
-                -- TODO handle blocks in other habits
-                | habits = Dict.remove habitId model.habits
+                | habits =
+                    Dict.remove habitId model.habits
+                        |> Dict.map
+                            (\id habit ->
+                                case habit.block of
+                                    Habit.Unblocked ->
+                                        habit
+
+                                    Habit.BlockedBy id2 ->
+                                        if id2 == habitId then
+                                            { habit | block = Habit.Unblocked }
+
+                                        else
+                                            habit
+
+                                    Habit.UnblockedBy id2 ->
+                                        if id2 == habitId then
+                                            { habit | block = Habit.Unblocked }
+
+                                        else
+                                            habit
+                            )
               }
                 |> openHabitList
             , Cmd.none
@@ -549,6 +535,34 @@ update msg model =
                     ( model, Cmd.none )
 
 
+habitOrderer : Model -> Habit -> Int
+habitOrderer model habit =
+    if shouldBeMarkedAsDone model habit then
+        Maybe.withDefault model.time habit.lastDone
+            |> Time.posixToMillis
+
+    else
+        -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
+
+
+visibleHabits : Model -> Dict HabitId Habit
+visibleHabits model =
+    Dict.filter (\_ -> viewHabitFilter model) model.habits
+
+
+openHabitListPage : Int -> Model -> Model
+openHabitListPage pageNum model =
+    let
+        page =
+            HabitList { pageNumber = pageNum }
+    in
+    { model | page = page, pageTransitions = newTransition model }
+
+
+openHabitList =
+    openHabitListPage 0
+
+
 
 -- VIEW
 
@@ -566,16 +580,16 @@ view model =
 
 maybeViewTransition : Model -> Html Msg
 maybeViewTransition model =
-    case model.pageTransition of
-        NoTransition ->
-            emptyDiv
+    div
+        []
+        (List.map
+            (viewPageTransition model)
+            (Dict.values model.pageTransitions)
+        )
 
-        Transition transition ->
-            viewPageTransition model transition
 
-
-viewPageTransition : Model -> { above : Bool, previous : Model, style : Anim } -> Html Msg
-viewPageTransition model transition =
+viewPageTransition : Model -> PageTransition -> Html Msg
+viewPageTransition model (Transition transition) =
     let
         classes =
             if transition.above then
@@ -595,7 +609,7 @@ viewPage : Model -> Page -> Html Msg
 viewPage model page =
     case page of
         HabitList habitList ->
-            viewHabitsPage model habitList
+            viewHabitsListPage model habitList
 
         EditHabit editPage ->
             viewEditingPage model editPage
@@ -611,8 +625,8 @@ viewPage model page =
 -- HABITS VIEW
 
 
-viewHabitsPage : Model -> HabitListPage -> Html Msg
-viewHabitsPage model habits =
+viewHabitsListPage : Model -> HabitListPage -> Html Msg
+viewHabitsListPage model habits =
     div
         [ class "page" ]
         [ div
@@ -624,13 +638,13 @@ viewHabitsPage model habits =
                     [ text "-" ]
                 ]
             ]
-        , viewHabits model
+        , viewHabits model habits.pageNumber
         , div [ class "page-foot" ] []
         ]
 
 
-viewHabits : Model -> Html Msg
-viewHabits model =
+viewHabits : Model -> Int -> Html Msg
+viewHabits model pageNumber =
     -- TODO handle multiple pages of habits
     let
         { pageLines, time, options, habits } =
@@ -640,6 +654,7 @@ viewHabits model =
             visibleHabits model
                 |> Dict.toList
                 |> List.sortBy (\( id, h ) -> habitOrderer model h)
+                |> List.drop (pageNumber * model.pageLines)
                 |> List.take model.pageLines
     in
     div
@@ -758,7 +773,15 @@ viewOptionsPage : Model -> OptionsPage -> Html Msg
 viewOptionsPage model fields =
     div
         [ class "page" ]
-        ([ div [ class "page-head" ] [] ]
+        ([ div [ class "page-head" ]
+            [ div
+                [ class "margin" ]
+                [ button
+                    [ class "add-habit", onClick OpenOptionsPage ]
+                    [ text "-" ]
+                ]
+            ]
+         ]
             ++ [ viewLineContent (label [] [ text "Show upcoming" ])
                , viewLineContent
                     (input
@@ -984,24 +1007,24 @@ emptyLine a =
 -- Due Helpers
 
 
-isDueSoon : Posix -> Options -> Habit -> Bool
-isDueSoon time options habit =
+isDueSoon : Model -> Habit -> Bool
+isDueSoon { time, options } habit =
     posixToMillis (Habit.nextDue habit)
         < posixToMillis (addToPosix options.upcoming time)
 
 
-isRecentlyDone : Posix -> Options -> Habit -> Bool
-isRecentlyDone time options habit =
+isRecentlyDone : Model -> Habit -> Bool
+isRecentlyDone { time, options } habit =
     Habit.lastDone habit
         |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
         |> Maybe.withDefault False
 
 
 shouldBeMarkedAsDone : Model -> Habit -> Bool
-shouldBeMarkedAsDone { time, options } habit =
+shouldBeMarkedAsDone model habit =
     let
         due =
-            isDueSoon time options habit
+            isDueSoon model habit
     in
     case habit.block of
         Habit.Unblocked ->
@@ -1014,14 +1037,14 @@ shouldBeMarkedAsDone { time, options } habit =
             True
 
 
-viewHabitFilter : Posix -> Options -> Habit -> Bool
-viewHabitFilter time options habit =
+viewHabitFilter : Model -> Habit -> Bool
+viewHabitFilter model habit =
     let
         due =
-            isDueSoon time options habit
+            isDueSoon model habit
 
         recent =
-            isRecentlyDone time options habit
+            isRecentlyDone model habit
     in
     case habit.block of
         Habit.Unblocked ->
@@ -1048,22 +1071,35 @@ initalPageTransitionStyle =
         [ Animation.right (Animation.px 0) ]
 
 
-pageTransitionStyle =
+nextDictEntry dict =
+    (List.reverse (Dict.keys dict)
+        |> List.head
+        |> Maybe.withDefault 0
+    )
+        + 1
+
+
+pageTransitionStyle model =
     Animation.interrupt
         [ Animation.to [ Animation.right (Animation.px -510) ]
-        , Animation.Messenger.send SwapPages
+        , Animation.Messenger.send (SwapPages (nextDictEntry model.pageTransitions))
         , Animation.to [ Animation.right (Animation.px 0) ]
-        , Animation.Messenger.send ClearTransition
+        , Animation.Messenger.send (ClearTransition (nextDictEntry model.pageTransitions))
         ]
 
 
 openPageTransition : Model -> PageTransition
 openPageTransition model =
     Transition
-        { previous = model
-        , style = pageTransitionStyle initalPageTransitionStyle
+        { previous = { model | pageTransitions = Dict.empty }
+        , style = pageTransitionStyle model initalPageTransitionStyle
         , above = True
         }
+
+
+newTransition : Model -> Dict Int PageTransition
+newTransition model =
+    Dict.insert (nextDictEntry model.pageTransitions) (openPageTransition model) model.pageTransitions
 
 
 
@@ -1135,3 +1171,23 @@ curry fn a b =
 uncurry : (a -> b -> c) -> ( a, b ) -> c
 uncurry fn ( a, b ) =
     fn a b
+
+
+
+{-
+      Store a b = {
+          Dict Id a
+          state
+          nextId : State -> Id
+          }
+
+      insert
+      keys
+      values
+      next id
+      (is it ordered?)
+      next id should be a function? - then we can take things from it...
+
+   Useful for page transitions
+   Habits
+-}
