@@ -22,6 +22,11 @@ type alias Anim =
     Animation.Messenger.State Msg
 
 
+pageLines : Int
+pageLines =
+    20
+
+
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -48,7 +53,6 @@ init flags =
       , options = storage.options
       , page = HabitList { pageNumber = 0 }
       , pageTransitions = Store.empty Store.IncrementalId
-      , pageLines = 20
       }
     , Cmd.none
     )
@@ -75,7 +79,6 @@ type alias Model =
     , options : Options
     , page : Page
     , pageTransitions : Store PageTransition
-    , pageLines : Int
     }
 
 
@@ -99,21 +102,21 @@ type alias HabitListPage =
     }
 
 
-type alias EditPage =
-    { id : HabitId
-    , description : String
-    , tag : String
-    , period : String
-    , block : Maybe HabitId
-    }
-
-
 type alias HabitFields a =
     { a
         | description : String
         , tag : String
         , period : String
         , block : Maybe HabitId
+    }
+
+
+type alias EditPage =
+    { id : HabitId
+    , description : String
+    , tag : String
+    , period : String
+    , block : Maybe HabitId
     }
 
 
@@ -212,17 +215,12 @@ storeModel ( model, cmd ) =
 -- UPDATE
 
 
-type PageUpdate
-    = ChangeEditDescription String
-    | ChangeEditTag String
-    | ChangeEditPeriod String
-    | ToggleEditBlocked
-    | ChangeEditBlocked HabitId
-    | ChangeNewDescription String
-    | ChangeNewTag String
-    | ChangeNewPeriod String
-    | ToggleNewBlocked
-    | ChangeNewBlocked HabitId
+type FormChangeMsg
+    = ChangeDescription String
+    | ChangeTag String
+    | ChangePeriod String
+    | ToggleBlocked
+    | ChangeBlocked String
     | ChangeOptionsRecent String
     | ChangeOptionsUpcoming String
 
@@ -240,7 +238,7 @@ type Msg
     | OpenNewPage
     | OpenOptionsPage
     | OpenHabitListPage Int
-    | UpdatePage PageUpdate
+    | ChangeFormField FormChangeMsg
       -- Options
     | SaveOptions OptionsPage
       -- Tasks
@@ -446,24 +444,39 @@ update msg model =
             )
                 |> storeModel
 
-        UpdatePage pageUpdate ->
-            case ( pageUpdate, model.page ) of
-                ( ChangeEditDescription str, EditHabit page ) ->
+        ChangeFormField formChangeMsg ->
+            case ( formChangeMsg, model.page ) of
+                ( ChangeDescription str, EditHabit page ) ->
                     ( { model | page = EditHabit { page | description = str } }
                     , Cmd.none
                     )
 
-                ( ChangeEditTag str, EditHabit page ) ->
+                ( ChangeDescription str, NewHabit page ) ->
+                    ( { model | page = NewHabit { page | description = str } }
+                    , Cmd.none
+                    )
+
+                ( ChangeTag str, EditHabit page ) ->
                     ( { model | page = EditHabit { page | tag = str } }
                     , Cmd.none
                     )
 
-                ( ChangeEditPeriod str, EditHabit page ) ->
+                ( ChangeTag str, NewHabit page ) ->
+                    ( { model | page = NewHabit { page | tag = str } }
+                    , Cmd.none
+                    )
+
+                ( ChangePeriod str, EditHabit page ) ->
                     ( { model | page = EditHabit { page | period = str } }
                     , Cmd.none
                     )
 
-                ( ToggleEditBlocked, EditHabit page ) ->
+                ( ChangePeriod str, NewHabit page ) ->
+                    ( { model | page = NewHabit { page | period = str } }
+                    , Cmd.none
+                    )
+
+                ( ToggleBlocked, EditHabit page ) ->
                     ( -- TODO Get an actual HabitId for this.
                       { model
                         | page =
@@ -481,46 +494,8 @@ update msg model =
                     , Cmd.none
                     )
 
-                ( ChangeEditBlocked habitId, EditHabit page ) ->
+                ( ChangeBlocked habitId, EditHabit page ) ->
                     ( { model | page = EditHabit { page | block = Just habitId } }
-                    , Cmd.none
-                    )
-
-                ( ChangeNewDescription str, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | description = str } }
-                    , Cmd.none
-                    )
-
-                ( ChangeNewTag str, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | tag = str } }
-                    , Cmd.none
-                    )
-
-                ( ChangeNewPeriod str, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | period = str } }
-                    , Cmd.none
-                    )
-
-                ( ToggleNewBlocked, NewHabit page ) ->
-                    ( -- TODO Get an actual HabitId for this.
-                      { model
-                        | page =
-                            NewHabit
-                                { page
-                                    | block =
-                                        case page.block of
-                                            Nothing ->
-                                                Just ""
-
-                                            Just _ ->
-                                                Nothing
-                                }
-                      }
-                    , Cmd.none
-                    )
-
-                ( ChangeNewBlocked habitId, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | block = Just habitId } }
                     , Cmd.none
                     )
 
@@ -594,7 +569,7 @@ maybeViewTransition model =
 viewPageTransition : Model -> PageTransition -> Html Msg
 viewPageTransition model (Transition transition) =
     let
-        -- TODO Z value should depend on indez
+        -- TODO Z value should depend on index
         classes =
             if transition.above then
                 [ class "transition-page", class "above" ]
@@ -651,15 +626,15 @@ viewHabits : Model -> Int -> Html Msg
 viewHabits model pageNumber =
     -- TODO handle multiple pages of habits
     let
-        { pageLines, time, options, habits } =
+        { time, options, habits } =
             model
 
         visible =
             visibleHabits model
                 |> Store.values
                 |> List.sortBy (habitOrderer model)
-                |> List.drop (pageNumber * model.pageLines)
-                |> List.take model.pageLines
+                |> List.drop (pageNumber * pageLines)
+                |> List.take pageLines
     in
     div
         []
@@ -719,11 +694,6 @@ viewEditingPage model fields =
             fields
             (Store.values model.habits)
             (Just fields.id)
-            (\s -> UpdatePage (ChangeEditDescription s))
-            (\s -> UpdatePage (ChangeEditTag s))
-            (\s -> UpdatePage (ChangeEditPeriod s))
-            (UpdatePage ToggleEditBlocked)
-            (\h -> UpdatePage (ChangeEditBlocked h))
          , viewLineContent
             (div
                 [ class "button-line" ]
@@ -733,7 +703,7 @@ viewEditingPage model fields =
                 ]
             )
          ]
-            ++ (List.range 8 (model.pageLines - 1) |> List.map emptyLine)
+            ++ (List.range 8 (pageLines - 1) |> List.map emptyLine)
             ++ [ div [ class "page-foot" ] [] ]
         )
 
@@ -751,11 +721,6 @@ viewNewPage model fields =
             fields
             (Store.values model.habits)
             Nothing
-            (\s -> UpdatePage (ChangeNewDescription s))
-            (\s -> UpdatePage (ChangeNewTag s))
-            (\s -> UpdatePage (ChangeNewPeriod s))
-            (UpdatePage ToggleNewBlocked)
-            (\h -> UpdatePage (ChangeNewBlocked h))
          , viewLineContent
             (div
                 [ class "button-line" ]
@@ -764,7 +729,7 @@ viewNewPage model fields =
                 ]
             )
          ]
-            ++ (List.range 8 (model.pageLines - 1) |> List.map emptyLine)
+            ++ (List.range 8 (pageLines - 1) |> List.map emptyLine)
             ++ [ div [ class "page-foot" ] [] ]
         )
 
@@ -789,13 +754,13 @@ viewOptionsPage model fields =
             ++ [ viewLineContent (label [] [ text "Show upcoming" ])
                , viewLineContent
                     (input
-                        [ value fields.upcoming, list "upcoming-list", onInput (\s -> UpdatePage (ChangeOptionsUpcoming s)) ]
+                        [ value fields.upcoming, list "upcoming-list", onInput (\s -> ChangeFormField (ChangeOptionsUpcoming s)) ]
                         []
                     )
                , viewLineContent (label [] [ text "Show recently done" ])
                , viewLineContent
                     (input
-                        [ value fields.recent, list "recent-list", onInput (\s -> UpdatePage (ChangeOptionsRecent s)) ]
+                        [ value fields.recent, list "recent-list", onInput (\s -> ChangeFormField (ChangeOptionsRecent s)) ]
                         []
                     )
                , viewLineContent
@@ -806,7 +771,7 @@ viewOptionsPage model fields =
                         ]
                     )
                ]
-            ++ (List.range 4 (model.pageLines - 1) |> List.map emptyLine)
+            ++ (List.range 4 (pageLines - 1) |> List.map emptyLine)
             ++ [ div [ class "page-foot" ] []
                , periodOptionsView fields.upcoming "upcoming-list"
                , periodOptionsView fields.recent "recent-list"
@@ -899,13 +864,8 @@ habitFieldsView :
     HabitFields a
     -> List Habit
     -> Maybe HabitId
-    -> (String -> Msg)
-    -> (String -> Msg)
-    -> (String -> Msg)
-    -> Msg
-    -> (HabitId -> Msg)
     -> Html Msg
-habitFieldsView fields habits maybeHabit descChange tagChange periodChange toggleBlock blockChange =
+habitFieldsView fields habits maybeHabit =
     let
         tagOption tag =
             option [ value tag ] [ text tag ]
@@ -930,22 +890,22 @@ habitFieldsView fields habits maybeHabit descChange tagChange periodChange toggl
             []
             [ text "I want to" ]
          , asLineContent input
-            [ placeholder "Do Something", value fields.description, onInput descChange ]
+            [ placeholder "Do Something", value fields.description, onInput (\s -> ChangeFormField (ChangeDescription s)) ]
             []
          , asLineContent label
             []
             [ text "every" ]
          , asLineContent input
-            [ placeholder "Period", value fields.period, list "period-list", onInput periodChange ]
+            [ placeholder "Period", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
             []
          ]
             ++ (if canBeBlocked then
                     [ asLineContent div
                         [ class "fuckaround" ]
-                        [ input [ type_ "checkbox", onClick toggleBlock, checked (maybeToBool fields.block) ] []
+                        [ input [ type_ "checkbox", onClick (ChangeFormField ToggleBlocked), checked (maybeToBool fields.block) ] []
                         , label [] [ text "after doing" ]
                         ]
-                    , viewLineContent (habitSelector filteredHabits fields.block blockChange)
+                    , viewLineContent (habitSelector filteredHabits fields.block (\s -> ChangeFormField (ChangeBlocked s)))
                     ]
 
                 else
@@ -955,7 +915,7 @@ habitFieldsView fields habits maybeHabit descChange tagChange periodChange toggl
                     []
                     [ text "Tag" ]
                , asLineContent input
-                    [ placeholder "Todo", value fields.tag, list "tag-list", onInput tagChange ]
+                    [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
                     []
                , datalist
                     [ id "tag-list" ]

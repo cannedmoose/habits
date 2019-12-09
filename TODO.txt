@@ -1,3 +1,5 @@
+P1 Add way to upgrade between storage model versions...
+
 P1 Change options icon
 
 P1 dedupe tags

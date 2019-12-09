@@ -11366,7 +11366,6 @@ var $author$project$Main$init = function (flags) {
 			options: storage.options,
 			page: $author$project$Main$HabitList(
 				{pageNumber: 0}),
-			pageLines: 20,
 			pageTransitions: $author$project$Store$empty($author$project$Store$IncrementalId),
 			time: time
 		},
@@ -14763,14 +14762,58 @@ var $author$project$Main$update = F2(
 								})),
 						$elm$core$Platform$Cmd$none));
 			default:
-				var pageUpdate = msg.a;
-				var _v9 = _Utils_Tuple2(pageUpdate, model.page);
-				_v9$12:
+				var formChangeMsg = msg.a;
+				var _v9 = _Utils_Tuple2(formChangeMsg, model.page);
+				_v9$10:
 				while (true) {
 					switch (_v9.b.$) {
+						case 'NewHabit':
+							switch (_v9.a.$) {
+								case 'ChangeDescription':
+									var str = _v9.a.a;
+									var page = _v9.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$NewHabit(
+													_Utils_update(
+														page,
+														{description: str}))
+											}),
+										$elm$core$Platform$Cmd$none);
+								case 'ChangeTag':
+									var str = _v9.a.a;
+									var page = _v9.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$NewHabit(
+													_Utils_update(
+														page,
+														{tag: str}))
+											}),
+										$elm$core$Platform$Cmd$none);
+								case 'ChangePeriod':
+									var str = _v9.a.a;
+									var page = _v9.b.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												page: $author$project$Main$NewHabit(
+													_Utils_update(
+														page,
+														{period: str}))
+											}),
+										$elm$core$Platform$Cmd$none);
+								default:
+									break _v9$10;
+							}
 						case 'EditHabit':
 							switch (_v9.a.$) {
-								case 'ChangeEditDescription':
+								case 'ChangeDescription':
 									var str = _v9.a.a;
 									var page = _v9.b.a;
 									return _Utils_Tuple2(
@@ -14783,7 +14826,7 @@ var $author$project$Main$update = F2(
 														{description: str}))
 											}),
 										$elm$core$Platform$Cmd$none);
-								case 'ChangeEditTag':
+								case 'ChangeTag':
 									var str = _v9.a.a;
 									var page = _v9.b.a;
 									return _Utils_Tuple2(
@@ -14796,7 +14839,7 @@ var $author$project$Main$update = F2(
 														{tag: str}))
 											}),
 										$elm$core$Platform$Cmd$none);
-								case 'ChangeEditPeriod':
+								case 'ChangePeriod':
 									var str = _v9.a.a;
 									var page = _v9.b.a;
 									return _Utils_Tuple2(
@@ -14809,7 +14852,7 @@ var $author$project$Main$update = F2(
 														{period: str}))
 											}),
 										$elm$core$Platform$Cmd$none);
-								case 'ToggleEditBlocked':
+								case 'ToggleBlocked':
 									var _v10 = _v9.a;
 									var page = _v9.b.a;
 									return _Utils_Tuple2(
@@ -14831,7 +14874,7 @@ var $author$project$Main$update = F2(
 														}))
 											}),
 										$elm$core$Platform$Cmd$none);
-								case 'ChangeEditBlocked':
+								case 'ChangeBlocked':
 									var habitId = _v9.a.a;
 									var page = _v9.b.a;
 									return _Utils_Tuple2(
@@ -14847,88 +14890,7 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								default:
-									break _v9$12;
-							}
-						case 'NewHabit':
-							switch (_v9.a.$) {
-								case 'ChangeNewDescription':
-									var str = _v9.a.a;
-									var page = _v9.b.a;
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												page: $author$project$Main$NewHabit(
-													_Utils_update(
-														page,
-														{description: str}))
-											}),
-										$elm$core$Platform$Cmd$none);
-								case 'ChangeNewTag':
-									var str = _v9.a.a;
-									var page = _v9.b.a;
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												page: $author$project$Main$NewHabit(
-													_Utils_update(
-														page,
-														{tag: str}))
-											}),
-										$elm$core$Platform$Cmd$none);
-								case 'ChangeNewPeriod':
-									var str = _v9.a.a;
-									var page = _v9.b.a;
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												page: $author$project$Main$NewHabit(
-													_Utils_update(
-														page,
-														{period: str}))
-											}),
-										$elm$core$Platform$Cmd$none);
-								case 'ToggleNewBlocked':
-									var _v12 = _v9.a;
-									var page = _v9.b.a;
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												page: $author$project$Main$NewHabit(
-													_Utils_update(
-														page,
-														{
-															block: function () {
-																var _v13 = page.block;
-																if (_v13.$ === 'Nothing') {
-																	return $elm$core$Maybe$Just('');
-																} else {
-																	return $elm$core$Maybe$Nothing;
-																}
-															}()
-														}))
-											}),
-										$elm$core$Platform$Cmd$none);
-								case 'ChangeNewBlocked':
-									var habitId = _v9.a.a;
-									var page = _v9.b.a;
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												page: $author$project$Main$NewHabit(
-													_Utils_update(
-														page,
-														{
-															block: $elm$core$Maybe$Just(habitId)
-														}))
-											}),
-										$elm$core$Platform$Cmd$none);
-								default:
-									break _v9$12;
+									break _v9$10;
 							}
 						case 'ChangeOptions':
 							switch (_v9.a.$) {
@@ -14959,10 +14921,10 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								default:
-									break _v9$12;
+									break _v9$10;
 							}
 						default:
-							break _v9$12;
+							break _v9$10;
 					}
 				}
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
@@ -15490,18 +15452,6 @@ var $mdgriffith$elm_style_animation$Animation$Render$render = function (animatio
 	return _Utils_ap(styleAttr, otherAttrs);
 };
 var $mdgriffith$elm_style_animation$Animation$render = $mdgriffith$elm_style_animation$Animation$Render$render;
-var $author$project$Main$ChangeEditBlocked = function (a) {
-	return {$: 'ChangeEditBlocked', a: a};
-};
-var $author$project$Main$ChangeEditDescription = function (a) {
-	return {$: 'ChangeEditDescription', a: a};
-};
-var $author$project$Main$ChangeEditPeriod = function (a) {
-	return {$: 'ChangeEditPeriod', a: a};
-};
-var $author$project$Main$ChangeEditTag = function (a) {
-	return {$: 'ChangeEditTag', a: a};
-};
 var $author$project$Main$DoDeleteHabit = function (a) {
 	return {$: 'DoDeleteHabit', a: a};
 };
@@ -15510,10 +15460,6 @@ var $author$project$Main$DoEditHabit = function (a) {
 };
 var $author$project$Main$OpenHabitListPage = function (a) {
 	return {$: 'OpenHabitListPage', a: a};
-};
-var $author$project$Main$ToggleEditBlocked = {$: 'ToggleEditBlocked'};
-var $author$project$Main$UpdatePage = function (a) {
-	return {$: 'UpdatePage', a: a};
 };
 var $author$project$Main$emptyDiv = A2($elm$html$Html$div, _List_Nil, _List_Nil);
 var $author$project$Main$viewLine = F2(
@@ -15547,6 +15493,22 @@ var $author$project$Main$viewLine = F2(
 var $author$project$Main$emptyLine = function (a) {
 	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, $author$project$Main$emptyDiv);
 };
+var $author$project$Main$ChangeBlocked = function (a) {
+	return {$: 'ChangeBlocked', a: a};
+};
+var $author$project$Main$ChangeDescription = function (a) {
+	return {$: 'ChangeDescription', a: a};
+};
+var $author$project$Main$ChangeFormField = function (a) {
+	return {$: 'ChangeFormField', a: a};
+};
+var $author$project$Main$ChangePeriod = function (a) {
+	return {$: 'ChangePeriod', a: a};
+};
+var $author$project$Main$ChangeTag = function (a) {
+	return {$: 'ChangeTag', a: a};
+};
+var $author$project$Main$ToggleBlocked = {$: 'ToggleBlocked'};
 var $author$project$Main$asLineContent = F3(
 	function (el, attribs, children) {
 		return A2(
@@ -15685,8 +15647,8 @@ var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProp
 var $author$project$Main$viewLineContent = function (line) {
 	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, line);
 };
-var $author$project$Main$habitFieldsView = F8(
-	function (fields, habits, maybeHabit, descChange, tagChange, periodChange, toggleBlock, blockChange) {
+var $author$project$Main$habitFieldsView = F3(
+	function (fields, habits, maybeHabit) {
 		var tagOption = function (tag) {
 			return A2(
 				$elm$html$Html$option,
@@ -15743,7 +15705,11 @@ var $author$project$Main$habitFieldsView = F8(
 							[
 								$elm$html$Html$Attributes$placeholder('Do Something'),
 								$elm$html$Html$Attributes$value(fields.description),
-								$elm$html$Html$Events$onInput(descChange)
+								$elm$html$Html$Events$onInput(
+								function (s) {
+									return $author$project$Main$ChangeFormField(
+										$author$project$Main$ChangeDescription(s));
+								})
 							]),
 						_List_Nil),
 						A3(
@@ -15762,7 +15728,11 @@ var $author$project$Main$habitFieldsView = F8(
 								$elm$html$Html$Attributes$placeholder('Period'),
 								$elm$html$Html$Attributes$value(fields.period),
 								$elm$html$Html$Attributes$list('period-list'),
-								$elm$html$Html$Events$onInput(periodChange)
+								$elm$html$Html$Events$onInput(
+								function (s) {
+									return $author$project$Main$ChangeFormField(
+										$author$project$Main$ChangePeriod(s));
+								})
 							]),
 						_List_Nil)
 					]),
@@ -15783,7 +15753,8 @@ var $author$project$Main$habitFieldsView = F8(
 									_List_fromArray(
 										[
 											$elm$html$Html$Attributes$type_('checkbox'),
-											$elm$html$Html$Events$onClick(toggleBlock),
+											$elm$html$Html$Events$onClick(
+											$author$project$Main$ChangeFormField($author$project$Main$ToggleBlocked)),
 											$elm$html$Html$Attributes$checked(
 											$author$project$Main$maybeToBool(fields.block))
 										]),
@@ -15797,7 +15768,14 @@ var $author$project$Main$habitFieldsView = F8(
 										]))
 								])),
 							$author$project$Main$viewLineContent(
-							A3($author$project$Main$habitSelector, filteredHabits, fields.block, blockChange))
+							A3(
+								$author$project$Main$habitSelector,
+								filteredHabits,
+								fields.block,
+								function (s) {
+									return $author$project$Main$ChangeFormField(
+										$author$project$Main$ChangeBlocked(s));
+								}))
 						]) : _List_Nil,
 					_Utils_ap(
 						_List_fromArray(
@@ -15818,7 +15796,11 @@ var $author$project$Main$habitFieldsView = F8(
 										$elm$html$Html$Attributes$placeholder('Todo'),
 										$elm$html$Html$Attributes$value(fields.tag),
 										$elm$html$Html$Attributes$list('tag-list'),
-										$elm$html$Html$Events$onInput(tagChange)
+										$elm$html$Html$Events$onInput(
+										function (s) {
+											return $author$project$Main$ChangeFormField(
+												$author$project$Main$ChangeTag(s));
+										})
 									]),
 								_List_Nil),
 								A2(
@@ -15836,6 +15818,7 @@ var $author$project$Main$habitFieldsView = F8(
 								$author$project$Main$viewLineContent($author$project$Main$emptyDiv)
 							])))));
 	});
+var $author$project$Main$pageLines = 20;
 var $author$project$Main$viewEditingPage = F2(
 	function (model, fields) {
 		return A2(
@@ -15854,28 +15837,11 @@ var $author$project$Main$viewEditingPage = F2(
 								$elm$html$Html$Attributes$class('page-head')
 							]),
 						_List_Nil),
-						A8(
+						A3(
 						$author$project$Main$habitFieldsView,
 						fields,
 						$author$project$Store$values(model.habits),
-						$elm$core$Maybe$Just(fields.id),
-						function (s) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeEditDescription(s));
-						},
-						function (s) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeEditTag(s));
-						},
-						function (s) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeEditPeriod(s));
-						},
-						$author$project$Main$UpdatePage($author$project$Main$ToggleEditBlocked),
-						function (h) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeEditBlocked(h));
-						}),
+						$elm$core$Maybe$Just(fields.id)),
 						$author$project$Main$viewLineContent(
 						A2(
 							$elm$html$Html$div,
@@ -15924,7 +15890,7 @@ var $author$project$Main$viewEditingPage = F2(
 					A2(
 						$elm$core$List$map,
 						$author$project$Main$emptyLine,
-						A2($elm$core$List$range, 8, model.pageLines - 1)),
+						A2($elm$core$List$range, 8, $author$project$Main$pageLines - 1)),
 					_List_fromArray(
 						[
 							A2(
@@ -16184,17 +16150,16 @@ var $author$project$Main$viewHabits = F2(
 	function (model, pageNumber) {
 		var visible = A2(
 			$elm$core$List$take,
-			model.pageLines,
+			$author$project$Main$pageLines,
 			A2(
 				$elm$core$List$drop,
-				pageNumber * model.pageLines,
+				pageNumber * $author$project$Main$pageLines,
 				A2(
 					$elm$core$List$sortBy,
 					$author$project$Main$habitOrderer(model),
 					$author$project$Store$values(
 						$author$project$Main$visibleHabits(model)))));
 		var _v0 = model;
-		var pageLines = _v0.pageLines;
 		var time = _v0.time;
 		var options = _v0.options;
 		var habits = _v0.habits;
@@ -16228,7 +16193,7 @@ var $author$project$Main$viewHabits = F2(
 						A2(
 							$elm$core$List$range,
 							$elm$core$List$length(visible),
-							pageLines - 1)))));
+							$author$project$Main$pageLines - 1)))));
 	});
 var $author$project$Main$viewHabitsListPage = F2(
 	function (model, habits) {
@@ -16279,22 +16244,9 @@ var $author$project$Main$viewHabitsListPage = F2(
 					_List_Nil)
 				]));
 	});
-var $author$project$Main$ChangeNewBlocked = function (a) {
-	return {$: 'ChangeNewBlocked', a: a};
-};
-var $author$project$Main$ChangeNewDescription = function (a) {
-	return {$: 'ChangeNewDescription', a: a};
-};
-var $author$project$Main$ChangeNewPeriod = function (a) {
-	return {$: 'ChangeNewPeriod', a: a};
-};
-var $author$project$Main$ChangeNewTag = function (a) {
-	return {$: 'ChangeNewTag', a: a};
-};
 var $author$project$Main$DoAddHabit = function (a) {
 	return {$: 'DoAddHabit', a: a};
 };
-var $author$project$Main$ToggleNewBlocked = {$: 'ToggleNewBlocked'};
 var $author$project$Main$viewNewPage = F2(
 	function (model, fields) {
 		return A2(
@@ -16313,28 +16265,11 @@ var $author$project$Main$viewNewPage = F2(
 								$elm$html$Html$Attributes$class('page-head')
 							]),
 						_List_Nil),
-						A8(
+						A3(
 						$author$project$Main$habitFieldsView,
 						fields,
 						$author$project$Store$values(model.habits),
-						$elm$core$Maybe$Nothing,
-						function (s) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeNewDescription(s));
-						},
-						function (s) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeNewTag(s));
-						},
-						function (s) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeNewPeriod(s));
-						},
-						$author$project$Main$UpdatePage($author$project$Main$ToggleNewBlocked),
-						function (h) {
-							return $author$project$Main$UpdatePage(
-								$author$project$Main$ChangeNewBlocked(h));
-						}),
+						$elm$core$Maybe$Nothing),
 						$author$project$Main$viewLineContent(
 						A2(
 							$elm$html$Html$div,
@@ -16372,7 +16307,7 @@ var $author$project$Main$viewNewPage = F2(
 					A2(
 						$elm$core$List$map,
 						$author$project$Main$emptyLine,
-						A2($elm$core$List$range, 8, model.pageLines - 1)),
+						A2($elm$core$List$range, 8, $author$project$Main$pageLines - 1)),
 					_List_fromArray(
 						[
 							A2(
@@ -16454,7 +16389,7 @@ var $author$project$Main$viewOptionsPage = F2(
 										$elm$html$Html$Attributes$list('upcoming-list'),
 										$elm$html$Html$Events$onInput(
 										function (s) {
-											return $author$project$Main$UpdatePage(
+											return $author$project$Main$ChangeFormField(
 												$author$project$Main$ChangeOptionsUpcoming(s));
 										})
 									]),
@@ -16476,7 +16411,7 @@ var $author$project$Main$viewOptionsPage = F2(
 										$elm$html$Html$Attributes$list('recent-list'),
 										$elm$html$Html$Events$onInput(
 										function (s) {
-											return $author$project$Main$UpdatePage(
+											return $author$project$Main$ChangeFormField(
 												$author$project$Main$ChangeOptionsRecent(s));
 										})
 									]),
@@ -16518,7 +16453,7 @@ var $author$project$Main$viewOptionsPage = F2(
 						A2(
 							$elm$core$List$map,
 							$author$project$Main$emptyLine,
-							A2($elm$core$List$range, 4, model.pageLines - 1)),
+							A2($elm$core$List$range, 4, $author$project$Main$pageLines - 1)),
 						_List_fromArray(
 							[
 								A2(
@@ -16629,4 +16564,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditPage":{"args":[],"type":"{ id : Habit.HabitId, description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewPage":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Main.OptionsPage":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimatePage":["Animation.Msg"],"SwapPages":["String.String"],"ClearTransition":["String.String"],"OpenEditPage":["Habit.HabitId"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdatePage":["Main.PageUpdate"],"SaveOptions":["Main.OptionsPage"],"DoHabit":["Habit.HabitId"],"DoAddHabit":["Main.NewPage"],"DoDeleteHabit":["Habit.HabitId"],"DoEditHabit":["Main.EditPage"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Main.PageUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ToggleEditBlocked":[],"ChangeEditBlocked":["Habit.HabitId"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ToggleNewBlocked":[],"ChangeNewBlocked":["Habit.HabitId"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditPage":{"args":[],"type":"{ id : Habit.HabitId, description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewPage":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Main.OptionsPage":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimatePage":["Animation.Msg"],"SwapPages":["String.String"],"ClearTransition":["String.String"],"OpenEditPage":["Habit.HabitId"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"ChangeFormField":["Main.FormChangeMsg"],"SaveOptions":["Main.OptionsPage"],"DoHabit":["Habit.HabitId"],"DoAddHabit":["Main.NewPage"],"DoDeleteHabit":["Habit.HabitId"],"DoEditHabit":["Main.EditPage"]}},"Main.FormChangeMsg":{"args":[],"tags":{"ChangeDescription":["String.String"],"ChangeTag":["String.String"],"ChangePeriod":["String.String"],"ToggleBlocked":[],"ChangeBlocked":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
