@@ -45,7 +45,6 @@ init flags =
     ( { time = time
       , habits = storage.habits
       , options = storage.options
-      , uuid = storage.uuid
       , page = HabitList { pageNumber = 0 }
       , pageTransitions = Store.simpleStore
       , pageLines = 20
@@ -63,19 +62,18 @@ type alias Flags =
 
 
 type alias StorageModel =
-    { uuid : Int
-    , options : Options
-    , habits : Dict HabitId Habit
+    { options : Options
+    , habits : Store HabitId Habit Int
+    , version : Int
     }
 
 
 type alias Model =
     { time : Posix
-    , habits : Dict HabitId Habit
+    , habits : Store HabitId Habit Int
     , options : Options
     , page : Page
     , pageTransitions : SimpleStore PageTransition
-    , uuid : Int
     , pageLines : Int
     }
 
@@ -125,16 +123,7 @@ editPageFromHabit habit =
         , description = habit.description
         , tag = habit.tag
         , period = Period.toString habit.period
-        , block =
-            case habit.block of
-                Habit.BlockedBy id ->
-                    Just id
-
-                Habit.UnblockedBy id ->
-                    Just id
-
-                _ ->
-                    Nothing
+        , block = Habit.getBlocker habit
         }
 
 
@@ -317,7 +306,7 @@ update msg model =
         OpenEditPage habitId ->
             let
                 maybeHabit =
-                    Dict.get habitId model.habits
+                    Store.get habitId model.habits
             in
             case maybeHabit of
                 Nothing ->
@@ -365,7 +354,10 @@ update msg model =
 
         DoHabit habitId ->
             ( { model
-                | habits = Habit.do model.time model.habits habitId
+                | habits =
+                    Store.filterIds ((==) habitId) model.habits
+                        |> Store.mapValues (Habit.doHabit model.time)
+                        |> Store.union model.habits
               }
             , Cmd.none
             )
@@ -383,13 +375,12 @@ update msg model =
                                 model.time
                                 fields.description
                                 fields.tag
-                                model.uuid
+                                (Store.getNextId model.habits)
                                 (Period.parse fields.period)
                                 fields.block
                     in
                     ( { model
-                        | habits = Dict.insert newHabit.id newHabit model.habits
-                        , uuid = model.uuid + 1
+                        | habits = Store.insert newHabit model.habits
                       }
                         |> openHabitList
                     , Cmd.none
@@ -399,26 +390,14 @@ update msg model =
         DoDeleteHabit habitId ->
             ( { model
                 | habits =
-                    Dict.remove habitId model.habits
-                        |> Dict.map
-                            (\id habit ->
-                                case habit.block of
-                                    Habit.Unblocked ->
-                                        habit
+                    Store.delete habitId model.habits
+                        |> Store.mapValues
+                            (\habit ->
+                                if Maybe.map ((==) habitId) (Habit.getBlocker habit) |> Maybe.withDefault False then
+                                    { habit | block = Habit.Unblocked }
 
-                                    Habit.BlockedBy id2 ->
-                                        if id2 == habitId then
-                                            { habit | block = Habit.Unblocked }
-
-                                        else
-                                            habit
-
-                                    Habit.UnblockedBy id2 ->
-                                        if id2 == habitId then
-                                            { habit | block = Habit.Unblocked }
-
-                                        else
-                                            habit
+                                else
+                                    habit
                             )
               }
                 |> openHabitList
@@ -429,28 +408,26 @@ update msg model =
         DoEditHabit editPage ->
             ( { model
                 | habits =
-                    Dict.update
-                        editPage.id
-                        (Maybe.map
-                            (\h ->
-                                { h
+                    Store.filterIds ((==) editPage.id) model.habits
+                        |> Store.mapValues
+                            (\habit ->
+                                { habit
                                     | description = editPage.description
                                     , tag = editPage.tag
                                     , period = Period.parse editPage.period
                                     , block =
-                                        case ( editPage.block, h.block ) of
+                                        case ( editPage.block, habit.block ) of
                                             ( Nothing, _ ) ->
                                                 Habit.Unblocked
 
-                                            ( Just hid, Habit.BlockedBy _ ) ->
-                                                Habit.BlockedBy hid
+                                            ( Just hid, Habit.Blocker _ isBlocked ) ->
+                                                Habit.Blocker hid isBlocked
 
                                             ( Just hid, _ ) ->
-                                                Habit.UnblockedBy hid
+                                                Habit.Blocker hid False
                                 }
                             )
-                        )
-                        model.habits
+                        |> Store.union model.habits
               }
                 |> openHabitList
             , Cmd.none
@@ -559,9 +536,9 @@ habitOrderer model habit =
         -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
 
 
-visibleHabits : Model -> Dict HabitId Habit
+visibleHabits : Model -> Store HabitId Habit Int
 visibleHabits model =
-    Dict.filter (\_ -> viewHabitFilter model) model.habits
+    Store.filterValues (viewHabitFilter model) model.habits
 
 
 openHabitListPage : Int -> Model -> Model
@@ -666,8 +643,8 @@ viewHabits model pageNumber =
 
         visible =
             visibleHabits model
-                |> Dict.toList
-                |> List.sortBy (\( id, h ) -> habitOrderer model h)
+                |> Store.values
+                |> List.sortBy (habitOrderer model)
                 |> List.drop (pageNumber * model.pageLines)
                 |> List.take model.pageLines
     in
@@ -686,12 +663,12 @@ viewHabits model pageNumber =
         )
 
 
-viewHabitLine : Model -> ( HabitId, Habit ) -> Html Msg
-viewHabitLine model ( habitId, habit ) =
+viewHabitLine : Model -> Habit -> Html Msg
+viewHabitLine model habit =
     viewLine
         (button
             [ class "habit-edit"
-            , onClick (OpenEditPage habitId)
+            , onClick (OpenEditPage habit.id)
             ]
             [ text "..." ]
         )
@@ -704,7 +681,7 @@ viewHabitLine model ( habitId, habit ) =
                  else
                     "habit-todo"
                 )
-            , onClick (DoHabit habitId)
+            , onClick (DoHabit habit.id)
             ]
             [ span
                 [ class "habit-description" ]
@@ -727,7 +704,7 @@ viewEditingPage model fields =
         ([ div [ class "page-head" ] []
          , habitFieldsView
             fields
-            (Dict.values model.habits)
+            (Store.values model.habits)
             (Just fields.id)
             (\s -> UpdatePage (ChangeEditDescription s))
             (\s -> UpdatePage (ChangeEditTag s))
@@ -759,7 +736,7 @@ viewNewPage model fields =
         ([ div [ class "page-head" ] []
          , habitFieldsView
             fields
-            (Dict.values model.habits)
+            (Store.values model.habits)
             Nothing
             (\s -> UpdatePage (ChangeNewDescription s))
             (\s -> UpdatePage (ChangeNewTag s))
@@ -1027,32 +1004,24 @@ emptyLine a =
 
 isDueSoon : Model -> Habit -> Bool
 isDueSoon { time, options } habit =
-    posixToMillis (Habit.nextDue habit)
+    posixToMillis habit.nextDue
         < posixToMillis (addToPosix options.upcoming time)
 
 
 isRecentlyDone : Model -> Habit -> Bool
 isRecentlyDone { time, options } habit =
-    Habit.lastDone habit
+    habit.lastDone
         |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
         |> Maybe.withDefault False
 
 
 shouldBeMarkedAsDone : Model -> Habit -> Bool
 shouldBeMarkedAsDone model habit =
-    let
-        due =
-            isDueSoon model habit
-    in
-    case habit.block of
-        Habit.Unblocked ->
-            not due
+    if Habit.isBlocked habit then
+        True
 
-        Habit.UnblockedBy hid ->
-            not due
-
-        Habit.BlockedBy hid ->
-            True
+    else
+        not (isDueSoon model habit)
 
 
 viewHabitFilter : Model -> Habit -> Bool
@@ -1064,15 +1033,11 @@ viewHabitFilter model habit =
         recent =
             isRecentlyDone model habit
     in
-    case habit.block of
-        Habit.Unblocked ->
-            due || recent
+    if Habit.isBlocked habit then
+        recent
 
-        Habit.UnblockedBy hid ->
-            due || recent
-
-        Habit.BlockedBy hid ->
-            recent
+    else
+        due || recent
 
 
 
@@ -1113,7 +1078,7 @@ openPageTransition model =
 
 defaultStorageModel : StorageModel
 defaultStorageModel =
-    StorageModel 0 defaultOptions Dict.empty
+    StorageModel defaultOptions Store.simpleStore 0
 
 
 habitDictFromList : List Habit -> Dict HabitId Habit
@@ -1125,22 +1090,24 @@ habitDictFromList habits =
 storageDecoder : JD.Decoder StorageModel
 storageDecoder =
     JD.map3 StorageModel
-        (JD.field "uuid" JD.int)
         (JD.field "options" optionsDecoder)
         (JD.field "habits"
-            (JD.map
-                habitDictFromList
-                (JD.list Habit.decoder)
+            (Store.decode
+                (\s -> String.toInt s |> Maybe.withDefault 0)
+                Habit.decoder
+                JD.int
+                (\i -> ( i + 1, i + 1 ))
             )
         )
+        (JD.succeed 0)
 
 
 storageEncoder : Model -> JE.Value
 storageEncoder model =
     JE.object
-        [ ( "uuid", JE.int model.uuid )
-        , ( "options", optionsEncoder model.options )
-        , ( "habits", JE.list Habit.encode (Dict.values model.habits) )
+        [ ( "options", optionsEncoder model.options )
+        , ( "habits", Store.encode String.fromInt Habit.encode JE.int model.habits )
+        , ( "version", JE.int 0 )
         ]
 
 

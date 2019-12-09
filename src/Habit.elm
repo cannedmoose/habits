@@ -1,9 +1,10 @@
 module Habit exposing (..)
 
-import Dict exposing (..)
-import Json.Decode exposing (Decoder, field, int, string)
-import Json.Encode as Encode
+import Dict exposing (Dict)
+import Json.Decode as JD exposing (Decoder, field, int, string)
+import Json.Encode as JE
 import Period exposing (Period, addToPosix)
+import Store exposing (Store)
 import Time exposing (Posix)
 
 
@@ -24,17 +25,16 @@ type alias HabitId =
 
 
 type Block
-    = BlockedBy HabitId
-    | UnblockedBy HabitId
+    = Blocker HabitId Bool
     | Unblocked
 
 
 newHabit : Posix -> String -> String -> HabitId -> Period -> Maybe HabitId -> Habit
-newHabit time desc t i p block =
+newHabit time desc tag id period block =
     Habit desc
-        t
-        i
-        p
+        tag
+        id
+        period
         Nothing
         time
         0
@@ -43,53 +43,38 @@ newHabit time desc t i p block =
                 Unblocked
 
             Just hid ->
-                UnblockedBy hid
+                Blocker hid False
         )
 
 
-description : Habit -> String
-description habit =
-    habit.description
+getBlocker : Habit -> Maybe HabitId
+getBlocker habit =
+    case habit.block of
+        Blocker otherId _ ->
+            Just otherId
+
+        Unblocked ->
+            Nothing
 
 
-setDescription : String -> Habit -> Habit
-setDescription desc habit =
-    { habit | description = desc }
+isBlocker : HabitId -> Habit -> Bool
+isBlocker habitId habit =
+    case habit.block of
+        Blocker otherId _ ->
+            habitId == otherId
+
+        Unblocked ->
+            False
 
 
-tag : Habit -> String
-tag habit =
-    habit.tag
+isBlocked : Habit -> Bool
+isBlocked habit =
+    case habit.block of
+        Blocker _ True ->
+            True
 
-
-setTag : String -> Habit -> Habit
-setTag t habit =
-    { habit | tag = t }
-
-
-period : Habit -> Period
-period habit =
-    habit.period
-
-
-setPeriod : Period -> Habit -> Habit
-setPeriod p habit =
-    { habit | period = p }
-
-
-id : Habit -> HabitId
-id habit =
-    habit.id
-
-
-nextDue : Habit -> Posix
-nextDue habit =
-    habit.nextDue
-
-
-lastDone : Habit -> Maybe Posix
-lastDone habit =
-    habit.lastDone
+        _ ->
+            False
 
 
 doHabit : Posix -> Habit -> Habit
@@ -100,105 +85,89 @@ doHabit time habit =
         , doneCount = habit.doneCount + 1
         , block =
             case habit.block of
-                UnblockedBy otherId ->
-                    BlockedBy otherId
-
-                BlockedBy otherId ->
-                    BlockedBy otherId
+                Blocker otherId _ ->
+                    Blocker otherId True
 
                 Unblocked ->
                     Unblocked
     }
 
 
-do : Posix -> Dict HabitId Habit -> HabitId -> Dict HabitId Habit
-do time habits habitId =
-    -- TODO update blocked habits
-    Dict.update
-        habitId
-        (Maybe.map (doHabit time))
-        habits
-
-
 posixDecoder : Decoder Posix
 posixDecoder =
-    Json.Decode.map Time.millisToPosix int
+    JD.map Time.millisToPosix int
 
 
-posixEncode : Posix -> Encode.Value
-posixEncode time =
-    Encode.int (Time.posixToMillis time)
-
-
-
--- TODO Fix this shiz
+posixJE : Posix -> JE.Value
+posixJE time =
+    JE.int (Time.posixToMillis time)
 
 
 blockDecoder : Decoder Block
 blockDecoder =
     field "status" string
-        |> Json.Decode.andThen
+        |> JD.andThen
             (\s ->
                 case s of
                     "Blocked" ->
-                        Json.Decode.map BlockedBy (field "id" int)
+                        JD.map2 Blocker (field "id" int) (JD.succeed True)
 
                     "UnblockedBy" ->
-                        Json.Decode.map UnblockedBy (field "id" int)
+                        JD.map2 Blocker (field "id" int) (JD.succeed False)
 
                     _ ->
-                        Json.Decode.succeed Unblocked
+                        JD.succeed Unblocked
             )
 
 
-blockEncode : Block -> Encode.Value
-blockEncode block =
-    Encode.object
+blockJE : Block -> JE.Value
+blockJE block =
+    JE.object
         (case block of
             Unblocked ->
-                [ ( "status", Encode.string "Unblocked" ) ]
+                [ ( "status", JE.string "Unblocked" ) ]
 
-            BlockedBy habit ->
-                [ ( "status", Encode.string "Blocked" )
-                , ( "id", Encode.int habit )
+            Blocker habit True ->
+                [ ( "status", JE.string "Blocked" )
+                , ( "id", JE.int habit )
                 ]
 
-            UnblockedBy habit ->
-                [ ( "status", Encode.string "UnblockedBy" )
-                , ( "id", Encode.int habit )
+            Blocker habit False ->
+                [ ( "status", JE.string "UnblockedBy" )
+                , ( "id", JE.int habit )
                 ]
         )
 
 
 decoder : Decoder Habit
 decoder =
-    Json.Decode.map8 Habit
+    JD.map8 Habit
         (field "description" string)
         (field "tag" string)
         (field "id" int)
         (field "period" Period.decoder)
-        (Json.Decode.maybe (field "lastDone" posixDecoder))
+        (JD.maybe (field "lastDone" posixDecoder))
         (field "nextDue" posixDecoder)
         (field "doneCount" int)
         (field "block" blockDecoder)
 
 
-encode : Habit -> Encode.Value
+encode : Habit -> JE.Value
 encode habit =
-    Encode.object
-        ([ ( "description", Encode.string habit.description )
-         , ( "tag", Encode.string habit.tag )
-         , ( "id", Encode.int habit.id )
+    JE.object
+        ([ ( "description", JE.string habit.description )
+         , ( "tag", JE.string habit.tag )
+         , ( "id", JE.int habit.id )
          , ( "period", Period.encode habit.period )
-         , ( "nextDue", posixEncode habit.nextDue )
-         , ( "doneCount", Encode.int habit.doneCount )
-         , ( "block", blockEncode habit.block )
+         , ( "nextDue", posixJE habit.nextDue )
+         , ( "doneCount", JE.int habit.doneCount )
+         , ( "block", blockJE habit.block )
          ]
             ++ (case habit.lastDone of
                     Nothing ->
                         []
 
                     Just l ->
-                        [ ( "lastDone", posixEncode l ) ]
+                        [ ( "lastDone", posixJE l ) ]
                )
         )
