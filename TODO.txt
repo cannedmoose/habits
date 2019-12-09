@@ -1,23 +1,14 @@
 P1 Change options icon
 
-P1 Cleanup EVERYTHING
-
 P1 dedupe tags
 
-P1 CLEANUP
-  Remove (Dict.value) in as many places as possible
-  Make visible habits a function that returns a set
-  JUST PASS THE MODEL EVERYWHERE
-
-  Store old values for page transitions (harder...)
+P1 DECODING FAILURE SHOULD CAUSE AN ERROR
 
 P2 Online sync
-P2 DECODING FAILURE SHOULD CAUSE AN ERROR
 
 P2 add sliding for lines 
 P2 add headers to Pages (Editing, New, Options, TODO)
 
 P2 Pause
-
 
 P2 Think about page builder

@@ -11890,6 +11890,20 @@ var $author$project$Store$filterIds = F2(
 					store.items)
 			});
 	});
+var $author$project$Store$filterValues = F2(
+	function (filter, store) {
+		return _Utils_update(
+			store,
+			{
+				items: A2(
+					$elm$core$Dict$filter,
+					F2(
+						function (k, v) {
+							return filter(v);
+						}),
+					store.items)
+			});
+	});
 var $author$project$Store$get = F2(
 	function (id, store) {
 		return A2($elm$core$Dict$get, id, store.items);
@@ -11907,14 +11921,14 @@ var $author$project$Store$insert = F2(
 			store,
 			{items: newItems, state: newState});
 	});
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
+var $author$project$Habit$isBlocker = F2(
+	function (habitId, habit) {
+		var _v0 = habit.block;
+		if (_v0.$ === 'Blocker') {
+			var otherId = _v0.a;
+			return _Utils_eq(habitId, otherId);
 		} else {
-			return $elm$core$Maybe$Nothing;
+			return false;
 		}
 	});
 var $author$project$Store$map = F2(
@@ -12925,6 +12939,21 @@ var $author$project$Main$storeModel = function (_v0) {
 					$author$project$Main$storageEncoder(model))
 				])));
 };
+var $author$project$Habit$unblock = F2(
+	function (time, habit) {
+		var _v0 = habit.block;
+		if ((_v0.$ === 'Blocker') && _v0.b) {
+			var hid = _v0.a;
+			return _Utils_update(
+				habit,
+				{
+					block: A2($author$project$Habit$Blocker, hid, false),
+					nextDue: A2($author$project$Period$addToPosix, habit.period, time)
+				});
+		} else {
+			return habit;
+		}
+	});
 var $elm$core$Dict$union = F2(
 	function (t1, t2) {
 		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
@@ -14436,6 +14465,16 @@ var $mdgriffith$elm_style_animation$Animation$Messenger$update = F2(
 	function (tick, animation) {
 		return A2($mdgriffith$elm_style_animation$Animation$Model$updateAnimation, tick, animation);
 	});
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
 var $author$project$Store$maybeUpdate = F3(
 	function (id, fn, store) {
 		var newItems = A3($elm$core$Dict$update, id, fn, store.items);
@@ -14594,6 +14633,26 @@ var $author$project$Main$update = F2(
 						$elm$core$Platform$Cmd$none));
 			case 'DoHabit':
 				var habitId = msg.a;
+				var updatedHabit = A2(
+					$author$project$Store$union,
+					model.habits,
+					A2(
+						$author$project$Store$mapValues,
+						$author$project$Habit$doHabit(model.time),
+						A2(
+							$author$project$Store$filterIds,
+							$elm$core$Basics$eq(habitId),
+							model.habits)));
+				var updatedBlocked = A2(
+					$author$project$Store$union,
+					updatedHabit,
+					A2(
+						$author$project$Store$mapValues,
+						$author$project$Habit$unblock(model.time),
+						A2(
+							$author$project$Store$filterValues,
+							$author$project$Habit$isBlocker(habitId),
+							updatedHabit)));
 				return $author$project$Main$storeModel(
 					_Utils_Tuple2(
 						_Utils_update(
@@ -14648,13 +14707,7 @@ var $author$project$Main$update = F2(
 									habits: A2(
 										$author$project$Store$mapValues,
 										function (habit) {
-											return A2(
-												$elm$core$Maybe$withDefault,
-												false,
-												A2(
-													$elm$core$Maybe$map,
-													$elm$core$Basics$eq(habitId),
-													$author$project$Habit$getBlocker(habit))) ? _Utils_update(
+											return A2($author$project$Habit$isBlocker, habitId, habit) ? _Utils_update(
 												habit,
 												{block: $author$project$Habit$Unblocked}) : habit;
 										},
@@ -16094,20 +16147,6 @@ var $author$project$Main$viewHabitLine = F2(
 								$elm$html$Html$text(habit.tag)
 							]))
 					])));
-	});
-var $author$project$Store$filterValues = F2(
-	function (filter, store) {
-		return _Utils_update(
-			store,
-			{
-				items: A2(
-					$elm$core$Dict$filter,
-					F2(
-						function (k, v) {
-							return filter(v);
-						}),
-					store.items)
-			});
 	});
 var $author$project$Period$minusFromPosix = F2(
 	function (period, time) {

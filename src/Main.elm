@@ -35,6 +35,7 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        -- TODO should show error instead of with default
         storage =
             JD.decodeValue storageDecoder flags.model
                 |> Result.withDefault defaultStorageModel
@@ -353,6 +354,17 @@ update msg model =
                 |> storeModel
 
         DoHabit habitId ->
+            let
+                updatedHabit =
+                    Store.filterIds ((==) habitId) model.habits
+                        |> Store.mapValues (Habit.doHabit model.time)
+                        |> Store.union model.habits
+
+                updatedBlocked =
+                    Store.filterValues (Habit.isBlocker habitId) updatedHabit
+                        |> Store.mapValues (Habit.unblock model.time)
+                        |> Store.union updatedHabit
+            in
             ( { model
                 | habits =
                     Store.filterIds ((==) habitId) model.habits
@@ -393,7 +405,7 @@ update msg model =
                     Store.delete habitId model.habits
                         |> Store.mapValues
                             (\habit ->
-                                if Maybe.map ((==) habitId) (Habit.getBlocker habit) |> Maybe.withDefault False then
+                                if Habit.isBlocker habitId habit then
                                     { habit | block = Habit.Unblocked }
 
                                 else
@@ -582,6 +594,7 @@ maybeViewTransition model =
 viewPageTransition : Model -> PageTransition -> Html Msg
 viewPageTransition model (Transition transition) =
     let
+        -- TODO Z value should depend on indez
         classes =
             if transition.above then
                 [ class "transition-page", class "above" ]

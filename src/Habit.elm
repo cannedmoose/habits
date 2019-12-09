@@ -77,6 +77,16 @@ isBlocked habit =
             False
 
 
+unblock : Posix -> Habit -> Habit
+unblock time habit =
+    case habit.block of
+        Blocker hid True ->
+            { habit | block = Blocker hid False, nextDue = addToPosix habit.period time }
+
+        _ ->
+            habit
+
+
 doHabit : Posix -> Habit -> Habit
 doHabit time habit =
     { habit
