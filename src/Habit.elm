@@ -21,7 +21,7 @@ type alias Habit =
 
 
 type alias HabitId =
-    Int
+    String
 
 
 type Block
@@ -120,10 +120,10 @@ blockDecoder =
             (\s ->
                 case s of
                     "Blocked" ->
-                        JD.map2 Blocker (field "id" int) (JD.succeed True)
+                        JD.map2 Blocker (field "id" string) (JD.succeed True)
 
                     "UnblockedBy" ->
-                        JD.map2 Blocker (field "id" int) (JD.succeed False)
+                        JD.map2 Blocker (field "id" string) (JD.succeed False)
 
                     _ ->
                         JD.succeed Unblocked
@@ -139,12 +139,12 @@ blockJE block =
 
             Blocker habit True ->
                 [ ( "status", JE.string "Blocked" )
-                , ( "id", JE.int habit )
+                , ( "id", JE.string habit )
                 ]
 
             Blocker habit False ->
                 [ ( "status", JE.string "UnblockedBy" )
-                , ( "id", JE.int habit )
+                , ( "id", JE.string habit )
                 ]
         )
 
@@ -154,7 +154,7 @@ decoder =
     JD.map8 Habit
         (field "description" string)
         (field "tag" string)
-        (field "id" int)
+        (field "id" string)
         (field "period" Period.decoder)
         (JD.maybe (field "lastDone" posixDecoder))
         (field "nextDue" posixDecoder)
@@ -167,7 +167,7 @@ encode habit =
     JE.object
         ([ ( "description", JE.string habit.description )
          , ( "tag", JE.string habit.tag )
-         , ( "id", JE.int habit.id )
+         , ( "id", JE.string habit.id )
          , ( "period", Period.encode habit.period )
          , ( "nextDue", posixJE habit.nextDue )
          , ( "doneCount", JE.int habit.doneCount )

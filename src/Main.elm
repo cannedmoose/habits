@@ -14,7 +14,7 @@ import Json.Encode as JE
 import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
 import Set exposing (..)
-import Store exposing (SimpleStore, Store)
+import Store exposing (Store)
 import Time exposing (Posix, posixToMillis)
 
 
@@ -47,7 +47,7 @@ init flags =
       , habits = storage.habits
       , options = storage.options
       , page = HabitList { pageNumber = 0 }
-      , pageTransitions = Store.simpleStore
+      , pageTransitions = Store.empty Store.IncrementalId
       , pageLines = 20
       }
     , Cmd.none
@@ -64,17 +64,17 @@ type alias Flags =
 
 type alias StorageModel =
     { options : Options
-    , habits : Store HabitId Habit Int
+    , habits : Store Habit
     , version : Int
     }
 
 
 type alias Model =
     { time : Posix
-    , habits : Store HabitId Habit Int
+    , habits : Store Habit
     , options : Options
     , page : Page
-    , pageTransitions : SimpleStore PageTransition
+    , pageTransitions : Store PageTransition
     , pageLines : Int
     }
 
@@ -233,8 +233,8 @@ type Msg
       -- Subscriptions
     | Tick Time.Posix
     | AnimatePage Animation.Msg
-    | SwapPages Int
-    | ClearTransition Int
+    | SwapPages String
+    | ClearTransition String
       -- Pages
     | OpenEditPage HabitId
     | OpenNewPage
@@ -472,7 +472,7 @@ update msg model =
                                     | block =
                                         case page.block of
                                             Nothing ->
-                                                Just 0
+                                                Just ""
 
                                             Just _ ->
                                                 Nothing
@@ -510,7 +510,7 @@ update msg model =
                                     | block =
                                         case page.block of
                                             Nothing ->
-                                                Just 0
+                                                Just ""
 
                                             Just _ ->
                                                 Nothing
@@ -548,7 +548,7 @@ habitOrderer model habit =
         -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
 
 
-visibleHabits : Model -> Store HabitId Habit Int
+visibleHabits : Model -> Store Habit
 visibleHabits model =
     Store.filterValues (viewHabitFilter model) model.habits
 
@@ -860,11 +860,7 @@ onChange handler =
 
 
 changeDecoder2 handler i =
-    let
-        hid =
-            Maybe.withDefault 0 (String.toInt i)
-    in
-    JD.succeed (handler hid)
+    JD.succeed (handler i)
 
 
 changeDecoder : (HabitId -> msg) -> JD.Decoder msg
@@ -876,7 +872,7 @@ changeDecoder handler =
 habitSelectorOption : HabitId -> Habit -> Html Msg
 habitSelectorOption selectedHabit habit =
     option
-        [ value (String.fromInt habit.id)
+        [ value habit.id
         , Html.Attributes.selected (selectedHabit == habit.id)
         ]
         [ text habit.description ]
@@ -1079,7 +1075,7 @@ pageTransitionStyle model =
 openPageTransition : Model -> PageTransition
 openPageTransition model =
     Transition
-        { previous = { model | pageTransitions = Store.simpleStore }
+        { previous = { model | pageTransitions = Store.empty Store.IncrementalId }
         , style = pageTransitionStyle model initalPageTransitionStyle
         , above = True
         }
@@ -1091,7 +1087,7 @@ openPageTransition model =
 
 defaultStorageModel : StorageModel
 defaultStorageModel =
-    StorageModel defaultOptions Store.simpleStore 0
+    StorageModel defaultOptions (Store.empty Store.RandomId) 0
 
 
 habitDictFromList : List Habit -> Dict HabitId Habit
@@ -1104,14 +1100,7 @@ storageDecoder : JD.Decoder StorageModel
 storageDecoder =
     JD.map3 StorageModel
         (JD.field "options" optionsDecoder)
-        (JD.field "habits"
-            (Store.decode
-                (\s -> String.toInt s |> Maybe.withDefault 0)
-                Habit.decoder
-                JD.int
-                (\i -> ( i + 1, i + 1 ))
-            )
-        )
+        (JD.field "habits" (Store.decode Habit.decoder))
         (JD.succeed 0)
 
 
@@ -1119,7 +1108,7 @@ storageEncoder : Model -> JE.Value
 storageEncoder model =
     JE.object
         [ ( "options", optionsEncoder model.options )
-        , ( "habits", Store.encode String.fromInt Habit.encode JE.int model.habits )
+        , ( "habits", Store.encode Habit.encode model.habits )
         , ( "version", JE.int 0 )
         ]
 

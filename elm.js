@@ -10671,6 +10671,8 @@ var $elm$browser$Browser$document = _Browser_document;
 var $author$project$Main$HabitList = function (a) {
 	return {$: 'HabitList', a: a};
 };
+var $author$project$Store$IncrementalId = {$: 'IncrementalId'};
+var $author$project$Store$RandomId = {$: 'RandomId'};
 var $author$project$Main$StorageModel = F3(
 	function (options, habits, version) {
 		return {habits: habits, options: options, version: version};
@@ -10682,47 +10684,42 @@ var $author$project$Main$defaultOptions = {
 	recent: $author$project$Period$Hours(12),
 	upcoming: $author$project$Period$Hours(12)
 };
-var $author$project$Store$simpleStore = {
-	items: $elm$core$Dict$empty,
-	nextId: function (s) {
-		return _Utils_Tuple2(s + 1, s + 1);
-	},
-	state: 0
+var $author$project$Store$empty = function (idGenerator) {
+	return {idGenerator: idGenerator, items: $elm$core$Dict$empty, state: 0};
 };
-var $author$project$Main$defaultStorageModel = A3($author$project$Main$StorageModel, $author$project$Main$defaultOptions, $author$project$Store$simpleStore, 0);
+var $author$project$Main$defaultStorageModel = A3(
+	$author$project$Main$StorageModel,
+	$author$project$Main$defaultOptions,
+	$author$project$Store$empty($author$project$Store$RandomId),
+	0);
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
 var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
-var $author$project$Store$fromDict = F3(
-	function (state, nextId, dict) {
-		return {items: dict, nextId: nextId, state: state};
+var $author$project$Store$Store = F3(
+	function (items, state, idGenerator) {
+		return {idGenerator: idGenerator, items: items, state: state};
 	});
-var $author$project$Store$decode = F4(
-	function (keyMap, valueDecoder, stateDecoder, nextId) {
-		return A4(
-			$elm$json$Json$Decode$map3,
-			$author$project$Store$fromDict,
-			A2($elm$json$Json$Decode$field, 'state', stateDecoder),
-			$elm$json$Json$Decode$succeed(nextId),
-			A2(
-				$elm$json$Json$Decode$field,
-				'items',
-				A2(
-					$elm$json$Json$Decode$map,
-					$elm$core$Dict$fromList,
-					A2(
-						$elm$json$Json$Decode$map,
-						$elm$core$List$map(
-							function (_v0) {
-								var key = _v0.a;
-								var val = _v0.b;
-								return _Utils_Tuple2(
-									keyMap(key),
-									val);
-							}),
-						$elm$json$Json$Decode$keyValuePairs(valueDecoder)))));
-	});
+var $author$project$Store$decode = function (valueDecoder) {
+	return A4(
+		$elm$json$Json$Decode$map3,
+		$author$project$Store$Store,
+		A2(
+			$elm$json$Json$Decode$field,
+			'items',
+			$elm$json$Json$Decode$dict(valueDecoder)),
+		A2($elm$json$Json$Decode$field, 'state', $elm$json$Json$Decode$int),
+		A2(
+			$elm$json$Json$Decode$andThen,
+			function (s) {
+				if (s === 'incremental') {
+					return $elm$json$Json$Decode$succeed($author$project$Store$IncrementalId);
+				} else {
+					return $elm$json$Json$Decode$succeed($author$project$Store$RandomId);
+				}
+			},
+			A2($elm$json$Json$Decode$field, 'idGenerator', $elm$json$Json$Decode$string)));
+};
 var $author$project$Habit$Habit = F8(
 	function (description, tag, id, period, lastDone, nextDue, doneCount, block) {
 		return {block: block, description: description, doneCount: doneCount, id: id, lastDone: lastDone, nextDue: nextDue, period: period, tag: tag};
@@ -10740,13 +10737,13 @@ var $author$project$Habit$blockDecoder = A2(
 				return A3(
 					$elm$json$Json$Decode$map2,
 					$author$project$Habit$Blocker,
-					A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$int),
+					A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$string),
 					$elm$json$Json$Decode$succeed(true));
 			case 'UnblockedBy':
 				return A3(
 					$elm$json$Json$Decode$map2,
 					$author$project$Habit$Blocker,
-					A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$int),
+					A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$string),
 					$elm$json$Json$Decode$succeed(false));
 			default:
 				return $elm$json$Json$Decode$succeed($author$project$Habit$Unblocked);
@@ -11332,7 +11329,7 @@ var $author$project$Habit$decoder = A9(
 	$author$project$Habit$Habit,
 	A2($elm$json$Json$Decode$field, 'description', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'tag', $elm$json$Json$Decode$string),
-	A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'period', $author$project$Period$decoder),
 	$elm$json$Json$Decode$maybe(
 		A2($elm$json$Json$Decode$field, 'lastDone', $author$project$Habit$posixDecoder)),
@@ -11355,19 +11352,7 @@ var $author$project$Main$storageDecoder = A4(
 	A2(
 		$elm$json$Json$Decode$field,
 		'habits',
-		A4(
-			$author$project$Store$decode,
-			function (s) {
-				return A2(
-					$elm$core$Maybe$withDefault,
-					0,
-					$elm$core$String$toInt(s));
-			},
-			$author$project$Habit$decoder,
-			$elm$json$Json$Decode$int,
-			function (i) {
-				return _Utils_Tuple2(i + 1, i + 1);
-			})),
+		$author$project$Store$decode($author$project$Habit$decoder)),
 	$elm$json$Json$Decode$succeed(0));
 var $author$project$Main$init = function (flags) {
 	var time = $elm$time$Time$millisToPosix(flags.time);
@@ -11382,7 +11367,7 @@ var $author$project$Main$init = function (flags) {
 			page: $author$project$Main$HabitList(
 				{pageNumber: 0}),
 			pageLines: 20,
-			pageTransitions: $author$project$Store$simpleStore,
+			pageTransitions: $author$project$Store$empty($author$project$Store$IncrementalId),
 			time: time
 		},
 		$elm$core$Platform$Cmd$none);
@@ -11908,12 +11893,17 @@ var $author$project$Store$get = F2(
 	function (id, store) {
 		return A2($elm$core$Dict$get, id, store.items);
 	});
+var $author$project$Store$nextId = function (store) {
+	return _Utils_Tuple2(
+		$elm$core$String$fromInt(store.state + 1),
+		store.state + 1);
+};
 var $author$project$Store$getNextId = function (store) {
-	return store.nextId(store.state).a;
+	return $author$project$Store$nextId(store).a;
 };
 var $author$project$Store$insert = F2(
 	function (value, store) {
-		var _v0 = store.nextId(store.state);
+		var _v0 = $author$project$Store$nextId(store);
 		var newId = _v0.a;
 		var newState = _v0.b;
 		var newItems = A3($elm$core$Dict$insert, newId, value, store.items);
@@ -11934,10 +11924,10 @@ var $author$project$Habit$isBlocker = F2(
 var $author$project$Store$map = F2(
 	function (fn, store) {
 		return A3(
-			$author$project$Store$fromDict,
+			$author$project$Store$Store,
+			A2($elm$core$Dict$map, fn, store.items),
 			store.state,
-			store.nextId,
-			A2($elm$core$Dict$map, fn, store.items));
+			store.idGenerator);
 	});
 var $author$project$Store$mapValues = F2(
 	function (fn, store) {
@@ -12755,7 +12745,9 @@ var $author$project$Main$openPageTransition = function (model) {
 			above: true,
 			previous: _Utils_update(
 				model,
-				{pageTransitions: $author$project$Store$simpleStore}),
+				{
+					pageTransitions: $author$project$Store$empty($author$project$Store$IncrementalId)
+				}),
 			style: A2($author$project$Main$pageTransitionStyle, model, $author$project$Main$initalPageTransitionStyle)
 		});
 };
@@ -12781,7 +12773,6 @@ var $author$project$Main$optionsPageFromOptions = function (options) {
 			upcoming: $author$project$Period$toString(options.upcoming)
 		});
 };
-var $elm$json$Json$Encode$int = _Json_wrap;
 var $author$project$Habit$blockJE = function (block) {
 	return $elm$json$Json$Encode$object(
 		function () {
@@ -12802,7 +12793,7 @@ var $author$project$Habit$blockJE = function (block) {
 							$elm$json$Json$Encode$string('Blocked')),
 							_Utils_Tuple2(
 							'id',
-							$elm$json$Json$Encode$int(habit))
+							$elm$json$Json$Encode$string(habit))
 						]);
 				} else {
 					var habit = block.a;
@@ -12813,7 +12804,7 @@ var $author$project$Habit$blockJE = function (block) {
 							$elm$json$Json$Encode$string('UnblockedBy')),
 							_Utils_Tuple2(
 							'id',
-							$elm$json$Json$Encode$int(habit))
+							$elm$json$Json$Encode$string(habit))
 						]);
 				}
 			}
@@ -12823,6 +12814,7 @@ var $author$project$Period$encode = function (period) {
 	return $elm$json$Json$Encode$string(
 		$author$project$Period$toString(period));
 };
+var $elm$json$Json$Encode$int = _Json_wrap;
 var $author$project$Habit$posixJE = function (time) {
 	return $elm$json$Json$Encode$int(
 		$elm$time$Time$posixToMillis(time));
@@ -12840,7 +12832,7 @@ var $author$project$Habit$encode = function (habit) {
 					$elm$json$Json$Encode$string(habit.tag)),
 					_Utils_Tuple2(
 					'id',
-					$elm$json$Json$Encode$int(habit.id)),
+					$elm$json$Json$Encode$string(habit.id)),
 					_Utils_Tuple2(
 					'period',
 					$author$project$Period$encode(habit.period)),
@@ -12885,17 +12877,28 @@ var $elm$json$Json$Encode$dict = F3(
 				_Json_emptyObject(_Utils_Tuple0),
 				dictionary));
 	});
-var $author$project$Store$encode = F4(
-	function (keyEncode, valueEncode, stateEncode, store) {
+var $author$project$Store$encode = F2(
+	function (valueEncode, store) {
 		return $elm$json$Json$Encode$object(
 			_List_fromArray(
 				[
 					_Utils_Tuple2(
 					'state',
-					stateEncode(store.state)),
+					$elm$json$Json$Encode$int(store.state)),
 					_Utils_Tuple2(
 					'items',
-					A3($elm$json$Json$Encode$dict, keyEncode, valueEncode, store.items))
+					A3($elm$json$Json$Encode$dict, $elm$core$Basics$identity, valueEncode, store.items)),
+					_Utils_Tuple2(
+					'idGenerator',
+					$elm$json$Json$Encode$string(
+						function () {
+							var _v0 = store.idGenerator;
+							if (_v0.$ === 'RandomId') {
+								return 'random';
+							} else {
+								return 'incremental';
+							}
+						}()))
 				]));
 	});
 var $author$project$Main$optionsEncoder = function (options) {
@@ -12919,7 +12922,7 @@ var $author$project$Main$storageEncoder = function (model) {
 				$author$project$Main$optionsEncoder(model.options)),
 				_Utils_Tuple2(
 				'habits',
-				A4($author$project$Store$encode, $elm$core$String$fromInt, $author$project$Habit$encode, $elm$json$Json$Encode$int, model.habits)),
+				A2($author$project$Store$encode, $author$project$Habit$encode, model.habits)),
 				_Utils_Tuple2(
 				'version',
 				$elm$json$Json$Encode$int(0))
@@ -14820,7 +14823,7 @@ var $author$project$Main$update = F2(
 															block: function () {
 																var _v11 = page.block;
 																if (_v11.$ === 'Nothing') {
-																	return $elm$core$Maybe$Just(0);
+																	return $elm$core$Maybe$Just('');
 																} else {
 																	return $elm$core$Maybe$Nothing;
 																}
@@ -14901,7 +14904,7 @@ var $author$project$Main$update = F2(
 															block: function () {
 																var _v13 = page.block;
 																if (_v13.$ === 'Nothing') {
-																	return $elm$core$Maybe$Just(0);
+																	return $elm$core$Maybe$Just('');
 																} else {
 																	return $elm$core$Maybe$Nothing;
 																}
@@ -15571,8 +15574,7 @@ var $author$project$Main$habitSelectorOption = F2(
 			$elm$html$Html$option,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$value(
-					$elm$core$String$fromInt(habit.id)),
+					$elm$html$Html$Attributes$value(habit.id),
 					$elm$html$Html$Attributes$selected(
 					_Utils_eq(selectedHabit, habit.id))
 				]),
@@ -15590,12 +15592,8 @@ var $author$project$Main$maybeToBool = function (m) {
 };
 var $author$project$Main$changeDecoder2 = F2(
 	function (handler, i) {
-		var hid = A2(
-			$elm$core$Maybe$withDefault,
-			0,
-			$elm$core$String$toInt(i));
 		return $elm$json$Json$Decode$succeed(
-			handler(hid));
+			handler(i));
 	});
 var $author$project$Main$changeDecoder = function (handler) {
 	return A2(
@@ -16631,4 +16629,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditPage":{"args":[],"type":"{ id : Habit.HabitId, description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Habit.HabitId":{"args":[],"type":"Basics.Int"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewPage":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Main.OptionsPage":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimatePage":["Animation.Msg"],"SwapPages":["Basics.Int"],"ClearTransition":["Basics.Int"],"OpenEditPage":["Habit.HabitId"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdatePage":["Main.PageUpdate"],"SaveOptions":["Main.OptionsPage"],"DoHabit":["Habit.HabitId"],"DoAddHabit":["Main.NewPage"],"DoDeleteHabit":["Habit.HabitId"],"DoEditHabit":["Main.EditPage"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Main.PageUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ToggleEditBlocked":[],"ChangeEditBlocked":["Habit.HabitId"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ToggleNewBlocked":[],"ChangeNewBlocked":["Habit.HabitId"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Main.EditPage":{"args":[],"type":"{ id : Habit.HabitId, description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.NewPage":{"args":[],"type":"{ description : String.String, tag : String.String, period : String.String, block : Maybe.Maybe Habit.HabitId }"},"Main.OptionsPage":{"args":[],"type":"{ recent : String.String, upcoming : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimatePage":["Animation.Msg"],"SwapPages":["String.String"],"ClearTransition":["String.String"],"OpenEditPage":["Habit.HabitId"],"OpenNewPage":[],"OpenOptionsPage":[],"OpenHabitListPage":["Basics.Int"],"UpdatePage":["Main.PageUpdate"],"SaveOptions":["Main.OptionsPage"],"DoHabit":["Habit.HabitId"],"DoAddHabit":["Main.NewPage"],"DoDeleteHabit":["Habit.HabitId"],"DoEditHabit":["Main.EditPage"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Main.PageUpdate":{"args":[],"tags":{"ChangeEditDescription":["String.String"],"ChangeEditTag":["String.String"],"ChangeEditPeriod":["String.String"],"ToggleEditBlocked":[],"ChangeEditBlocked":["Habit.HabitId"],"ChangeNewDescription":["String.String"],"ChangeNewTag":["String.String"],"ChangeNewPeriod":["String.String"],"ToggleNewBlocked":[],"ChangeNewBlocked":["Habit.HabitId"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
