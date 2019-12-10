@@ -51,8 +51,8 @@ init flags =
     ( { time = time
       , habits = storage.habits
       , options = storage.options
-      , page = HabitList { pageNumber = 0 }
-      , pageTransitions = Store.empty Store.IncrementalId
+      , screen = HabitList { page = 0 }
+      , screenTransition = Nothing
       }
     , Cmd.none
     )
@@ -77,90 +77,11 @@ type alias Model =
     { time : Posix
     , habits : Store Habit
     , options : Options
-    , page : Page
-    , pageTransitions : Store PageTransition
+    , screen : Screen
+
+    -- Single transition (disable interaction during)
+    , screenTransition : Maybe ScreenTransition
     }
-
-
-type Page
-    = HabitList HabitListPage
-    | EditHabit EditPage
-    | NewHabit NewPage
-    | ChangeOptions OptionsPage
-
-
-type PageTransition
-    = Transition
-        { previous : Model
-        , style : Anim
-        , above : Bool
-        }
-
-
-type alias HabitListPage =
-    { pageNumber : Int
-    }
-
-
-type alias HabitFields a =
-    { a
-        | description : String
-        , tag : String
-        , period : String
-        , block : Maybe HabitId
-    }
-
-
-type alias EditPage =
-    { id : HabitId
-    , description : String
-    , tag : String
-    , period : String
-    , block : Maybe HabitId
-    }
-
-
-editPageFromHabit : Habit -> Page
-editPageFromHabit habit =
-    EditHabit
-        { id = habit.id
-        , description = habit.description
-        , tag = habit.tag
-        , period = Period.toString habit.period
-        , block = Habit.getBlocker habit
-        }
-
-
-type alias NewPage =
-    { description : String
-    , tag : String
-    , period : String
-    , block : Maybe HabitId
-    }
-
-
-newNewPage : Page
-newNewPage =
-    NewHabit
-        { description = ""
-        , tag = ""
-        , period = "1 Day"
-        , block = Nothing
-        }
-
-
-type alias OptionsPage =
-    { recent : String
-    , upcoming : String
-    }
-
-
-optionsPageFromOptions : Options -> Page
-optionsPageFromOptions options =
-    ChangeOptions
-        { recent = Period.toString options.recent
-        , upcoming = Period.toString options.upcoming
-        }
 
 
 type alias Options =
@@ -176,17 +97,127 @@ defaultOptions =
 
 
 
+{-
+   TRANSITION AFFECTS IN VS OUT AFFECTS WHICH PAGE GETS STYLED
+   IN MEANS MODELS PAGE GETS STYLED
+   OUT MEANS TRANSITIONS PAGE GETS STYLED
+-}
+{-
+   Page transition becomes single rather than store
+   we disable mouse interaction while transitioning
+       Line transitions can still be store.
+
+   Have stack of pages
+   Bottom of stack is always the HabitList
+   Draw the top of stack
+
+   Save/Cancel/Delete buttons all pop stack
+   need to pass info down the stack (eg select a habit, pass habit selected to new)
+   OR Select habit -> new habit should pop back to edit/new page that generated select
+
+   --
+   SelectHabit sends message
+    Cancel - just pop stack
+    Select X - pop stack, edit fields in top frame
+   New habit sends message
+    Cancel - just pop stack
+    Save - Pop stack if Select frame send select message
+
+   --
+
+
+   Maybe stack needs to be typed
+
+   Page =
+       HabitList {PageState}
+       EditHabitForm {fields}
+       NewHabitForm {fields}
+       OptionsForm {Fields}
+       SelectHabit {PageState} (should highlight currently selected...)
+-}
+-- App Screens
+
+
+type Screen
+    = HabitList HabitListScreen
+    | EditHabit EditHabitScreen
+    | CreateHabit CreateHabitScreen
+    | SelectHabit SelectHabitScreen
+    | EditOptions EditOptionsScreen
+
+
+type alias HabitListScreen =
+    { page : Int }
+
+
+type alias EditHabitScreen =
+    { habitId : HabitId
+    , description : String
+    , tag : String
+    , period : String
+    , block : String
+    , parent : Screen
+    }
+
+
+type alias CreateHabitScreen =
+    { description : String
+    , tag : String
+    , period : String
+    , block : String
+    , parent : Screen
+    }
+
+
+type alias SelectHabitScreen =
+    { page : Int
+    , parent : Screen
+    }
+
+
+type alias EditOptionsScreen =
+    { upcoming : String
+    , recent : String
+    , parent : Screen
+    }
+
+
+type TransitionDirection
+    = TransitionIn
+    | TransitionOut
+
+
+type ScreenTransition
+    = ScreenTransition
+        { previous : Screen
+        , style : Anim
+        , direction : TransitionDirection
+        }
+
+
+type alias HabitFields a =
+    { a
+        | description : String
+        , tag : String
+        , period : String
+        , block : String
+    }
+
+
+
 -- SUBSCRIPTIONS
 
 
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
-    Animation.subscription
-        AnimatePage
-        (List.map
-            (\(Transition m) -> m.style)
-            (Store.values model.pageTransitions)
-        )
+    case model.screenTransition of
+        Nothing ->
+            Sub.none
+
+        Just (ScreenTransition { style }) ->
+            Animation.subscription
+                AnimateScreen
+                [ style ]
 
 
 timeSubscription : Model -> Sub Msg
@@ -215,6 +246,33 @@ storeModel ( model, cmd ) =
 -- UPDATE
 
 
+type Msg
+    = NoOp
+    | NoOps String
+    | Tick Time.Posix
+      -- Screen Transition
+    | AnimateScreen Animation.Msg
+    | ClearTransition
+      -- From list screen
+    | DoHabit HabitId
+      -- Habit Edit
+    | OpenHabitEdit HabitId
+    | DoDeleteHabit
+    | DoEditHabit
+      -- Habit Selection
+    | OpenHabitSelect
+    | DoSelectHabit HabitId
+      -- Habit Creation
+    | OpenHabitCreate
+    | DoCreateHabit
+      -- Options
+    | OpenEditOptions
+    | DoSaveOptions
+      -- Form Editing
+    | ChangeFormField FormChangeMsg
+    | Cancel
+
+
 type FormChangeMsg
     = ChangeDescription String
     | ChangeTag String
@@ -225,27 +283,13 @@ type FormChangeMsg
     | ChangeOptionsUpcoming String
 
 
-type Msg
-    = NoOp
-    | NoOps String
-      -- Subscriptions
-    | Tick Time.Posix
-    | AnimatePage Animation.Msg
-    | SwapPages String
-    | ClearTransition String
-      -- Pages
-    | OpenEditPage HabitId
-    | OpenNewPage
-    | OpenOptionsPage
-    | OpenHabitListPage Int
-    | ChangeFormField FormChangeMsg
-      -- Options
-    | SaveOptions OptionsPage
-      -- Tasks
-    | DoHabit HabitId
-    | DoAddHabit NewPage
-    | DoDeleteHabit HabitId
-    | DoEditHabit EditPage
+editHabitScreen : Model -> HabitId -> Maybe Screen
+editHabitScreen model habitId =
+    Store.get habitId model.habits
+        |> Maybe.map
+            (\habit ->
+                EditHabit { habitId = habitId, parent = model.screen, description = habit.description, tag = habit.tag, period = Period.toString habit.period, block = "" }
+            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -262,94 +306,22 @@ update msg model =
             , Cmd.none
             )
 
-        AnimatePage animMsg ->
-            let
-                transMap =
-                    Store.mapValues
-                        (\(Transition transition) ->
-                            let
-                                ( style, cmd ) =
-                                    Animation.Messenger.update animMsg transition.style
-                            in
-                            ( Transition { transition | style = style }, cmd )
-                        )
-                        model.pageTransitions
-
-                cmds =
-                    Store.values transMap
-                        |> List.map Tuple.second
-
-                newTransitions =
-                    Store.mapValues (\t -> Tuple.first t) transMap
-            in
-            ( { model | pageTransitions = newTransitions }, Cmd.batch cmds )
-
-        SwapPages index ->
-            ( { model
-                | pageTransitions =
-                    Store.update index (\(Transition t) -> Transition { t | above = False }) model.pageTransitions
-              }
-            , Cmd.none
-            )
-
-        ClearTransition index ->
-            ( { model
-                | pageTransitions = Store.delete index model.pageTransitions
-              }
-            , Cmd.none
-            )
-
-        OpenHabitListPage pageNumber ->
-            ( openHabitListPage pageNumber model, Cmd.none )
-
-        OpenEditPage habitId ->
-            let
-                maybeHabit =
-                    Store.get habitId model.habits
-            in
-            case maybeHabit of
+        AnimateScreen animMsg ->
+            case model.screenTransition of
                 Nothing ->
                     ( model, Cmd.none )
 
-                Just habit ->
-                    ( { model
-                        | page = editPageFromHabit habit
-                        , pageTransitions = Store.insert (openPageTransition model) model.pageTransitions
-                      }
-                    , Cmd.none
-                    )
+                Just (ScreenTransition transition) ->
+                    let
+                        ( style, cmd ) =
+                            Animation.Messenger.update animMsg transition.style
+                    in
+                    ( { model | screenTransition = Just (ScreenTransition { transition | style = style }) }, cmd )
 
-        OpenNewPage ->
-            ( { model
-                | page = newNewPage
-                , pageTransitions = Store.insert (openPageTransition model) model.pageTransitions
-              }
+        ClearTransition ->
+            ( { model | screenTransition = Nothing }
             , Cmd.none
             )
-
-        OpenOptionsPage ->
-            ( { model
-                | page = optionsPageFromOptions model.options
-                , pageTransitions = Store.insert (openPageTransition model) model.pageTransitions
-              }
-            , Cmd.none
-            )
-
-        SaveOptions optionsFields ->
-            let
-                options =
-                    model.options
-
-                updatedOptions =
-                    { options
-                        | recent = Period.parse optionsFields.recent
-                        , upcoming = Period.parse optionsFields.upcoming
-                    }
-            in
-            ( { model | options = updatedOptions } |> openHabitList
-            , Cmd.none
-            )
-                |> storeModel
 
         DoHabit habitId ->
             let
@@ -373,12 +345,117 @@ update msg model =
             )
                 |> storeModel
 
-        DoAddHabit fields ->
-            case fields.description of
-                "" ->
-                    ( model |> openHabitList, Cmd.none )
+        OpenHabitEdit habitId ->
+            let
+                maybeScreen =
+                    editHabitScreen model habitId
+            in
+            case maybeScreen of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just newScreen ->
+                    ( { model
+                        | screen = newScreen
+
+                        -- TODO TRANSITION
+                        , screenTransition = Nothing
+                      }
+                    , Cmd.none
+                    )
+
+        DoDeleteHabit ->
+            case model.screen of
+                EditHabit { habitId, parent } ->
+                    ( { model
+                        | habits =
+                            Store.delete habitId model.habits
+                                |> Store.mapValues
+                                    (\habit ->
+                                        if Habit.isBlocker habitId habit then
+                                            { habit | block = Habit.Unblocked }
+
+                                        else
+                                            habit
+                                    )
+                        , screen = parent
+                        , screenTransition = Nothing
+                      }
+                    , Cmd.none
+                    )
+                        |> storeModel
 
                 _ ->
+                    ( model, Cmd.none )
+
+        DoEditHabit ->
+            case model.screen of
+                EditHabit fields ->
+                    ( { model
+                        | habits =
+                            Store.filterIds ((==) fields.habitId) model.habits
+                                |> Store.mapValues
+                                    (\habit ->
+                                        { habit
+                                            | description = fields.description
+                                            , tag = fields.tag
+                                            , period = Period.parse fields.period
+                                            , block =
+                                                case ( fields.block, habit.block ) of
+                                                    -- TODO fix this
+                                                    ( _, _ ) ->
+                                                        Habit.Unblocked
+                                        }
+                                    )
+                                |> Store.union model.habits
+                        , screen = fields.parent
+                        , screenTransition = Nothing
+                      }
+                    , Cmd.none
+                    )
+                        |> storeModel
+
+                _ ->
+                    ( model, Cmd.none )
+
+        OpenHabitSelect ->
+            ( { model
+                | screen = SelectHabit { page = 0, parent = model.screen }
+
+                -- TODO TRANSITION
+                , screenTransition = Nothing
+              }
+            , Cmd.none
+            )
+
+        DoSelectHabit habitId ->
+            case model.screen of
+                SelectHabit { parent } ->
+                    ( { model
+                        | screen = parent
+
+                        -- TODO TRANSITION
+                        , screenTransition = Nothing
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        OpenHabitCreate ->
+            ( { model
+                | screen = CreateHabit { description = "", tag = "", period = "", block = "", parent = model.screen }
+
+                -- TODO TRANSITION
+                , screenTransition = Nothing
+              }
+            , Cmd.none
+            )
+
+        DoCreateHabit ->
+            case model.screen of
+                CreateHabit fields ->
                     let
                         newHabit =
                             Habit.newHabit
@@ -387,130 +464,118 @@ update msg model =
                                 fields.tag
                                 (Store.getNextId model.habits)
                                 (Period.parse fields.period)
-                                fields.block
+                                (Just fields.block)
                     in
                     ( { model
                         | habits = Store.insert newHabit model.habits
+                        , screen = fields.parent
                       }
-                        |> openHabitList
                     , Cmd.none
                     )
                         |> storeModel
 
-        DoDeleteHabit habitId ->
-            ( { model
-                | habits =
-                    Store.delete habitId model.habits
-                        |> Store.mapValues
-                            (\habit ->
-                                if Habit.isBlocker habitId habit then
-                                    { habit | block = Habit.Unblocked }
+                _ ->
+                    ( model, Cmd.none )
 
-                                else
-                                    habit
-                            )
+        OpenEditOptions ->
+            ( { model
+                | screen = EditOptions { upcoming = "", recent = "", parent = model.screen }
+                , screenTransition = Nothing
               }
-                |> openHabitList
             , Cmd.none
             )
-                |> storeModel
 
-        DoEditHabit editPage ->
-            ( { model
-                | habits =
-                    Store.filterIds ((==) editPage.id) model.habits
-                        |> Store.mapValues
-                            (\habit ->
-                                { habit
-                                    | description = editPage.description
-                                    , tag = editPage.tag
-                                    , period = Period.parse editPage.period
-                                    , block =
-                                        case ( editPage.block, habit.block ) of
-                                            ( Nothing, _ ) ->
-                                                Habit.Unblocked
+        DoSaveOptions ->
+            case model.screen of
+                EditOptions fields ->
+                    let
+                        options =
+                            model.options
 
-                                            ( Just hid, Habit.Blocker _ isBlocked ) ->
-                                                Habit.Blocker hid isBlocked
+                        updatedOptions =
+                            { options
+                                | recent = Period.parse fields.recent
+                                , upcoming = Period.parse fields.upcoming
+                            }
+                    in
+                    ( { model | options = updatedOptions, screen = fields.parent }
+                    , Cmd.none
+                    )
+                        |> storeModel
 
-                                            ( Just hid, _ ) ->
-                                                Habit.Blocker hid False
-                                }
-                            )
-                        |> Store.union model.habits
-              }
-                |> openHabitList
-            , Cmd.none
-            )
-                |> storeModel
+                _ ->
+                    ( model, Cmd.none )
 
         ChangeFormField formChangeMsg ->
-            case ( formChangeMsg, model.page ) of
+            case ( formChangeMsg, model.screen ) of
                 ( ChangeDescription str, EditHabit page ) ->
-                    ( { model | page = EditHabit { page | description = str } }
+                    ( { model | screen = EditHabit { page | description = str } }
                     , Cmd.none
                     )
 
-                ( ChangeDescription str, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | description = str } }
+                ( ChangeDescription str, CreateHabit page ) ->
+                    ( { model | screen = CreateHabit { page | description = str } }
                     , Cmd.none
                     )
 
                 ( ChangeTag str, EditHabit page ) ->
-                    ( { model | page = EditHabit { page | tag = str } }
+                    ( { model | screen = EditHabit { page | tag = str } }
                     , Cmd.none
                     )
 
-                ( ChangeTag str, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | tag = str } }
+                ( ChangeTag str, CreateHabit page ) ->
+                    ( { model | screen = CreateHabit { page | tag = str } }
                     , Cmd.none
                     )
 
                 ( ChangePeriod str, EditHabit page ) ->
-                    ( { model | page = EditHabit { page | period = str } }
+                    ( { model | screen = EditHabit { page | period = str } }
                     , Cmd.none
                     )
 
-                ( ChangePeriod str, NewHabit page ) ->
-                    ( { model | page = NewHabit { page | period = str } }
-                    , Cmd.none
-                    )
-
-                ( ToggleBlocked, EditHabit page ) ->
-                    ( -- TODO Get an actual HabitId for this.
-                      { model
-                        | page =
-                            EditHabit
-                                { page
-                                    | block =
-                                        case page.block of
-                                            Nothing ->
-                                                Just ""
-
-                                            Just _ ->
-                                                Nothing
-                                }
-                      }
+                ( ChangePeriod str, CreateHabit page ) ->
+                    ( { model | screen = CreateHabit { page | period = str } }
                     , Cmd.none
                     )
 
                 ( ChangeBlocked habitId, EditHabit page ) ->
-                    ( { model | page = EditHabit { page | block = Just habitId } }
+                    ( { model | screen = EditHabit { page | block = habitId } }
                     , Cmd.none
                     )
 
-                ( ChangeOptionsRecent str, ChangeOptions page ) ->
-                    ( { model | page = ChangeOptions { page | recent = str } }
+                ( ChangeOptionsRecent str, EditOptions page ) ->
+                    ( { model | screen = EditOptions { page | recent = str } }
                     , Cmd.none
                     )
 
-                ( ChangeOptionsUpcoming str, ChangeOptions page ) ->
-                    ( { model | page = ChangeOptions { page | upcoming = str } }
+                ( ChangeOptionsUpcoming str, EditOptions page ) ->
+                    ( { model | screen = EditOptions { page | upcoming = str } }
                     , Cmd.none
                     )
 
                 ( _, _ ) ->
                     ( model, Cmd.none )
+
+        Cancel ->
+            let
+                prev =
+                    case model.screen of
+                        HabitList _ ->
+                            model.screen
+
+                        EditHabit { parent } ->
+                            parent
+
+                        CreateHabit { parent } ->
+                            parent
+
+                        EditOptions { parent } ->
+                            parent
+
+                        SelectHabit { parent } ->
+                            parent
+            in
+            ( { model | screen = prev }, Cmd.none )
 
 
 habitOrderer : Model -> Habit -> Int
@@ -528,19 +593,6 @@ visibleHabits model =
     Store.filterValues (viewHabitFilter model) model.habits
 
 
-openHabitListPage : Int -> Model -> Model
-openHabitListPage pageNum model =
-    let
-        page =
-            HabitList { pageNumber = pageNum }
-    in
-    { model | page = page, pageTransitions = Store.insert (openPageTransition model) model.pageTransitions }
-
-
-openHabitList =
-    openHabitListPage 0
-
-
 
 -- VIEW
 
@@ -549,42 +601,28 @@ view : Model -> Html Msg
 view model =
     div
         [ class "page-container" ]
-        [ maybeViewTransition model
-        , div
+        -- TODO maybe view transition
+        [ div
             [ class "middle" ]
-            [ viewPage model model.page ]
+            [ viewPage model model.screen ]
         ]
 
 
-maybeViewTransition : Model -> Html Msg
-maybeViewTransition model =
-    div
-        []
-        (List.map
-            (viewPageTransition model)
-            (Store.values model.pageTransitions)
-        )
-
-
-viewPageTransition : Model -> PageTransition -> Html Msg
-viewPageTransition model (Transition transition) =
+viewPageTransition : Model -> ScreenTransition -> Html Msg
+viewPageTransition model (ScreenTransition transition) =
     let
-        -- TODO Z value should depend on index
         classes =
-            if transition.above then
-                [ class "transition-page", class "above" ]
-
-            else
-                [ class "transition-page", class "below" ]
+            [ class "transition-page" ]
     in
     div
         (classes ++ Animation.render transition.style)
-        [ view
+        [ viewPage
+            model
             transition.previous
         ]
 
 
-viewPage : Model -> Page -> Html Msg
+viewPage : Model -> Screen -> Html Msg
 viewPage model page =
     case page of
         HabitList habitList ->
@@ -593,18 +631,22 @@ viewPage model page =
         EditHabit editPage ->
             viewEditingPage model editPage
 
-        NewHabit newPage ->
+        CreateHabit newPage ->
             viewNewPage model newPage
 
-        ChangeOptions optionsPage ->
+        EditOptions optionsPage ->
             viewOptionsPage model optionsPage
+
+        -- TODO
+        SelectHabit habitSelect ->
+            div [] []
 
 
 
 -- HABITS VIEW
 
 
-viewHabitsListPage : Model -> HabitListPage -> Html Msg
+viewHabitsListPage : Model -> HabitListScreen -> Html Msg
 viewHabitsListPage model habits =
     div
         [ class "page" ]
@@ -613,11 +655,11 @@ viewHabitsListPage model habits =
             [ div
                 [ class "margin" ]
                 [ button
-                    [ class "add-habit", onClick OpenOptionsPage ]
+                    [ class "add-habit", onClick OpenEditOptions ]
                     [ text "-" ]
                 ]
             ]
-        , viewHabits model habits.pageNumber
+        , viewHabits model habits.page
         , div [ class "page-foot" ] []
         ]
 
@@ -641,7 +683,7 @@ viewHabits model pageNumber =
         (List.map (viewHabitLine model) visible
             ++ viewLine
                 (button
-                    [ class "add-habit", onClick OpenNewPage ]
+                    [ class "add-habit", onClick OpenHabitCreate ]
                     [ text "+" ]
                 )
                 emptyDiv
@@ -656,7 +698,7 @@ viewHabitLine model habit =
     viewLine
         (button
             [ class "habit-edit"
-            , onClick (OpenEditPage habit.id)
+            , onClick (OpenHabitEdit habit.id)
             ]
             [ text "..." ]
         )
@@ -685,7 +727,7 @@ viewHabitLine model habit =
 -- EDIT VIEW
 
 
-viewEditingPage : Model -> EditPage -> Html Msg
+viewEditingPage : Model -> EditHabitScreen -> Html Msg
 viewEditingPage model fields =
     div
         [ class "page" ]
@@ -693,13 +735,13 @@ viewEditingPage model fields =
          , habitFieldsView
             fields
             (Store.values model.habits)
-            (Just fields.id)
+            (Just fields.habitId)
          , viewLineContent
             (div
                 [ class "button-line" ]
-                [ button [ onClick (DoEditHabit fields) ] [ text "Save" ]
-                , button [ onClick (DoDeleteHabit fields.id) ] [ text "Delete" ]
-                , button [ onClick (OpenHabitListPage 0) ] [ text "Cancel" ]
+                [ button [ onClick DoEditHabit ] [ text "Save" ]
+                , button [ onClick DoDeleteHabit ] [ text "Delete" ]
+                , button [ onClick Cancel ] [ text "Cancel" ]
                 ]
             )
          ]
@@ -712,7 +754,7 @@ viewEditingPage model fields =
 -- NEW VIEW
 
 
-viewNewPage : Model -> NewPage -> Html Msg
+viewNewPage : Model -> CreateHabitScreen -> Html Msg
 viewNewPage model fields =
     div
         [ class "page" ]
@@ -724,8 +766,8 @@ viewNewPage model fields =
          , viewLineContent
             (div
                 [ class "button-line" ]
-                [ button [ onClick (DoAddHabit fields) ] [ text "Save" ]
-                , button [ onClick (OpenHabitListPage 0) ] [ text "Cancel" ]
+                [ button [ onClick DoCreateHabit ] [ text "Save" ]
+                , button [ onClick Cancel ] [ text "Cancel" ]
                 ]
             )
          ]
@@ -738,7 +780,7 @@ viewNewPage model fields =
 -- OPTIONS VIEW
 
 
-viewOptionsPage : Model -> OptionsPage -> Html Msg
+viewOptionsPage : Model -> EditOptionsScreen -> Html Msg
 viewOptionsPage model fields =
     div
         [ class "page" ]
@@ -746,31 +788,30 @@ viewOptionsPage model fields =
             [ div
                 [ class "margin" ]
                 [ button
-                    [ class "add-habit", onClick OpenOptionsPage ]
+                    [ class "add-habit", onClick OpenEditOptions ]
                     [ text "-" ]
                 ]
             ]
+         , viewLineContent (label [] [ text "Show upcoming" ])
+         , viewLineContent
+            (input
+                [ value fields.upcoming, list "upcoming-list", onInput (\s -> ChangeFormField (ChangeOptionsUpcoming s)) ]
+                []
+            )
+         , viewLineContent (label [] [ text "Show recently done" ])
+         , viewLineContent
+            (input
+                [ value fields.recent, list "recent-list", onInput (\s -> ChangeFormField (ChangeOptionsRecent s)) ]
+                []
+            )
+         , viewLineContent
+            (div
+                [ class "button-line" ]
+                [ button [ onClick DoSaveOptions ] [ text "Save" ]
+                , button [ onClick Cancel ] [ text "Cancel" ]
+                ]
+            )
          ]
-            ++ [ viewLineContent (label [] [ text "Show upcoming" ])
-               , viewLineContent
-                    (input
-                        [ value fields.upcoming, list "upcoming-list", onInput (\s -> ChangeFormField (ChangeOptionsUpcoming s)) ]
-                        []
-                    )
-               , viewLineContent (label [] [ text "Show recently done" ])
-               , viewLineContent
-                    (input
-                        [ value fields.recent, list "recent-list", onInput (\s -> ChangeFormField (ChangeOptionsRecent s)) ]
-                        []
-                    )
-               , viewLineContent
-                    (div
-                        [ class "button-line" ]
-                        [ button [ onClick (SaveOptions fields) ] [ text "Save" ]
-                        , button [ onClick (OpenHabitListPage 0) ] [ text "Cancel" ]
-                        ]
-                    )
-               ]
             ++ (List.range 4 (pageLines - 1) |> List.map emptyLine)
             ++ [ div [ class "page-foot" ] []
                , periodOptionsView fields.upcoming "upcoming-list"
@@ -898,30 +939,19 @@ habitFieldsView fields habits maybeHabit =
          , asLineContent input
             [ placeholder "Period", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
             []
-         ]
-            ++ (if canBeBlocked then
-                    [ asLineContent div
-                        [ class "fuckaround" ]
-                        [ input [ type_ "checkbox", onClick (ChangeFormField ToggleBlocked), checked (maybeToBool fields.block) ] []
-                        , label [] [ text "after doing" ]
-                        ]
-                    , viewLineContent (habitSelector filteredHabits fields.block (\s -> ChangeFormField (ChangeBlocked s)))
-                    ]
 
-                else
-                    []
-               )
-            ++ [ asLineContent label
-                    []
-                    [ text "Tag" ]
-               , asLineContent input
-                    [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
-                    []
-               , datalist
-                    [ id "tag-list" ]
-                    tagOptions
-               , periodOptionsView fields.period "period-list"
-               ]
+         -- TODO add blocked back in
+         , asLineContent label
+            []
+            [ text "Tag" ]
+         , asLineContent input
+            [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
+            []
+         , datalist
+            [ id "tag-list" ]
+            tagOptions
+         , periodOptionsView fields.period "period-list"
+         ]
             ++ (if canBeBlocked then
                     []
 
@@ -969,6 +999,7 @@ emptyLine a =
 
 
 -- Due Helpers
+-- TODO move some of these into habit
 
 
 isDueSoon : Model -> Habit -> Bool
@@ -1011,37 +1042,35 @@ viewHabitFilter model habit =
 
 
 -- Transitions
+{-
+   initalPageTransitionStyle =
+       Animation.styleWith
+           (Animation.easing
+               { duration = 750
+               , ease = Ease.inOutQuart
+               }
+           )
+           [ Animation.right (Animation.px 0) ]
 
 
-initalPageTransitionStyle =
-    Animation.styleWith
-        (Animation.easing
-            { duration = 750
-            , ease = Ease.inOutQuart
-            }
-        )
-        [ Animation.right (Animation.px 0) ]
+   pageTransitionStyle model =
+       Animation.interrupt
+           [ Animation.to [ Animation.right (Animation.px -510) ]
+           , Animation.Messenger.send (SwapPages (Store.getNextId model.pageTransitions))
+           , Animation.to [ Animation.right (Animation.px 0) ]
+           , Animation.Messenger.send (ClearTransition (Store.getNextId model.pageTransitions))
+           ]
 
 
-pageTransitionStyle model =
-    Animation.interrupt
-        [ Animation.to [ Animation.right (Animation.px -510) ]
-        , Animation.Messenger.send (SwapPages (Store.getNextId model.pageTransitions))
-        , Animation.to [ Animation.right (Animation.px 0) ]
-        , Animation.Messenger.send (ClearTransition (Store.getNextId model.pageTransitions))
-        ]
+   openPageTransition : Model -> PageTransition
+   openPageTransition model =
+       Transition
+           { previous = { model | pageTransitions = Store.empty Store.IncrementalId }
+           , style = pageTransitionStyle model initalPageTransitionStyle
+           , above = True
+           }
 
-
-openPageTransition : Model -> PageTransition
-openPageTransition model =
-    Transition
-        { previous = { model | pageTransitions = Store.empty Store.IncrementalId }
-        , style = pageTransitionStyle model initalPageTransitionStyle
-        , above = True
-        }
-
-
-
+-}
 -- Encode/Decode
 
 
@@ -1105,3 +1134,126 @@ curry fn a b =
 uncurry : (a -> b -> c) -> ( a, b ) -> c
 uncurry fn ( a, b ) =
     fn a b
+
+
+
+-- VIEW Page
+-- TODO maybe save this for later
+-- work on storage first...
+-- or how to model current page and a page stack...
+{-
+
+   type alias PageConfig =
+       { showOptions : Bool
+       , title : String
+       , footer : PageLine
+       , nLines : Int
+       }
+
+
+   type alias PageState =
+       { pageNumber : Int
+       }
+
+
+   type alias PageLine =
+       ( Html Msg, Html Msg )
+
+
+   type alias PageLines =
+       List PageLine
+
+
+   cullPageLines : PageConfig -> PageState -> PageLines -> PageLines
+   cullPageLines { nLines } { pageNumber } lines =
+       lines
+           |> List.drop (pageNumber * nLines)
+           |> List.take nLines
+
+
+   viewPageLine : PageLine -> Html Msg
+   viewPageLine ( margin, content ) =
+       div
+           [ class "page-line" ]
+           [ div
+               [ class "margin" ]
+               [ margin ]
+           , div
+               [ class "line-content" ]
+               [ content ]
+           ]
+
+
+   viewPageLines : PageLines -> PageLine -> Html Msg
+   viewPageLines lines footer =
+       div
+           [ class "page-lines" ]
+           (List.map viewPageLine
+               (lines
+                   ++ [ footer ]
+               )
+           )
+
+
+   viewPageFooter : PageConfig -> PageState -> PageLines -> Html Msg
+   viewPageFooter { nLines } { pageNumber } lines =
+       -- TODO hook these up to next/prev pages
+       div
+           [ class "page-foot" ]
+           [ div
+               [ class "margin" ]
+               (if pageNumber > 0 then
+                   [ button
+                       [ class "add-habit", onClick OpenOptionsPage ]
+                       [ text "<" ]
+                   ]
+
+                else
+                   []
+               )
+           , div
+               [ class "line-content" ]
+               (if List.length lines > nLines then
+                   [ button
+                       [ class "add-habit", onClick OpenOptionsPage ]
+                       [ text ">" ]
+                   ]
+
+                else
+                   []
+               )
+           ]
+
+
+
+   -- Page config is static (in view)
+   -- Page state is from the model
+   -- PageLines is generated from model
+   -- TODO make habit page etc in this new form...
+
+
+   viewPage123 : PageConfig -> PageState -> PageLines -> Html Msg
+   viewPage123 config state lines =
+       div
+           [ class "page" ]
+           [ div
+               [ class "page-head" ]
+               [ div
+                   [ class "margin" ]
+                   (if config.showOptions then
+                       [ button
+                           [ class "add-habit", onClick OpenOptionsPage ]
+                           [ text "-" ]
+                       ]
+
+                    else
+                       []
+                   )
+               , div
+                   [ class "line-content" ]
+                   [ text config.title ]
+               ]
+           , viewPageLines (cullPageLines config state lines) config.footer
+           , div [ class "page-foot" ] []
+           ]
+-}
