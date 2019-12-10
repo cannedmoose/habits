@@ -14577,6 +14577,7 @@ var $author$project$Main$ChangePeriod = function (a) {
 var $author$project$Main$ChangeTag = function (a) {
 	return {$: 'ChangeTag', a: a};
 };
+var $author$project$Main$OpenHabitSelect = {$: 'OpenHabitSelect'};
 var $author$project$Main$asLineContent = F3(
 	function (el, attribs, children) {
 		return A2(
@@ -14585,7 +14586,6 @@ var $author$project$Main$asLineContent = F3(
 			A2(el, attribs, children));
 	});
 var $elm$html$Html$datalist = _VirtualDom_node('datalist');
-var $elm$html$Html$form = _VirtualDom_node('form');
 var $elm$html$Html$label = _VirtualDom_node('label');
 var $elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
 var $elm$html$Html$option = _VirtualDom_node('option');
@@ -14635,9 +14635,6 @@ var $author$project$Main$periodOptionsView = F2(
 				periodOptions(periodUnit + 1)));
 	});
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
-var $author$project$Main$viewLineContent = function (line) {
-	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, line);
-};
 var $author$project$Main$habitFieldsView = F3(
 	function (fields, habits, maybeHabit) {
 		var tagOption = function (tag) {
@@ -14674,99 +14671,114 @@ var $author$project$Main$habitFieldsView = F3(
 					habits);
 			}
 		}();
-		var canBeBlocked = !$elm$core$List$isEmpty(filteredHabits);
 		return A2(
-			$elm$html$Html$form,
+			$elm$html$Html$div,
 			_List_Nil,
-			_Utils_ap(
-				_List_fromArray(
-					[
-						A3(
-						$author$project$Main$asLineContent,
-						$elm$html$Html$label,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text('I want to')
-							])),
-						A3(
-						$author$project$Main$asLineContent,
-						$elm$html$Html$input,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$placeholder('Do Something'),
-								$elm$html$Html$Attributes$value(fields.description),
-								$elm$html$Html$Events$onInput(
-								function (s) {
-									return $author$project$Main$ChangeFormField(
-										$author$project$Main$ChangeDescription(s));
-								})
-							]),
-						_List_Nil),
-						A3(
-						$author$project$Main$asLineContent,
-						$elm$html$Html$label,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text('every')
-							])),
-						A3(
-						$author$project$Main$asLineContent,
-						$elm$html$Html$input,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$placeholder('Period'),
-								$elm$html$Html$Attributes$value(fields.period),
-								$elm$html$Html$Attributes$list('period-list'),
-								$elm$html$Html$Events$onInput(
-								function (s) {
-									return $author$project$Main$ChangeFormField(
-										$author$project$Main$ChangePeriod(s));
-								})
-							]),
-						_List_Nil),
-						A3(
-						$author$project$Main$asLineContent,
-						$elm$html$Html$label,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Tag')
-							])),
-						A3(
-						$author$project$Main$asLineContent,
-						$elm$html$Html$input,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$placeholder('Todo'),
-								$elm$html$Html$Attributes$value(fields.tag),
-								$elm$html$Html$Attributes$list('tag-list'),
-								$elm$html$Html$Events$onInput(
-								function (s) {
-									return $author$project$Main$ChangeFormField(
-										$author$project$Main$ChangeTag(s));
-								})
-							]),
-						_List_Nil),
-						A2(
-						$elm$html$Html$datalist,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$id('tag-list')
-							]),
-						tagOptions),
-						A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
-					]),
-				canBeBlocked ? _List_Nil : _List_fromArray(
-					[
-						$author$project$Main$viewLineContent($author$project$Main$emptyDiv),
-						$author$project$Main$viewLineContent($author$project$Main$emptyDiv)
-					])));
+			_List_fromArray(
+				[
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('I want to')
+						])),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$placeholder('Do Something'),
+							$elm$html$Html$Attributes$value(fields.description),
+							$elm$html$Html$Events$onInput(
+							function (s) {
+								return $author$project$Main$ChangeFormField(
+									$author$project$Main$ChangeDescription(s));
+							})
+						]),
+					_List_Nil),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('every')
+						])),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$placeholder('Period'),
+							$elm$html$Html$Attributes$value(fields.period),
+							$elm$html$Html$Attributes$list('period-list'),
+							$elm$html$Html$Events$onInput(
+							function (s) {
+								return $author$project$Main$ChangeFormField(
+									$author$project$Main$ChangePeriod(s));
+							})
+						]),
+					_List_Nil),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('after')
+						])),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$button,
+					_List_fromArray(
+						[
+							$elm$html$Html$Events$onClick($author$project$Main$OpenHabitSelect)
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('last time')
+						])),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Tag')
+						])),
+					A3(
+					$author$project$Main$asLineContent,
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$placeholder('Todo'),
+							$elm$html$Html$Attributes$value(fields.tag),
+							$elm$html$Html$Attributes$list('tag-list'),
+							$elm$html$Html$Events$onInput(
+							function (s) {
+								return $author$project$Main$ChangeFormField(
+									$author$project$Main$ChangeTag(s));
+							})
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$datalist,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$id('tag-list')
+						]),
+					tagOptions),
+					A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
+				]));
 	});
 var $author$project$Main$pageLines = 20;
 var $author$project$Store$values = function (store) {
 	return $elm$core$Dict$values(store.items);
+};
+var $author$project$Main$viewLineContent = function (line) {
+	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, line);
 };
 var $author$project$Main$viewEditingPage = F2(
 	function (model, fields) {
@@ -15191,6 +15203,179 @@ var $author$project$Main$viewHabitsListPage = F2(
 					_List_Nil)
 				]));
 	});
+var $author$project$Main$DoSelectHabit = function (a) {
+	return {$: 'DoSelectHabit', a: a};
+};
+var $author$project$Main$viewHabitLine2 = F2(
+	function (model, habit) {
+		return A2(
+			$author$project$Main$viewLine,
+			$author$project$Main$emptyDiv,
+			A2(
+				$elm$html$Html$button,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('habit-button'),
+						$elm$html$Html$Events$onClick(
+						$author$project$Main$DoSelectHabit(
+							$elm$core$Maybe$Just(habit.id)))
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('habit-description')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(habit.description)
+							])),
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('habit-tag')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(habit.tag)
+							]))
+					])));
+	});
+var $author$project$Main$viewHabitSelect = F2(
+	function (model, pageNumber) {
+		var visible = A2(
+			$elm$core$List$take,
+			$author$project$Main$pageLines,
+			A2(
+				$elm$core$List$drop,
+				pageNumber * $author$project$Main$pageLines,
+				A2(
+					$elm$core$List$sortBy,
+					function ($) {
+						return $.description;
+					},
+					$author$project$Store$values(model.habits))));
+		var _v0 = model;
+		var time = _v0.time;
+		var options = _v0.options;
+		var habits = _v0.habits;
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			A2(
+				$elm$core$List$cons,
+				A2(
+					$author$project$Main$viewLine,
+					$author$project$Main$emptyDiv,
+					A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('habit-button'),
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$DoSelectHabit($elm$core$Maybe$Nothing))
+							]),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$span,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$class('habit-description')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('last time')
+									]))
+							]))),
+				_Utils_ap(
+					A2(
+						$elm$core$List$map,
+						$author$project$Main$viewHabitLine2(model),
+						visible),
+					A2(
+						$elm$core$List$cons,
+						A2(
+							$author$project$Main$viewLine,
+							A2(
+								$elm$html$Html$button,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$class('add-habit'),
+										$elm$html$Html$Events$onClick($author$project$Main$OpenHabitCreate)
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('+')
+									])),
+							A2(
+								$elm$html$Html$button,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$class('add-habit'),
+										$elm$html$Html$Events$onClick($author$project$Main$Cancel)
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Cancel')
+									]))),
+						A2(
+							$elm$core$List$map,
+							$author$project$Main$emptyLine,
+							A2(
+								$elm$core$List$range,
+								$elm$core$List$length(visible),
+								$author$project$Main$pageLines - 1))))));
+	});
+var $author$project$Main$viewHabitsSelectPage = F2(
+	function (model, habits) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('page')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('page-head')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('margin')
+								]),
+							_List_Nil),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('page-content')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Select Habit')
+								]))
+						])),
+					A2($author$project$Main$viewHabitSelect, model, habits.page),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('page-foot')
+						]),
+					_List_Nil)
+				]));
+	});
 var $author$project$Main$DoCreateHabit = {$: 'DoCreateHabit'};
 var $author$project$Main$viewNewPage = F2(
 	function (model, fields) {
@@ -15419,7 +15604,7 @@ var $author$project$Main$viewPage = F2(
 				return A2($author$project$Main$viewOptionsPage, model, optionsPage);
 			default:
 				var habitSelect = page.a;
-				return A2($elm$html$Html$div, _List_Nil, _List_Nil);
+				return A2($author$project$Main$viewHabitsSelectPage, model, habitSelect);
 		}
 	});
 var $author$project$Main$view = function (model) {
@@ -15470,4 +15655,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":[],"DoSelectHabit":["Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":[],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["Main.FormChangeMsg"],"Cancel":[]}},"Main.FormChangeMsg":{"args":[],"tags":{"ChangeDescription":["String.String"],"ChangeTag":["String.String"],"ChangePeriod":["String.String"],"ToggleBlocked":[],"ChangeBlocked":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":[],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":[],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["Main.FormChangeMsg"],"Cancel":[]}},"Main.FormChangeMsg":{"args":[],"tags":{"ChangeDescription":["String.String"],"ChangeTag":["String.String"],"ChangePeriod":["String.String"],"ToggleBlocked":[],"ChangeBlocked":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}}}}})}});}(this));

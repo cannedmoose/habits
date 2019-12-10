@@ -261,7 +261,7 @@ type Msg
     | DoEditHabit
       -- Habit Selection
     | OpenHabitSelect
-    | DoSelectHabit HabitId
+    | DoSelectHabit (Maybe HabitId)
       -- Habit Creation
     | OpenHabitCreate
     | DoCreateHabit
@@ -639,7 +639,7 @@ viewPage model page =
 
         -- TODO
         SelectHabit habitSelect ->
-            div [] []
+            viewHabitsSelectPage model habitSelect
 
 
 
@@ -850,53 +850,6 @@ periodOptionsView input for =
         (periodOptions periodUnit ++ periodOptions (periodUnit + 1))
 
 
-maybeToBool : Maybe a -> Bool
-maybeToBool m =
-    case m of
-        Nothing ->
-            False
-
-        Just _ ->
-            True
-
-
-onChange : (HabitId -> msg) -> Attribute msg
-onChange handler =
-    on "change" (changeDecoder handler)
-
-
-changeDecoder2 handler i =
-    JD.succeed (handler i)
-
-
-changeDecoder : (HabitId -> msg) -> JD.Decoder msg
-changeDecoder handler =
-    JD.at [ "target", "value" ] JD.string
-        |> JD.andThen (changeDecoder2 handler)
-
-
-habitSelectorOption : HabitId -> Habit -> Html Msg
-habitSelectorOption selectedHabit habit =
-    option
-        [ value habit.id
-        , Html.Attributes.selected (selectedHabit == habit.id)
-        ]
-        [ text habit.description ]
-
-
-habitSelector : List Habit -> Maybe HabitId -> (HabitId -> Msg) -> Html Msg
-habitSelector habits selected change =
-    select
-        [ onChange change, disabled (not (maybeToBool selected)) ]
-        (case selected of
-            Nothing ->
-                []
-
-            Just habitId ->
-                List.map (habitSelectorOption habitId) habits
-        )
-
-
 
 -- TODO FIX THIS
 
@@ -921,43 +874,116 @@ habitFieldsView fields habits maybeHabit =
 
                 Just habitId ->
                     List.filter (\h -> habitId /= h.id) habits
-
-        canBeBlocked =
-            not (List.isEmpty filteredHabits)
     in
-    Html.form
+    div
         []
-        ([ asLineContent label
+        [ asLineContent label
             []
             [ text "I want to" ]
-         , asLineContent input
+        , asLineContent input
             [ placeholder "Do Something", value fields.description, onInput (\s -> ChangeFormField (ChangeDescription s)) ]
             []
-         , asLineContent label
+        , asLineContent label
             []
             [ text "every" ]
-         , asLineContent input
+        , asLineContent input
             [ placeholder "Period", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
             []
-
-         -- TODO add blocked back in
-         , asLineContent label
+        , asLineContent label
+            []
+            [ text "after" ]
+        , asLineContent button
+            [ onClick OpenHabitSelect ]
+            [ text "last time" ]
+        , asLineContent label
             []
             [ text "Tag" ]
-         , asLineContent input
+        , asLineContent input
             [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
             []
-         , datalist
+        , datalist
             [ id "tag-list" ]
             tagOptions
-         , periodOptionsView fields.period "period-list"
-         ]
-            ++ (if canBeBlocked then
-                    []
+        , periodOptionsView fields.period "period-list"
+        ]
 
-                else
-                    [ viewLineContent emptyDiv, viewLineContent emptyDiv ]
+
+viewHabitsSelectPage : Model -> SelectHabitScreen -> Html Msg
+viewHabitsSelectPage model habits =
+    div
+        [ class "page" ]
+        [ div
+            [ class "page-head" ]
+            [ div
+                [ class "margin" ]
+                []
+            , div
+                [ class "page-content" ]
+                [ text "Select Habit" ]
+            ]
+        , viewHabitSelect model habits.page
+        , div [ class "page-foot" ] []
+        ]
+
+
+viewHabitSelect : Model -> Int -> Html Msg
+viewHabitSelect model pageNumber =
+    -- TODO handle multiple pages of habits
+    let
+        { time, options, habits } =
+            model
+
+        visible =
+            Store.values model.habits
+                |> List.sortBy .description
+                |> List.drop (pageNumber * pageLines)
+                |> List.take pageLines
+    in
+    div
+        []
+        (viewLine
+            emptyDiv
+            (button
+                [ class "habit-button"
+                , onClick (DoSelectHabit Nothing)
+                ]
+                [ span
+                    [ class "habit-description" ]
+                    [ text "last time" ]
+                ]
+            )
+            :: (List.map (viewHabitLine2 model) visible
+                    ++ viewLine
+                        (button
+                            [ class "add-habit", onClick OpenHabitCreate ]
+                            [ text "+" ]
+                        )
+                        (button
+                            [ class "add-habit", onClick Cancel ]
+                            [ text "Cancel" ]
+                        )
+                    :: (List.range (List.length visible) (pageLines - 1)
+                            |> List.map emptyLine
+                       )
                )
+        )
+
+
+viewHabitLine2 : Model -> Habit -> Html Msg
+viewHabitLine2 model habit =
+    viewLine
+        emptyDiv
+        (button
+            [ class "habit-button"
+            , onClick (DoSelectHabit (Just habit.id))
+            ]
+            [ span
+                [ class "habit-description" ]
+                [ text habit.description ]
+            , span
+                [ class "habit-tag" ]
+                [ text habit.tag ]
+            ]
         )
 
 
