@@ -3,6 +3,7 @@ port module Main exposing (..)
 import Animation
 import Animation.Messenger
 import Browser
+import Browser.Dom as Dom
 import Dict exposing (Dict)
 import Ease
 import Habit exposing (Habit, HabitId)
@@ -15,6 +16,7 @@ import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
 import Set exposing (..)
 import Store exposing (Store)
+import Task
 import Time exposing (Posix, posixToMillis)
 
 
@@ -24,7 +26,7 @@ type alias Anim =
 
 pageLines : Int
 pageLines =
-    20
+    18
 
 
 main : Program Flags Model Msg
@@ -53,8 +55,9 @@ init flags =
       , options = storage.options
       , screen = HabitList { page = 0 }
       , screenTransition = Nothing
+      , pageElement = Nothing
       }
-    , Cmd.none
+    , getPageElement
     )
 
 
@@ -79,6 +82,7 @@ type alias Model =
     , options : Options
     , screen : Screen
     , screenTransition : Maybe ScreenTransition
+    , pageElement : Maybe Dom.Element
     }
 
 
@@ -188,6 +192,12 @@ subscriptions model =
     Sub.batch [ timeSubscription model, animationSubscription model ]
 
 
+getPageElement : Cmd Msg
+getPageElement =
+    -- TODO need to handle viewport resize.
+    Task.attempt NewPageElement (Dom.getElement "habits-view")
+
+
 
 -- PORTS
 
@@ -229,6 +239,8 @@ type Msg
       -- Form Editing
     | ChangeFormField FormChangeMsg
     | Cancel
+    | NewPageElement (Result Dom.Error Dom.Element)
+    | ChangePage Int
 
 
 type FormChangeMsg
@@ -315,6 +327,7 @@ update msg model =
                 Just newScreen ->
                     ( { model
                         | screen = newScreen
+                        , screenTransition = Just (flipOn model)
                       }
                     , Cmd.none
                     )
@@ -334,7 +347,8 @@ update msg model =
                                             habit
                                     )
                         , screen = parent
-                        , screenTransition = Nothing
+                        , screenTransition =
+                            Just (slideOffbottom model)
                       }
                     , Cmd.none
                     )
@@ -372,6 +386,7 @@ update msg model =
                                     )
                                 |> Store.union model.habits
                         , screen = fields.parent
+                        , screenTransition = Just (flipOffRight model)
                       }
                     , Cmd.none
                     )
@@ -382,7 +397,8 @@ update msg model =
 
         OpenHabitSelect for habitId ->
             ( { model
-                | screen = SelectHabit { page = 0, selected = habitId, forHabit = for, parent = model.screen }
+                | screen = SelectHabit { page = 0, selected = habitId, forHabit = "last " ++ for, parent = model.screen }
+                , screenTransition = Just (flipOn model)
               }
             , Cmd.none
             )
@@ -401,6 +417,7 @@ update msg model =
 
                                 _ ->
                                     parent
+                        , screenTransition = Just (flipOffRight model)
                       }
                     , Cmd.none
                     )
@@ -410,7 +427,16 @@ update msg model =
 
         OpenHabitCreate ->
             ( { model
-                | screen = CreateHabit { description = "", tag = "", period = "", block = Nothing, parent = model.screen }
+                | screen =
+                    CreateHabit
+                        { description = ""
+                        , tag = ""
+                        , period = ""
+                        , block = Nothing
+                        , parent = model.screen
+                        }
+                , screenTransition =
+                    Just (slideFromTopTransition model)
               }
             , Cmd.none
             )
@@ -432,6 +458,7 @@ update msg model =
                     ( { model
                         | habits = Store.insert newHabit model.habits
                         , screen = fields.parent
+                        , screenTransition = Just (flipOffRight model)
                       }
                     , Cmd.none
                     )
@@ -442,8 +469,13 @@ update msg model =
 
         OpenEditOptions ->
             ( { model
-                | screen = EditOptions { upcoming = "", recent = "", parent = model.screen }
-                , screenTransition = Nothing
+                | screen =
+                    EditOptions
+                        { upcoming = Period.toString model.options.upcoming
+                        , recent = Period.toString model.options.recent
+                        , parent = model.screen
+                        }
+                , screenTransition = Just (flipOn model)
               }
             , Cmd.none
             )
@@ -461,7 +493,7 @@ update msg model =
                                 , upcoming = Period.parse fields.upcoming
                             }
                     in
-                    ( { model | options = updatedOptions, screen = fields.parent }
+                    ( { model | options = updatedOptions, screen = fields.parent, screenTransition = Just (flipOffRight model) }
                     , Cmd.none
                     )
                         |> storeModel
@@ -533,7 +565,53 @@ update msg model =
                         SelectHabit { parent } ->
                             parent
             in
-            ( { model | screen = prev }, Cmd.none )
+            ( { model
+                | screen = prev
+                , screenTransition = Just (flipOffLeft model)
+              }
+            , Cmd.none
+            )
+
+        NewPageElement (Ok el) ->
+            ( { model | pageElement = Just el }, Cmd.none )
+
+        NewPageElement _ ->
+            ( { model | pageElement = Nothing }, Cmd.none )
+
+        ChangePage page ->
+            case model.screen of
+                HabitList screen ->
+                    ( { model
+                        | screen = HabitList { screen | page = page }
+                        , screenTransition =
+                            Just
+                                (if page < screen.page then
+                                    flipOffLeft model
+
+                                 else
+                                    flipOn model
+                                )
+                      }
+                    , Cmd.none
+                    )
+
+                SelectHabit screen ->
+                    ( { model
+                        | screen = SelectHabit { screen | page = page }
+                        , screenTransition =
+                            Just
+                                (if page < screen.page then
+                                    flipOffLeft model
+
+                                 else
+                                    flipOn model
+                                )
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 habitOrderer : Model -> Habit -> Int
@@ -558,30 +636,49 @@ visibleHabits model =
 view : Model -> Html Msg
 view model =
     div
-        [ class "page-container" ]
-        -- TODO maybe view transition
+        [ class "page-container", id "habits-view" ]
         [ div
-            [ class "middle" ]
-            [ viewPage model model.screen ]
+            []
+            [ maybeViewTransition model ]
         ]
 
 
-viewPageTransition : Model -> ScreenTransition -> Html Msg
-viewPageTransition model (ScreenTransition transition) =
+maybeViewTransition : Model -> Html Msg
+maybeViewTransition model =
+    case model.screenTransition of
+        Nothing ->
+            viewScreen model model.screen
+
+        Just transition ->
+            viewScreenTransition model transition
+
+
+viewScreenTransition : Model -> ScreenTransition -> Html Msg
+viewScreenTransition model (ScreenTransition transition) =
     let
-        classes =
-            [ class "transition-page" ]
+        ( top, bottom ) =
+            case transition.direction of
+                TransitionIn ->
+                    ( model.screen, transition.previous )
+
+                TransitionOut ->
+                    ( transition.previous, model.screen )
     in
     div
-        (classes ++ Animation.render transition.style)
-        [ viewPage
-            model
-            transition.previous
+        []
+        [ div
+            [ class "static-page" ]
+            [ viewScreen model bottom ]
+        , div
+            (class "transition-page"
+                :: Animation.render transition.style
+            )
+            [ viewScreen model top ]
         ]
 
 
-viewPage : Model -> Screen -> Html Msg
-viewPage model page =
+viewScreen : Model -> Screen -> Html Msg
+viewScreen model page =
     case page of
         HabitList habitList ->
             viewHabitsListPage model habitList
@@ -595,9 +692,8 @@ viewPage model page =
         EditOptions optionsPage ->
             viewOptionsPage model optionsPage
 
-        -- TODO
         SelectHabit habitSelect ->
-            viewHabitsSelectPage model habitSelect
+            viewHabitSelectPage model habitSelect
 
 
 
@@ -605,80 +701,61 @@ viewPage model page =
 
 
 viewHabitsListPage : Model -> HabitListScreen -> Html Msg
-viewHabitsListPage model habits =
-    div
-        [ class "page" ]
-        [ div
-            [ class "page-head" ]
-            [ div
-                [ class "margin" ]
-                [ button
-                    [ class "add-habit", onClick OpenEditOptions ]
-                    [ text "-" ]
-                ]
-            ]
-        , viewHabits model habits.page
-        , div [ class "page-foot" ] []
-        ]
-
-
-viewHabits : Model -> Int -> Html Msg
-viewHabits model pageNumber =
-    -- TODO handle multiple pages of habits
+viewHabitsListPage model habitListScreen =
     let
+        pageConfig =
+            { showOptions = True
+            , title = "Today I will"
+            , footer =
+                ( button
+                    [ class "add-habit", onClick OpenHabitCreate ]
+                    [ text "+" ]
+                , emptyDiv
+                )
+            , nLines = pageLines
+            }
+
+        pageState =
+            { pageNumber = habitListScreen.page }
+
         { time, options, habits } =
             model
 
-        visible =
+        lines =
             visibleHabits model
                 |> Store.values
                 |> List.sortBy (habitOrderer model)
-                |> List.drop (pageNumber * pageLines)
-                |> List.take pageLines
+                |> List.map (habitViewLine model)
     in
-    div
-        []
-        (List.map (viewHabitLine model) visible
-            ++ viewLine
-                (button
-                    [ class "add-habit", onClick OpenHabitCreate ]
-                    [ text "+" ]
-                )
-                emptyDiv
-            :: (List.range (List.length visible) (pageLines - 1)
-                    |> List.map emptyLine
-               )
-        )
+    viewPage pageConfig pageState lines
 
 
-viewHabitLine : Model -> Habit -> Html Msg
-viewHabitLine model habit =
-    viewLine
-        (button
-            [ class "habit-edit"
-            , onClick (OpenHabitEdit habit.id)
-            ]
-            [ text "..." ]
-        )
-        (button
-            [ class "habit-button"
-            , class
-                (if shouldBeMarkedAsDone model habit then
-                    "habit-done"
+habitViewLine : Model -> Habit -> PageLine
+habitViewLine model habit =
+    ( button
+        [ class "habit-edit"
+        , onClick (OpenHabitEdit habit.id)
+        ]
+        [ text "..." ]
+    , button
+        [ class "habit-button"
+        , class
+            (if shouldBeMarkedAsDone model habit then
+                "habit-done"
 
-                 else
-                    "habit-todo"
-                )
-            , onClick (DoHabit habit.id)
-            ]
-            [ span
-                [ class "habit-description" ]
-                [ text habit.description ]
-            , span
-                [ class "habit-tag" ]
-                [ text habit.tag ]
-            ]
-        )
+             else
+                "habit-todo"
+            )
+        , onClick (DoHabit habit.id)
+        ]
+        [ span
+            [ class "habit-description" ]
+            [ text habit.description ]
+        , span
+            [ class "habit-tag" ]
+            [ text habit.tag ]
+        ]
+    )
 
 
 
@@ -686,26 +763,38 @@ viewHabitLine model habit =
 
 
 viewEditingPage : Model -> EditHabitScreen -> Html Msg
-viewEditingPage model fields =
-    div
-        [ class "page" ]
-        ([ div [ class "page-head" ] []
-         , habitFieldsView
-            fields
-            (Store.values model.habits)
-            (Just fields.habitId)
-         , viewLineContent
-            (div
-                [ class "button-line" ]
-                [ button [ onClick DoEditHabit ] [ text "Save" ]
-                , button [ onClick DoDeleteHabit ] [ text "Delete" ]
-                , button [ onClick Cancel ] [ text "Cancel" ]
-                ]
-            )
-         ]
-            ++ (List.range 8 (pageLines - 1) |> List.map emptyLine)
-            ++ [ div [ class "page-foot" ] [] ]
-        )
+viewEditingPage model screen =
+    let
+        title =
+            screen.description
+
+        pageConfig =
+            { showOptions = False
+            , title = "Edit " ++ title
+            , footer =
+                ( emptyDiv
+                , div
+                    [ class "button-line" ]
+                    [ button [ onClick DoEditHabit ] [ text "Save" ]
+                    , button [ onClick DoDeleteHabit ] [ text "Delete" ]
+                    , button [ onClick Cancel ] [ text "Cancel" ]
+                    ]
+                )
+            , nLines = pageLines
+            }
+
+        pageState =
+            { pageNumber = 0 }
+
+        lines =
+            editPagelines model screen
+    in
+    viewPage pageConfig pageState lines
+
+
+editPagelines : Model -> EditHabitScreen -> PageLines
+editPagelines model screen =
+    habitFieldsView screen (Store.values model.habits) (Just screen.habitId)
 
 
 
@@ -713,25 +802,93 @@ viewEditingPage model fields =
 
 
 viewNewPage : Model -> CreateHabitScreen -> Html Msg
-viewNewPage model fields =
-    div
-        [ class "page" ]
-        ([ div [ class "page-head" ] []
-         , habitFieldsView
-            fields
-            (Store.values model.habits)
-            Nothing
-         , viewLineContent
-            (div
-                [ class "button-line" ]
-                [ button [ onClick DoCreateHabit ] [ text "Save" ]
-                , button [ onClick Cancel ] [ text "Cancel" ]
-                ]
-            )
-         ]
-            ++ (List.range 8 (pageLines - 1) |> List.map emptyLine)
-            ++ [ div [ class "page-foot" ] [] ]
-        )
+viewNewPage model screen =
+    let
+        pageConfig =
+            { showOptions = False
+            , title = "new habit"
+            , footer =
+                ( emptyDiv
+                , div
+                    [ class "button-line" ]
+                    [ button [ onClick DoCreateHabit ] [ text "Create" ]
+                    , button [ onClick Cancel ] [ text "Cancel" ]
+                    ]
+                )
+            , nLines = pageLines
+            }
+
+        pageState =
+            { pageNumber = 0 }
+
+        lines =
+            createPagelines model screen
+    in
+    viewPage pageConfig pageState lines
+
+
+createPagelines : Model -> CreateHabitScreen -> PageLines
+createPagelines model screen =
+    habitFieldsView screen (Store.values model.habits) Nothing
+
+
+habitFieldsView :
+    HabitFields a
+    -> List Habit
+    -> Maybe HabitId
+    -> PageLines
+habitFieldsView fields habits maybeHabit =
+    let
+        tagOption tag =
+            option [ value tag ] [ text tag ]
+
+        tagOptions =
+            List.map .tag habits
+                |> Set.fromList
+                |> Set.toList
+                |> List.map tagOption
+
+        -- TODO this should only change on blur of description field
+        -- Should not be clickable if not filled out
+        blockText =
+            case fields.block of
+                Nothing ->
+                    "last did"
+
+                Just hid ->
+                    List.filter (\h -> h.id == hid) habits
+                        |> List.head
+                        |> Maybe.map .description
+                        |> Maybe.withDefault "last did"
+    in
+    [ ( emptyDiv, label [] [ text "I want to" ] )
+    , ( emptyDiv
+      , input
+            [ placeholder "Do Something", value fields.description, onInput (\s -> ChangeFormField (ChangeDescription s)) ]
+            []
+      )
+    , ( emptyDiv, label [] [ text "every" ] )
+    , ( periodOptionsView fields.period "period-list"
+      , input
+            -- TODO THIS SHOULD select entire thing when clicked.
+            [ placeholder "Day", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
+            []
+      )
+    , ( emptyDiv, label [] [ text "after I" ] )
+    , ( emptyDiv
+      , button
+            [ class "habit-button-select", onClick (OpenHabitSelect fields.description fields.block) ]
+            [ text blockText ]
+      )
+    , ( emptyDiv, label [] [ text "category" ] )
+    , ( datalist
+            [ id "tag-list" ]
+            tagOptions
+      , input
+            [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
+            []
+      )
+    ]
 
 
 
@@ -739,43 +896,41 @@ viewNewPage model fields =
 
 
 viewOptionsPage : Model -> EditOptionsScreen -> Html Msg
-viewOptionsPage model fields =
-    div
-        [ class "page" ]
-        ([ div [ class "page-head" ]
-            [ div
-                [ class "margin" ]
-                [ button
-                    [ class "add-habit", onClick OpenEditOptions ]
-                    [ text "-" ]
-                ]
+viewOptionsPage model screen =
+    let
+        pageConfig =
+            { showOptions = False
+            , title = "View Options"
+            , footer =
+                ( emptyDiv
+                , div
+                    [ class "button-line" ]
+                    [ button [ onClick DoSaveOptions ] [ text "Save" ]
+                    , button [ onClick Cancel ] [ text "Cancel" ]
+                    ]
+                )
+            , nLines = pageLines
+            }
+
+        pageState =
+            { pageNumber = 0 }
+
+        lines =
+            [ ( emptyDiv, label [] [ text "Show upcoming" ] )
+            , ( periodOptionsView screen.upcoming "upcoming-list"
+              , input
+                    [ value screen.upcoming, list "upcoming-list", onInput (\s -> ChangeFormField (ChangeOptionsUpcoming s)) ]
+                    []
+              )
+            , ( emptyDiv, label [] [ text "Show recently done" ] )
+            , ( periodOptionsView screen.recent "recent-list"
+              , input
+                    [ value screen.recent, list "recent-list", onInput (\s -> ChangeFormField (ChangeOptionsRecent s)) ]
+                    []
+              )
             ]
-         , viewLineContent (label [] [ text "Show upcoming" ])
-         , viewLineContent
-            (input
-                [ value fields.upcoming, list "upcoming-list", onInput (\s -> ChangeFormField (ChangeOptionsUpcoming s)) ]
-                []
-            )
-         , viewLineContent (label [] [ text "Show recently done" ])
-         , viewLineContent
-            (input
-                [ value fields.recent, list "recent-list", onInput (\s -> ChangeFormField (ChangeOptionsRecent s)) ]
-                []
-            )
-         , viewLineContent
-            (div
-                [ class "button-line" ]
-                [ button [ onClick DoSaveOptions ] [ text "Save" ]
-                , button [ onClick Cancel ] [ text "Cancel" ]
-                ]
-            )
-         ]
-            ++ (List.range 4 (pageLines - 1) |> List.map emptyLine)
-            ++ [ div [ class "page-foot" ] []
-               , periodOptionsView fields.upcoming "upcoming-list"
-               , periodOptionsView fields.recent "recent-list"
-               ]
-        )
+    in
+    viewPage pageConfig pageState lines
 
 
 
@@ -808,167 +963,51 @@ periodOptionsView input for =
         (periodOptions periodUnit ++ periodOptions (periodUnit + 1))
 
 
-
--- TODO FIX THIS
-
-
-habitFieldsView :
-    HabitFields a
-    -> List Habit
-    -> Maybe HabitId
-    -> Html Msg
-habitFieldsView fields habits maybeHabit =
+viewHabitSelectPage : Model -> SelectHabitScreen -> Html Msg
+viewHabitSelectPage model screen =
     let
-        tagOption tag =
-            option [ value tag ] [ text tag ]
+        pageConfig =
+            { showOptions = False
+            , title = screen.forHabit ++ " after"
+            , footer =
+                ( emptyDiv
+                , div
+                    [ class "button-line" ]
+                    [ button [ onClick Cancel ] [ text "Cancel" ]
+                    ]
+                )
+            , nLines = pageLines
+            }
 
-        tagOptions =
-            List.map .tag habits |> List.map tagOption
+        pageState =
+            { pageNumber = screen.page }
 
-        filteredHabits =
-            case maybeHabit of
-                Nothing ->
-                    habits
-
-                Just habitId ->
-                    List.filter (\h -> habitId /= h.id) habits
-
-        blockText =
-            case fields.block of
-                Nothing ->
-                    fields.description
-
-                Just hid ->
-                    List.filter (\h -> h.id == hid) habits
-                        |> List.head
-                        |> Maybe.map .description
-                        |> Maybe.withDefault fields.description
-    in
-    div
-        []
-        [ asLineContent label
-            []
-            [ text "I want to" ]
-        , asLineContent input
-            [ placeholder "Do Something", value fields.description, onInput (\s -> ChangeFormField (ChangeDescription s)) ]
-            []
-        , asLineContent label
-            []
-            [ text "every" ]
-        , asLineContent input
-            [ placeholder "Period", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
-            []
-        , asLineContent label
-            []
-            [ text "after I" ]
-        , asLineContent button
-            [ class "habit-button-select", onClick (OpenHabitSelect fields.description fields.block) ]
-            [ text blockText ]
-        , asLineContent label
-            []
-            [ text "Tag" ]
-        , asLineContent input
-            [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
-            []
-        , datalist
-            [ id "tag-list" ]
-            tagOptions
-        , periodOptionsView fields.period "period-list"
-        ]
-
-
-viewHabitsSelectPage : Model -> SelectHabitScreen -> Html Msg
-viewHabitsSelectPage model habits =
-    div
-        [ class "page" ]
-        [ div
-            [ class "page-head" ]
-            [ div
-                [ class "margin" ]
-                []
-            , div
-                [ class "page-content" ]
-                [ text ("Do " ++ habits.forHabit ++ " after") ]
-            ]
-        , viewHabitSelect model habits
-        , div [ class "page-foot" ] []
-        ]
-
-
-viewHabitSelect : Model -> SelectHabitScreen -> Html Msg
-viewHabitSelect model { page, forHabit, selected } =
-    -- TODO handle multiple pages of habits
-    let
         { time, options, habits } =
             model
 
-        visible =
+        lines =
             Store.values model.habits
                 |> List.sortBy .description
-                |> List.drop (page * pageLines)
-                |> List.take pageLines
+                |> List.map (habitSelectLine model)
     in
-    div
-        []
-        (viewLine
-            (Maybe.map (\_ -> emptyDiv) selected |> Maybe.withDefault (div [] [ text "-" ]))
-            (button
-                [ class "habit-button-select"
-                , onClick (DoSelectHabit Nothing)
-                ]
-                [ span
-                    [ class "habit-description" ]
-                    [ text forHabit ]
-                ]
-            )
-            :: (List.map (viewHabitLine2 model selected) visible
-                    ++ viewLine
-                        emptyDiv
-                        (button
-                            [ class "button-line-select", onClick Cancel ]
-                            [ text "Cancel" ]
-                        )
-                    :: (List.range (List.length visible) (pageLines - 1)
-                            |> List.map emptyLine
-                       )
-               )
-        )
+    viewPage pageConfig pageState lines
 
 
-getSelectMargin selected habit =
-    div
-        []
-        [ text
-            (Maybe.map
-                (\hid ->
-                    if hid == habit.id then
-                        "-"
-
-                    else
-                        ""
-                )
-                selected
-                |> Maybe.withDefault ""
-            )
+habitSelectLine : Model -> Habit -> PageLine
+habitSelectLine model habit =
+    ( emptyDiv
+    , button
+        [ class "habit-button"
+        , onClick (DoSelectHabit (Just habit.id))
         ]
-
-
-viewHabitLine2 : Model -> Maybe HabitId -> Habit -> Html Msg
-viewHabitLine2 model selected habit =
-    viewLine
-        (getSelectMargin selected habit)
-        (button
-            [ class "habit-button-select"
-            , onClick (DoSelectHabit (Just habit.id))
-            ]
-            [ span
-                [ class "habit-description" ]
-                [ text habit.description ]
-            , span
-                [ class "habit-tag" ]
-                [ text habit.tag ]
-            ]
-        )
+        [ span
+            [ class "habit-description" ]
+            [ text habit.description ]
+        , span
+            [ class "habit-tag" ]
+            [ text habit.tag ]
+        ]
+    )
 
 
 
@@ -977,34 +1016,6 @@ viewHabitLine2 model selected habit =
 
 emptyDiv =
     div [] []
-
-
-viewLine : Html Msg -> Html Msg -> Html Msg
-viewLine margin line =
-    div
-        [ class "page-line" ]
-        [ div
-            [ class "margin" ]
-            [ margin ]
-        , div
-            [ class "line-content" ]
-            [ line ]
-        ]
-
-
-viewLineContent : Html Msg -> Html Msg
-viewLineContent line =
-    viewLine emptyDiv line
-
-
-asLineContent : (b -> c -> Html Msg) -> b -> c -> Html Msg
-asLineContent el attribs children =
-    viewLine emptyDiv (el attribs children)
-
-
-emptyLine : a -> Html Msg
-emptyLine a =
-    viewLine emptyDiv emptyDiv
 
 
 
@@ -1059,12 +1070,6 @@ defaultStorageModel =
     StorageModel defaultOptions (Store.empty Store.RandomId) 0
 
 
-habitDictFromList : List Habit -> Dict HabitId Habit
-habitDictFromList habits =
-    List.map (\h -> ( h.id, h )) habits
-        |> Dict.fromList
-
-
 storageDecoder : JD.Decoder StorageModel
 storageDecoder =
     JD.map3 StorageModel
@@ -1098,153 +1103,338 @@ optionsEncoder options =
 
 
 
--- VIEW Page
--- TODO maybe save this for later
--- work on storage first...
--- or how to model current page and a page stack...
+-- Page view helpers
+
+
+type alias PageConfig =
+    { showOptions : Bool
+    , title : String
+    , footer : PageLine
+    , nLines : Int
+    }
+
+
+type alias PageState =
+    { pageNumber : Int
+    }
+
+
+type alias PageLine =
+    ( Html Msg, Html Msg )
+
+
+type alias PageLines =
+    List PageLine
+
+
+cullPageLines : PageConfig -> PageState -> PageLines -> PageLines
+cullPageLines { nLines } { pageNumber } lines =
+    lines
+        |> List.drop (pageNumber * nLines)
+        |> List.take nLines
+
+
+viewPageLine : PageLine -> Html Msg
+viewPageLine ( margin, content ) =
+    div
+        [ class "page-line" ]
+        [ div
+            [ class "margin" ]
+            [ margin ]
+        , div
+            [ class "line-content" ]
+            [ content ]
+        ]
+
+
+viewEmptyLine : Html Msg
+viewEmptyLine =
+    div
+        [ class "page-line" ]
+        [ div
+            [ class "margin" ]
+            [ emptyDiv ]
+        , div
+            [ class "line-content" ]
+            [ emptyDiv ]
+        ]
+
+
+viewPageLines : PageLines -> PageLine -> Html Msg
+viewPageLines lines footer =
+    div
+        [ class "page-lines" ]
+        (List.map viewPageLine
+            (lines
+                ++ [ footer ]
+            )
+        )
+
+
+viewPageFooter : PageConfig -> PageState -> PageLines -> Html Msg
+viewPageFooter { nLines } { pageNumber } lines =
+    -- TODO hook these up to next/prev pages
+    div
+        [ class "page-foot" ]
+        [ div
+            [ class "margin" ]
+            (if pageNumber > 0 then
+                [ button
+                    [ class "add-habit", onClick (ChangePage (pageNumber - 1)) ]
+                    [ text "<" ]
+                ]
+
+             else
+                []
+            )
+        , div
+            [ class "line-content" ]
+            (if List.length lines > nLines then
+                [ button
+                    [ class "add-habit", onClick (ChangePage (pageNumber + 1)) ]
+                    [ text ">" ]
+                ]
+
+             else
+                []
+            )
+        ]
+
+
+viewPage : PageConfig -> PageState -> PageLines -> Html Msg
+viewPage config state lines =
+    let
+        culledLines =
+            cullPageLines config state lines
+
+        nEmptyLines =
+            config.nLines - List.length culledLines
+    in
+    div
+        [ class "page" ]
+        [ div
+            [ class "page-head" ]
+            [ div
+                [ class "margin" ]
+                (if config.showOptions then
+                    [ button
+                        [ class "add-habit", onClick OpenEditOptions ]
+                        [ text "-" ]
+                    ]
+
+                 else
+                    []
+                )
+            , div
+                [ class "line-content" ]
+                [ text config.title ]
+            ]
+        , viewPageLines (cullPageLines config state lines) config.footer
+        , div
+            []
+            (List.range 1 nEmptyLines |> List.map (\i -> viewEmptyLine))
+        , viewPageFooter config state lines
+        ]
+
+
+
+-- Transition helpers
 {-
-
-   type alias PageConfig =
-       { showOptions : Bool
-       , title : String
-       , footer : PageLine
-       , nLines : Int
-       }
-
-
-   type alias PageState =
-       { pageNumber : Int
-       }
-
-
-   type alias PageLine =
-       ( Html Msg, Html Msg )
-
-
-   type alias PageLines =
-       List PageLine
-
-
-   cullPageLines : PageConfig -> PageState -> PageLines -> PageLines
-   cullPageLines { nLines } { pageNumber } lines =
-       lines
-           |> List.drop (pageNumber * nLines)
-           |> List.take nLines
-
-
-   viewPageLine : PageLine -> Html Msg
-   viewPageLine ( margin, content ) =
-       div
-           [ class "page-line" ]
-           [ div
-               [ class "margin" ]
-               [ margin ]
-           , div
-               [ class "line-content" ]
-               [ content ]
-           ]
-
-
-   viewPageLines : PageLines -> PageLine -> Html Msg
-   viewPageLines lines footer =
-       div
-           [ class "page-lines" ]
-           (List.map viewPageLine
-               (lines
-                   ++ [ footer ]
-               )
-           )
-
-
-   viewPageFooter : PageConfig -> PageState -> PageLines -> Html Msg
-   viewPageFooter { nLines } { pageNumber } lines =
-       -- TODO hook these up to next/prev pages
-       div
-           [ class "page-foot" ]
-           [ div
-               [ class "margin" ]
-               (if pageNumber > 0 then
-                   [ button
-                       [ class "add-habit", onClick OpenOptionsPage ]
-                       [ text "<" ]
-                   ]
-
-                else
-                   []
-               )
-           , div
-               [ class "line-content" ]
-               (if List.length lines > nLines then
-                   [ button
-                       [ class "add-habit", onClick OpenOptionsPage ]
-                       [ text ">" ]
-                   ]
-
-                else
-                   []
-               )
-           ]
-
-
-
-   -- Page config is static (in view)
-   -- Page state is from the model
-   -- PageLines is generated from model
-   -- TODO make habit page etc in this new form...
-
-
-   viewPage123 : PageConfig -> PageState -> PageLines -> Html Msg
-   viewPage123 config state lines =
-       div
-           [ class "page" ]
-           [ div
-               [ class "page-head" ]
-               [ div
-                   [ class "margin" ]
-                   (if config.showOptions then
-                       [ button
-                           [ class "add-habit", onClick OpenOptionsPage ]
-                           [ text "-" ]
-                       ]
-
-                    else
-                       []
-                   )
-               , div
-                   [ class "line-content" ]
-                   [ text config.title ]
-               ]
-           , viewPageLines (cullPageLines config state lines) config.footer
-           , div [ class "page-foot" ] []
-           ]
+   For accuracy store viewport dimensions (need to sub to task)
+   Also find page container dimensions for the flip through
+   can use animation.set for zindex.
 -}
--- Transitions
+
+
+slideFromTopTransition : Model -> ScreenTransition
+slideFromTopTransition { screen, pageElement } =
+    let
+        bottom =
+            case pageElement of
+                Nothing ->
+                    0
+
+                Just el ->
+                    el.element.y + el.element.height
+    in
+    ScreenTransition
+        { previous = screen
+        , direction = TransitionIn
+        , style =
+            Animation.interrupt
+                [ Animation.to [ Animation.bottom (Animation.px 0) ]
+                , Animation.Messenger.send ClearTransition
+                ]
+                (Animation.style
+                    [ Animation.bottom (Animation.px bottom)
+                    ]
+                )
+        }
+
+
+slideOffbottom : Model -> ScreenTransition
+slideOffbottom { screen, pageElement } =
+    -- TODO need to fix overflow
+    -- Our visible area should be (100 vw) * page height + margins.
+    let
+        top =
+            case pageElement of
+                Nothing ->
+                    0
+
+                Just el ->
+                    el.viewport.height + (el.element.y * 2)
+    in
+    ScreenTransition
+        { previous = screen
+        , direction = TransitionOut
+        , style =
+            Animation.interrupt
+                [ Animation.to [ Animation.top (Animation.px top) ]
+                , Animation.Messenger.send ClearTransition
+                ]
+                (Animation.style
+                    [ Animation.top (Animation.px 0)
+                    ]
+                )
+        }
+
+
+flipOffRight : Model -> ScreenTransition
+flipOffRight { screen, pageElement } =
+    -- TODO need to fix overflow
+    -- Our visible area should be (100 vw) * page height + margins.
+    let
+        left =
+            case pageElement of
+                Nothing ->
+                    0
+
+                Just el ->
+                    el.element.width
+    in
+    ScreenTransition
+        { previous = screen
+        , direction = TransitionOut
+        , style =
+            Animation.interrupt
+                [ Animation.to [ Animation.left (Animation.px left) ]
+                , Animation.set [ Animation.exactly "z-index" "1" ]
+                , Animation.to [ Animation.left (Animation.px 0) ]
+                , Animation.Messenger.send ClearTransition
+                ]
+                (Animation.style
+                    [ Animation.top (Animation.px 0)
+                    , Animation.left (Animation.px 0)
+                    , Animation.exactly "z-index" "2"
+                    ]
+                )
+        }
+
+
+flipOffLeft : Model -> ScreenTransition
+flipOffLeft { screen, pageElement } =
+    -- TODO need to fix overflow
+    -- Our visible area should be (100 vw) * page height + margins.
+    let
+        right =
+            case pageElement of
+                Nothing ->
+                    0
+
+                Just el ->
+                    el.element.width
+    in
+    ScreenTransition
+        { previous = screen
+        , direction = TransitionOut
+        , style =
+            Animation.interrupt
+                [ Animation.to [ Animation.right (Animation.px right) ]
+                , Animation.set [ Animation.exactly "z-index" "1" ]
+                , Animation.to [ Animation.right (Animation.px 0) ]
+                , Animation.Messenger.send ClearTransition
+                ]
+                (Animation.style
+                    [ Animation.top (Animation.px 0)
+                    , Animation.right (Animation.px 0)
+                    , Animation.exactly "z-index" "2"
+                    ]
+                )
+        }
+
+
+flipOn : Model -> ScreenTransition
+flipOn { screen, pageElement } =
+    let
+        right =
+            case pageElement of
+                Nothing ->
+                    0
+
+                Just el ->
+                    el.element.width
+    in
+    ScreenTransition
+        { previous = screen
+        , direction = TransitionIn
+        , style =
+            Animation.interrupt
+                [ Animation.to [ Animation.right (Animation.px right) ]
+                , Animation.set [ Animation.exactly "z-index" "2" ]
+                , Animation.to [ Animation.right (Animation.px 0) ]
+                , Animation.Messenger.send ClearTransition
+                ]
+                (Animation.style
+                    [ Animation.top (Animation.px 0)
+                    , Animation.right (Animation.px 0)
+                    , Animation.exactly "z-index" "1"
+                    ]
+                )
+        }
+
+
+
 {-
-   initalPageTransitionStyle =
-       Animation.styleWith
-           (Animation.easing
-               { duration = 750
-               , ease = Ease.inOutQuart
-               }
-           )
-           [ Animation.right (Animation.px 0) ]
+         Type of transitions
+
+      slideFromTop (old one static, new one slide in)
+           New Habit
+      slideOffbottom (old one slide out, new one static)
+           Delete habit
+      flipOffRight (old one slide off - need z index, new one static)
+           Prev Page Page, save (all of them), Select habit
+      flipOffLeft (old one slide off - need z index, new one static)
+           Cancel (all of them)
+      flipOn (old one static, new one slide in - need z index)
+           Next Page
+
+   -- Transitions
+      initalPageTransitionStyle =
+          Animation.styleWith
+              (Animation.easing
+                  { duration = 750
+                  , ease = Ease.inOutQuart
+                  }
+              )
+              [ Animation.right (Animation.px 0) ]
 
 
-   pageTransitionStyle model =
-       Animation.interrupt
-           [ Animation.to [ Animation.right (Animation.px -510) ]
-           , Animation.Messenger.send (SwapPages (Store.getNextId model.pageTransitions))
-           , Animation.to [ Animation.right (Animation.px 0) ]
-           , Animation.Messenger.send (ClearTransition (Store.getNextId model.pageTransitions))
-           ]
+      pageTransitionStyle model =
+          Animation.interrupt
+              [ Animation.to [ Animation.right (Animation.px -510) ]
+              , Animation.Messenger.send (SwapPages (Store.getNextId model.pageTransitions))
+              , Animation.to [ Animation.right (Animation.px 0) ]
+              , Animation.Messenger.send (ClearTransition (Store.getNextId model.pageTransitions))
+              ]
 
 
-   openPageTransition : Model -> PageTransition
-   openPageTransition model =
-       Transition
-           { previous = { model | pageTransitions = Store.empty Store.IncrementalId }
-           , style = pageTransitionStyle model initalPageTransitionStyle
-           , above = True
-           }
+      openPageTransition : Model -> PageTransition
+      openPageTransition model =
+          Transition
+              { previous = { model | pageTransitions = Store.empty Store.IncrementalId }
+              , style = pageTransitionStyle model initalPageTransitionStyle
+              , above = True
+              }
 
 -}

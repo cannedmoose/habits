@@ -173,6 +173,7 @@ html {
 
 .line-content > label {
   margin-left: 8px;
+  font-size: 0.8em;
 }
 
 .line-content input:placeholder-shown {
@@ -287,15 +288,11 @@ body {
   position: relative;
 }
 
-.middle {
+.static-page {
   z-index: 2;
   position: relative;
 }
 
-.above {
-  z-index: 3;
-}
-
-.below {
-  z-index: 1;
+.transition-page {
+  z-index: 2;
 }

@@ -10691,6 +10691,33 @@ var $author$project$Main$defaultStorageModel = A3(
 	$author$project$Main$defaultOptions,
 	$author$project$Store$empty($author$project$Store$RandomId),
 	0);
+var $author$project$Main$NewPageElement = function (a) {
+	return {$: 'NewPageElement', a: a};
+};
+var $elm$core$Task$onError = _Scheduler_onError;
+var $elm$core$Task$attempt = F2(
+	function (resultToMessage, task) {
+		return $elm$core$Task$command(
+			$elm$core$Task$Perform(
+				A2(
+					$elm$core$Task$onError,
+					A2(
+						$elm$core$Basics$composeL,
+						A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+						$elm$core$Result$Err),
+					A2(
+						$elm$core$Task$andThen,
+						A2(
+							$elm$core$Basics$composeL,
+							A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+							$elm$core$Result$Ok),
+						task))));
+	});
+var $elm$browser$Browser$Dom$getElement = _Browser_getElement;
+var $author$project$Main$getPageElement = A2(
+	$elm$core$Task$attempt,
+	$author$project$Main$NewPageElement,
+	$elm$browser$Browser$Dom$getElement('habits-view'));
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
@@ -11364,12 +11391,13 @@ var $author$project$Main$init = function (flags) {
 		{
 			habits: storage.habits,
 			options: storage.options,
+			pageElement: $elm$core$Maybe$Nothing,
 			screen: $author$project$Main$HabitList(
 				{page: 0}),
 			screenTransition: $elm$core$Maybe$Nothing,
 			time: time
 		},
-		$elm$core$Platform$Cmd$none);
+		$author$project$Main$getPageElement);
 };
 var $author$project$Main$AnimateScreen = function (a) {
 	return {$: 'AnimateScreen', a: a};
@@ -11910,267 +11938,15 @@ var $author$project$Store$filterValues = F2(
 					store.items)
 			});
 	});
-var $author$project$Store$nextId = function (store) {
-	return _Utils_Tuple2(
-		$elm$core$String$fromInt(store.state + 1),
-		store.state + 1);
-};
-var $author$project$Store$getNextId = function (store) {
-	return $author$project$Store$nextId(store).a;
-};
-var $author$project$Store$insert = F2(
-	function (value, store) {
-		var _v0 = $author$project$Store$nextId(store);
-		var newId = _v0.a;
-		var newState = _v0.b;
-		var newItems = A3($elm$core$Dict$insert, newId, value, store.items);
-		return _Utils_update(
-			store,
-			{items: newItems, state: newState});
+var $author$project$Main$ClearTransition = {$: 'ClearTransition'};
+var $author$project$Main$TransitionOut = {$: 'TransitionOut'};
+var $mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
+	function (a, b) {
+		return {$: 'ExactProperty', a: a, b: b};
 	});
-var $author$project$Habit$isBlocker = F2(
-	function (habitId, habit) {
-		var _v0 = habit.block;
-		if (_v0.$ === 'Blocker') {
-			var otherId = _v0.a;
-			return _Utils_eq(habitId, otherId);
-		} else {
-			return false;
-		}
-	});
-var $author$project$Store$map = F2(
-	function (fn, store) {
-		return A3(
-			$author$project$Store$Store,
-			A2($elm$core$Dict$map, fn, store.items),
-			store.state,
-			store.idGenerator);
-	});
-var $author$project$Store$mapValues = F2(
-	function (fn, store) {
-		return A2(
-			$author$project$Store$map,
-			F2(
-				function (i, v) {
-					return fn(v);
-				}),
-			store);
-	});
-var $author$project$Habit$newHabit = F6(
-	function (time, desc, tag, id, period, block) {
-		return A8(
-			$author$project$Habit$Habit,
-			desc,
-			tag,
-			id,
-			period,
-			$elm$core$Maybe$Nothing,
-			time,
-			0,
-			function () {
-				if (block.$ === 'Nothing') {
-					return $author$project$Habit$Unblocked;
-				} else {
-					var hid = block.a;
-					return A2($author$project$Habit$Blocker, hid, false);
-				}
-			}());
-	});
-var $author$project$Habit$blockJE = function (block) {
-	return $elm$json$Json$Encode$object(
-		function () {
-			if (block.$ === 'Unblocked') {
-				return _List_fromArray(
-					[
-						_Utils_Tuple2(
-						'status',
-						$elm$json$Json$Encode$string('Unblocked'))
-					]);
-			} else {
-				if (block.b) {
-					var habit = block.a;
-					return _List_fromArray(
-						[
-							_Utils_Tuple2(
-							'status',
-							$elm$json$Json$Encode$string('Blocked')),
-							_Utils_Tuple2(
-							'id',
-							$elm$json$Json$Encode$string(habit))
-						]);
-				} else {
-					var habit = block.a;
-					return _List_fromArray(
-						[
-							_Utils_Tuple2(
-							'status',
-							$elm$json$Json$Encode$string('UnblockedBy')),
-							_Utils_Tuple2(
-							'id',
-							$elm$json$Json$Encode$string(habit))
-						]);
-				}
-			}
-		}());
-};
-var $author$project$Period$encode = function (period) {
-	return $elm$json$Json$Encode$string(
-		$author$project$Period$toString(period));
-};
-var $elm$json$Json$Encode$int = _Json_wrap;
-var $author$project$Habit$posixJE = function (time) {
-	return $elm$json$Json$Encode$int(
-		$elm$time$Time$posixToMillis(time));
-};
-var $author$project$Habit$encode = function (habit) {
-	return $elm$json$Json$Encode$object(
-		_Utils_ap(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'description',
-					$elm$json$Json$Encode$string(habit.description)),
-					_Utils_Tuple2(
-					'tag',
-					$elm$json$Json$Encode$string(habit.tag)),
-					_Utils_Tuple2(
-					'id',
-					$elm$json$Json$Encode$string(habit.id)),
-					_Utils_Tuple2(
-					'period',
-					$author$project$Period$encode(habit.period)),
-					_Utils_Tuple2(
-					'nextDue',
-					$author$project$Habit$posixJE(habit.nextDue)),
-					_Utils_Tuple2(
-					'doneCount',
-					$elm$json$Json$Encode$int(habit.doneCount)),
-					_Utils_Tuple2(
-					'block',
-					$author$project$Habit$blockJE(habit.block))
-				]),
-			function () {
-				var _v0 = habit.lastDone;
-				if (_v0.$ === 'Nothing') {
-					return _List_Nil;
-				} else {
-					var l = _v0.a;
-					return _List_fromArray(
-						[
-							_Utils_Tuple2(
-							'lastDone',
-							$author$project$Habit$posixJE(l))
-						]);
-				}
-			}()));
-};
-var $elm$json$Json$Encode$dict = F3(
-	function (toKey, toValue, dictionary) {
-		return _Json_wrap(
-			A3(
-				$elm$core$Dict$foldl,
-				F3(
-					function (key, value, obj) {
-						return A3(
-							_Json_addField,
-							toKey(key),
-							toValue(value),
-							obj);
-					}),
-				_Json_emptyObject(_Utils_Tuple0),
-				dictionary));
-	});
-var $author$project$Store$encode = F2(
-	function (valueEncode, store) {
-		return $elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'state',
-					$elm$json$Json$Encode$int(store.state)),
-					_Utils_Tuple2(
-					'items',
-					A3($elm$json$Json$Encode$dict, $elm$core$Basics$identity, valueEncode, store.items)),
-					_Utils_Tuple2(
-					'idGenerator',
-					$elm$json$Json$Encode$string(
-						function () {
-							var _v0 = store.idGenerator;
-							if (_v0.$ === 'RandomId') {
-								return 'random';
-							} else {
-								return 'incremental';
-							}
-						}()))
-				]));
-	});
-var $author$project$Main$optionsEncoder = function (options) {
-	return $elm$json$Json$Encode$object(
-		_List_fromArray(
-			[
-				_Utils_Tuple2(
-				'recent',
-				$author$project$Period$encode(options.recent)),
-				_Utils_Tuple2(
-				'upcoming',
-				$author$project$Period$encode(options.upcoming))
-			]));
-};
-var $author$project$Main$storageEncoder = function (model) {
-	return $elm$json$Json$Encode$object(
-		_List_fromArray(
-			[
-				_Utils_Tuple2(
-				'options',
-				$author$project$Main$optionsEncoder(model.options)),
-				_Utils_Tuple2(
-				'habits',
-				A2($author$project$Store$encode, $author$project$Habit$encode, model.habits)),
-				_Utils_Tuple2(
-				'version',
-				$elm$json$Json$Encode$int(0))
-			]));
-};
-var $author$project$Main$store = _Platform_outgoingPort('store', $elm$core$Basics$identity);
-var $author$project$Main$storeModel = function (_v0) {
-	var model = _v0.a;
-	var cmd = _v0.b;
-	return _Utils_Tuple2(
-		model,
-		$elm$core$Platform$Cmd$batch(
-			_List_fromArray(
-				[
-					cmd,
-					$author$project$Main$store(
-					$author$project$Main$storageEncoder(model))
-				])));
-};
-var $author$project$Habit$unblock = F2(
-	function (time, habit) {
-		var _v0 = habit.block;
-		if ((_v0.$ === 'Blocker') && _v0.b) {
-			var hid = _v0.a;
-			return _Utils_update(
-				habit,
-				{
-					block: A2($author$project$Habit$Blocker, hid, false),
-					nextDue: A2($author$project$Period$addToPosix, habit.period, time)
-				});
-		} else {
-			return habit;
-		}
-	});
-var $elm$core$Dict$union = F2(
-	function (t1, t2) {
-		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
-	});
-var $author$project$Store$union = F2(
-	function (s2, s1) {
-		return _Utils_update(
-			s1,
-			{
-				items: A2($elm$core$Dict$union, s1.items, s2.items)
-			});
+var $mdgriffith$elm_style_animation$Animation$exactly = F2(
+	function (name, value) {
+		return A2($mdgriffith$elm_style_animation$Animation$Model$ExactProperty, name, value);
 	});
 var $mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
 	return {$: 'Animation', a: a};
@@ -12184,6 +11960,193 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
+var $mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
+	var _v0 = $elm$core$List$head(steps);
+	if (_v0.$ === 'Nothing') {
+		return _Utils_Tuple2(
+			$elm$time$Time$millisToPosix(0),
+			_List_Nil);
+	} else {
+		var step = _v0.a;
+		if (step.$ === 'Wait') {
+			var till = step.a;
+			var _v2 = $mdgriffith$elm_style_animation$Animation$extractInitialWait(
+				A2($elm$core$List$drop, 1, steps));
+			var additionalTime = _v2.a;
+			var remainingSteps = _v2.b;
+			return _Utils_Tuple2(
+				$elm$time$Time$millisToPosix(
+					$elm$time$Time$posixToMillis(till) + $elm$time$Time$posixToMillis(additionalTime)),
+				remainingSteps);
+		} else {
+			return _Utils_Tuple2(
+				$elm$time$Time$millisToPosix(0),
+				steps);
+		}
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$interrupt = F2(
+	function (steps, _v0) {
+		var model = _v0.a;
+		return $mdgriffith$elm_style_animation$Animation$Model$Animation(
+			_Utils_update(
+				model,
+				{
+					interruption: A2(
+						$elm$core$List$cons,
+						$mdgriffith$elm_style_animation$Animation$extractInitialWait(steps),
+						model.interruption),
+					running: true
+				}));
+	});
+var $mdgriffith$elm_style_animation$Animation$Length = F2(
+	function (a, b) {
+		return {$: 'Length', a: a, b: b};
+	});
+var $mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
+var $mdgriffith$elm_style_animation$Animation$px = function (myPx) {
+	return A2($mdgriffith$elm_style_animation$Animation$Length, myPx, $mdgriffith$elm_style_animation$Animation$Px);
+};
+var $mdgriffith$elm_style_animation$Animation$Model$Property = F2(
+	function (a, b) {
+		return {$: 'Property', a: a, b: b};
+	});
+var $mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
+	return {$: 'Spring', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$initMotion = F2(
+	function (position, unit) {
+		return {
+			interpolation: $mdgriffith$elm_style_animation$Animation$Model$Spring(
+				{damping: 26, stiffness: 170}),
+			interpolationOverride: $elm$core$Maybe$Nothing,
+			position: position,
+			target: position,
+			unit: unit,
+			velocity: 0
+		};
+	});
+var $mdgriffith$elm_style_animation$Animation$length = F3(
+	function (name, val, unit) {
+		return A2(
+			$mdgriffith$elm_style_animation$Animation$Model$Property,
+			name,
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
+	});
+var $mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
+	switch (unit.$) {
+		case 'NoUnit':
+			return '';
+		case 'Px':
+			return 'px';
+		case 'Percent':
+			return '%';
+		case 'Rem':
+			return 'rem';
+		case 'Em':
+			return 'em';
+		case 'Ex':
+			return 'ex';
+		case 'Ch':
+			return 'ch';
+		case 'Vh':
+			return 'vh';
+		case 'Vw':
+			return 'vw';
+		case 'Vmin':
+			return 'vmin';
+		case 'Vmax':
+			return 'vmax';
+		case 'Mm':
+			return 'mm';
+		case 'Cm':
+			return 'cm';
+		case 'In':
+			return 'in';
+		case 'Pt':
+			return 'pt';
+		default:
+			return 'pc';
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$right = function (_v0) {
+	var val = _v0.a;
+	var len = _v0.b;
+	return A3(
+		$mdgriffith$elm_style_animation$Animation$length,
+		'right',
+		val,
+		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
+	return {$: 'Send', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
+	return $mdgriffith$elm_style_animation$Animation$Model$Send(msg);
+};
+var $mdgriffith$elm_style_animation$Animation$Model$Set = function (a) {
+	return {$: 'Set', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$set = function (props) {
+	return $mdgriffith$elm_style_animation$Animation$Model$Set(props);
+};
+var $mdgriffith$elm_style_animation$Animation$initialState = function (current) {
+	return $mdgriffith$elm_style_animation$Animation$Model$Animation(
+		{
+			interruption: _List_Nil,
+			running: false,
+			steps: _List_Nil,
+			style: current,
+			timing: {
+				current: $elm$time$Time$millisToPosix(0),
+				dt: $elm$time$Time$millisToPosix(0)
+			}
+		});
+};
+var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
+	return {$: 'Easing', a: a};
+};
+var $elm$core$Basics$pi = _Basics_pi;
+var $mdgriffith$elm_style_animation$Animation$Model$AtSpeed = function (a) {
+	return {$: 'AtSpeed', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$speed = function (speedValue) {
+	return $mdgriffith$elm_style_animation$Animation$Model$AtSpeed(speedValue);
+};
+var $mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty = function (prop) {
+	var linear = function (duration) {
+		return $mdgriffith$elm_style_animation$Animation$Model$Easing(
+			{duration: duration, ease: $elm$core$Basics$identity, progress: 1, start: 0});
+	};
+	var defaultSpring = $mdgriffith$elm_style_animation$Animation$Model$Spring(
+		{damping: 26, stiffness: 170});
+	switch (prop.$) {
+		case 'ExactProperty':
+			return defaultSpring;
+		case 'ColorProperty':
+			return linear(
+				$elm$time$Time$millisToPosix(400));
+		case 'ShadowProperty':
+			return defaultSpring;
+		case 'Property':
+			return defaultSpring;
+		case 'Property2':
+			return defaultSpring;
+		case 'Property3':
+			var name = prop.a;
+			return (name === 'rotate3d') ? $mdgriffith$elm_style_animation$Animation$speed(
+				{perSecond: $elm$core$Basics$pi}) : defaultSpring;
+		case 'Property4':
+			return defaultSpring;
+		case 'AngleProperty':
+			return $mdgriffith$elm_style_animation$Animation$speed(
+				{perSecond: $elm$core$Basics$pi});
+		case 'Points':
+			return defaultSpring;
+		default:
+			return defaultSpring;
+	}
+};
 var $mdgriffith$elm_style_animation$Animation$Model$AngleProperty = F2(
 	function (a, b) {
 		return {$: 'AngleProperty', a: a, b: b};
@@ -12192,20 +12155,12 @@ var $mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
 	function (a, b, c, d, e) {
 		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
 	});
-var $mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
-	function (a, b) {
-		return {$: 'ExactProperty', a: a, b: b};
-	});
 var $mdgriffith$elm_style_animation$Animation$Model$Path = function (a) {
 	return {$: 'Path', a: a};
 };
 var $mdgriffith$elm_style_animation$Animation$Model$Points = function (a) {
 	return {$: 'Points', a: a};
 };
-var $mdgriffith$elm_style_animation$Animation$Model$Property = F2(
-	function (a, b) {
-		return {$: 'Property', a: a, b: b};
-	});
 var $mdgriffith$elm_style_animation$Animation$Model$Property2 = F3(
 	function (a, b, c) {
 		return {$: 'Property2', a: a, b: b, c: c};
@@ -12569,6 +12524,697 @@ var $mdgriffith$elm_style_animation$Animation$Model$mapToMotion = F2(
 						cmds));
 		}
 	});
+var $mdgriffith$elm_style_animation$Animation$setDefaultInterpolation = function (prop) {
+	var interp = $mdgriffith$elm_style_animation$Animation$defaultInterpolationByProperty(prop);
+	return A2(
+		$mdgriffith$elm_style_animation$Animation$Model$mapToMotion,
+		function (m) {
+			return _Utils_update(
+				m,
+				{interpolation: interp});
+		},
+		prop);
+};
+var $elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
+var $mdgriffith$elm_style_animation$Animation$Render$dropWhile = F2(
+	function (predicate, list) {
+		dropWhile:
+		while (true) {
+			if (!list.b) {
+				return _List_Nil;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (predicate(x)) {
+					var $temp$predicate = predicate,
+						$temp$list = xs;
+					predicate = $temp$predicate;
+					list = $temp$list;
+					continue dropWhile;
+				} else {
+					return list;
+				}
+			}
+		}
+	});
+var $mdgriffith$elm_style_animation$Animation$Render$takeWhile = function (predicate) {
+	var takeWhileMemo = F2(
+		function (memo, list) {
+			takeWhileMemo:
+			while (true) {
+				if (!list.b) {
+					return $elm$core$List$reverse(memo);
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					if (predicate(x)) {
+						var $temp$memo = A2($elm$core$List$cons, x, memo),
+							$temp$list = xs;
+						memo = $temp$memo;
+						list = $temp$list;
+						continue takeWhileMemo;
+					} else {
+						return $elm$core$List$reverse(memo);
+					}
+				}
+			}
+		});
+	return takeWhileMemo(_List_Nil);
+};
+var $mdgriffith$elm_style_animation$Animation$Render$span = F2(
+	function (p, xs) {
+		return _Utils_Tuple2(
+			A2($mdgriffith$elm_style_animation$Animation$Render$takeWhile, p, xs),
+			A2($mdgriffith$elm_style_animation$Animation$Render$dropWhile, p, xs));
+	});
+var $mdgriffith$elm_style_animation$Animation$Render$groupWhile = F2(
+	function (eq, xs_) {
+		if (!xs_.b) {
+			return _List_Nil;
+		} else {
+			var x = xs_.a;
+			var xs = xs_.b;
+			var _v1 = A2(
+				$mdgriffith$elm_style_animation$Animation$Render$span,
+				eq(x),
+				xs);
+			var ys = _v1.a;
+			var zs = _v1.b;
+			return A2(
+				$elm$core$List$cons,
+				A2($elm$core$List$cons, x, ys),
+				A2($mdgriffith$elm_style_animation$Animation$Render$groupWhile, eq, zs));
+		}
+	});
+var $elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
+var $mdgriffith$elm_style_animation$Animation$Model$propertyName = function (prop) {
+	switch (prop.$) {
+		case 'ExactProperty':
+			var name = prop.a;
+			return name;
+		case 'ColorProperty':
+			var name = prop.a;
+			return name;
+		case 'ShadowProperty':
+			var name = prop.a;
+			return name;
+		case 'Property':
+			var name = prop.a;
+			return name;
+		case 'Property2':
+			var name = prop.a;
+			return name;
+		case 'Property3':
+			var name = prop.a;
+			return name;
+		case 'Property4':
+			var name = prop.a;
+			return name;
+		case 'AngleProperty':
+			var name = prop.a;
+			return name;
+		case 'Points':
+			return 'points';
+		default:
+			return 'path';
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$isTransformation = function (prop) {
+	return A2(
+		$elm$core$List$member,
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
+		_List_fromArray(
+			['rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d', 'translate', 'translate3d', 'scale', 'scale3d']));
+};
+var $elm$core$List$sortBy = _List_sortBy;
+var $elm$core$List$sort = function (xs) {
+	return A2($elm$core$List$sortBy, $elm$core$Basics$identity, xs);
+};
+var $mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties = function (props) {
+	var _v0 = A2(
+		$elm$core$List$map,
+		function (propGroup) {
+			var _v1 = $elm$core$List$head(propGroup);
+			if (_v1.$ === 'Nothing') {
+				return '';
+			} else {
+				var name = _v1.a;
+				return ($elm$core$List$length(propGroup) > 1) ? '' : '';
+			}
+		},
+		A2(
+			$mdgriffith$elm_style_animation$Animation$Render$groupWhile,
+			$elm$core$Basics$eq,
+			$elm$core$List$sort(
+				A2(
+					$elm$core$List$map,
+					$mdgriffith$elm_style_animation$Animation$Model$propertyName,
+					A2(
+						$elm$core$List$filter,
+						function (prop) {
+							return !$mdgriffith$elm_style_animation$Animation$Render$isTransformation(prop);
+						},
+						props)))));
+	return props;
+};
+var $mdgriffith$elm_style_animation$Animation$style = function (props) {
+	return $mdgriffith$elm_style_animation$Animation$initialState(
+		A2(
+			$elm$core$List$map,
+			$mdgriffith$elm_style_animation$Animation$setDefaultInterpolation,
+			$mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties(props)));
+};
+var $mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
+	return {$: 'To', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$to = function (props) {
+	return $mdgriffith$elm_style_animation$Animation$Model$To(props);
+};
+var $mdgriffith$elm_style_animation$Animation$top = function (_v0) {
+	var val = _v0.a;
+	var len = _v0.b;
+	return A3(
+		$mdgriffith$elm_style_animation$Animation$length,
+		'top',
+		val,
+		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $author$project$Main$flipOffLeft = function (_v0) {
+	var screen = _v0.screen;
+	var pageElement = _v0.pageElement;
+	var right = function () {
+		if (pageElement.$ === 'Nothing') {
+			return 0;
+		} else {
+			var el = pageElement.a;
+			return el.element.width;
+		}
+	}();
+	return $author$project$Main$ScreenTransition(
+		{
+			direction: $author$project$Main$TransitionOut,
+			previous: screen,
+			style: A2(
+				$mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$right(
+								$mdgriffith$elm_style_animation$Animation$px(right))
+							])),
+						$mdgriffith$elm_style_animation$Animation$set(
+						_List_fromArray(
+							[
+								A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '1')
+							])),
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$right(
+								$mdgriffith$elm_style_animation$Animation$px(0))
+							])),
+						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+					]),
+				$mdgriffith$elm_style_animation$Animation$style(
+					_List_fromArray(
+						[
+							$mdgriffith$elm_style_animation$Animation$top(
+							$mdgriffith$elm_style_animation$Animation$px(0)),
+							$mdgriffith$elm_style_animation$Animation$right(
+							$mdgriffith$elm_style_animation$Animation$px(0)),
+							A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '2')
+						])))
+		});
+};
+var $mdgriffith$elm_style_animation$Animation$left = function (_v0) {
+	var val = _v0.a;
+	var len = _v0.b;
+	return A3(
+		$mdgriffith$elm_style_animation$Animation$length,
+		'left',
+		val,
+		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $author$project$Main$flipOffRight = function (_v0) {
+	var screen = _v0.screen;
+	var pageElement = _v0.pageElement;
+	var left = function () {
+		if (pageElement.$ === 'Nothing') {
+			return 0;
+		} else {
+			var el = pageElement.a;
+			return el.element.width;
+		}
+	}();
+	return $author$project$Main$ScreenTransition(
+		{
+			direction: $author$project$Main$TransitionOut,
+			previous: screen,
+			style: A2(
+				$mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$left(
+								$mdgriffith$elm_style_animation$Animation$px(left))
+							])),
+						$mdgriffith$elm_style_animation$Animation$set(
+						_List_fromArray(
+							[
+								A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '1')
+							])),
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$left(
+								$mdgriffith$elm_style_animation$Animation$px(0))
+							])),
+						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+					]),
+				$mdgriffith$elm_style_animation$Animation$style(
+					_List_fromArray(
+						[
+							$mdgriffith$elm_style_animation$Animation$top(
+							$mdgriffith$elm_style_animation$Animation$px(0)),
+							$mdgriffith$elm_style_animation$Animation$left(
+							$mdgriffith$elm_style_animation$Animation$px(0)),
+							A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '2')
+						])))
+		});
+};
+var $author$project$Main$TransitionIn = {$: 'TransitionIn'};
+var $author$project$Main$flipOn = function (_v0) {
+	var screen = _v0.screen;
+	var pageElement = _v0.pageElement;
+	var right = function () {
+		if (pageElement.$ === 'Nothing') {
+			return 0;
+		} else {
+			var el = pageElement.a;
+			return el.element.width;
+		}
+	}();
+	return $author$project$Main$ScreenTransition(
+		{
+			direction: $author$project$Main$TransitionIn,
+			previous: screen,
+			style: A2(
+				$mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$right(
+								$mdgriffith$elm_style_animation$Animation$px(right))
+							])),
+						$mdgriffith$elm_style_animation$Animation$set(
+						_List_fromArray(
+							[
+								A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '2')
+							])),
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$right(
+								$mdgriffith$elm_style_animation$Animation$px(0))
+							])),
+						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+					]),
+				$mdgriffith$elm_style_animation$Animation$style(
+					_List_fromArray(
+						[
+							$mdgriffith$elm_style_animation$Animation$top(
+							$mdgriffith$elm_style_animation$Animation$px(0)),
+							$mdgriffith$elm_style_animation$Animation$right(
+							$mdgriffith$elm_style_animation$Animation$px(0)),
+							A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '1')
+						])))
+		});
+};
+var $author$project$Store$nextId = function (store) {
+	return _Utils_Tuple2(
+		$elm$core$String$fromInt(store.state + 1),
+		store.state + 1);
+};
+var $author$project$Store$getNextId = function (store) {
+	return $author$project$Store$nextId(store).a;
+};
+var $author$project$Store$insert = F2(
+	function (value, store) {
+		var _v0 = $author$project$Store$nextId(store);
+		var newId = _v0.a;
+		var newState = _v0.b;
+		var newItems = A3($elm$core$Dict$insert, newId, value, store.items);
+		return _Utils_update(
+			store,
+			{items: newItems, state: newState});
+	});
+var $author$project$Habit$isBlocker = F2(
+	function (habitId, habit) {
+		var _v0 = habit.block;
+		if (_v0.$ === 'Blocker') {
+			var otherId = _v0.a;
+			return _Utils_eq(habitId, otherId);
+		} else {
+			return false;
+		}
+	});
+var $author$project$Store$map = F2(
+	function (fn, store) {
+		return A3(
+			$author$project$Store$Store,
+			A2($elm$core$Dict$map, fn, store.items),
+			store.state,
+			store.idGenerator);
+	});
+var $author$project$Store$mapValues = F2(
+	function (fn, store) {
+		return A2(
+			$author$project$Store$map,
+			F2(
+				function (i, v) {
+					return fn(v);
+				}),
+			store);
+	});
+var $author$project$Habit$newHabit = F6(
+	function (time, desc, tag, id, period, block) {
+		return A8(
+			$author$project$Habit$Habit,
+			desc,
+			tag,
+			id,
+			period,
+			$elm$core$Maybe$Nothing,
+			time,
+			0,
+			function () {
+				if (block.$ === 'Nothing') {
+					return $author$project$Habit$Unblocked;
+				} else {
+					var hid = block.a;
+					return A2($author$project$Habit$Blocker, hid, false);
+				}
+			}());
+	});
+var $mdgriffith$elm_style_animation$Animation$bottom = function (_v0) {
+	var val = _v0.a;
+	var len = _v0.b;
+	return A3(
+		$mdgriffith$elm_style_animation$Animation$length,
+		'bottom',
+		val,
+		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $author$project$Main$slideFromTopTransition = function (_v0) {
+	var screen = _v0.screen;
+	var pageElement = _v0.pageElement;
+	var bottom = function () {
+		if (pageElement.$ === 'Nothing') {
+			return 0;
+		} else {
+			var el = pageElement.a;
+			return el.element.y + el.element.height;
+		}
+	}();
+	return $author$project$Main$ScreenTransition(
+		{
+			direction: $author$project$Main$TransitionIn,
+			previous: screen,
+			style: A2(
+				$mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$bottom(
+								$mdgriffith$elm_style_animation$Animation$px(0))
+							])),
+						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+					]),
+				$mdgriffith$elm_style_animation$Animation$style(
+					_List_fromArray(
+						[
+							$mdgriffith$elm_style_animation$Animation$bottom(
+							$mdgriffith$elm_style_animation$Animation$px(bottom))
+						])))
+		});
+};
+var $author$project$Main$slideOffbottom = function (_v0) {
+	var screen = _v0.screen;
+	var pageElement = _v0.pageElement;
+	var top = function () {
+		if (pageElement.$ === 'Nothing') {
+			return 0;
+		} else {
+			var el = pageElement.a;
+			return el.viewport.height + (el.element.y * 2);
+		}
+	}();
+	return $author$project$Main$ScreenTransition(
+		{
+			direction: $author$project$Main$TransitionOut,
+			previous: screen,
+			style: A2(
+				$mdgriffith$elm_style_animation$Animation$interrupt,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_style_animation$Animation$to(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$top(
+								$mdgriffith$elm_style_animation$Animation$px(top))
+							])),
+						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+					]),
+				$mdgriffith$elm_style_animation$Animation$style(
+					_List_fromArray(
+						[
+							$mdgriffith$elm_style_animation$Animation$top(
+							$mdgriffith$elm_style_animation$Animation$px(0))
+						])))
+		});
+};
+var $author$project$Habit$blockJE = function (block) {
+	return $elm$json$Json$Encode$object(
+		function () {
+			if (block.$ === 'Unblocked') {
+				return _List_fromArray(
+					[
+						_Utils_Tuple2(
+						'status',
+						$elm$json$Json$Encode$string('Unblocked'))
+					]);
+			} else {
+				if (block.b) {
+					var habit = block.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('Blocked')),
+							_Utils_Tuple2(
+							'id',
+							$elm$json$Json$Encode$string(habit))
+						]);
+				} else {
+					var habit = block.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('UnblockedBy')),
+							_Utils_Tuple2(
+							'id',
+							$elm$json$Json$Encode$string(habit))
+						]);
+				}
+			}
+		}());
+};
+var $author$project$Period$encode = function (period) {
+	return $elm$json$Json$Encode$string(
+		$author$project$Period$toString(period));
+};
+var $elm$json$Json$Encode$int = _Json_wrap;
+var $author$project$Habit$posixJE = function (time) {
+	return $elm$json$Json$Encode$int(
+		$elm$time$Time$posixToMillis(time));
+};
+var $author$project$Habit$encode = function (habit) {
+	return $elm$json$Json$Encode$object(
+		_Utils_ap(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'description',
+					$elm$json$Json$Encode$string(habit.description)),
+					_Utils_Tuple2(
+					'tag',
+					$elm$json$Json$Encode$string(habit.tag)),
+					_Utils_Tuple2(
+					'id',
+					$elm$json$Json$Encode$string(habit.id)),
+					_Utils_Tuple2(
+					'period',
+					$author$project$Period$encode(habit.period)),
+					_Utils_Tuple2(
+					'nextDue',
+					$author$project$Habit$posixJE(habit.nextDue)),
+					_Utils_Tuple2(
+					'doneCount',
+					$elm$json$Json$Encode$int(habit.doneCount)),
+					_Utils_Tuple2(
+					'block',
+					$author$project$Habit$blockJE(habit.block))
+				]),
+			function () {
+				var _v0 = habit.lastDone;
+				if (_v0.$ === 'Nothing') {
+					return _List_Nil;
+				} else {
+					var l = _v0.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'lastDone',
+							$author$project$Habit$posixJE(l))
+						]);
+				}
+			}()));
+};
+var $elm$json$Json$Encode$dict = F3(
+	function (toKey, toValue, dictionary) {
+		return _Json_wrap(
+			A3(
+				$elm$core$Dict$foldl,
+				F3(
+					function (key, value, obj) {
+						return A3(
+							_Json_addField,
+							toKey(key),
+							toValue(value),
+							obj);
+					}),
+				_Json_emptyObject(_Utils_Tuple0),
+				dictionary));
+	});
+var $author$project$Store$encode = F2(
+	function (valueEncode, store) {
+		return $elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'state',
+					$elm$json$Json$Encode$int(store.state)),
+					_Utils_Tuple2(
+					'items',
+					A3($elm$json$Json$Encode$dict, $elm$core$Basics$identity, valueEncode, store.items)),
+					_Utils_Tuple2(
+					'idGenerator',
+					$elm$json$Json$Encode$string(
+						function () {
+							var _v0 = store.idGenerator;
+							if (_v0.$ === 'RandomId') {
+								return 'random';
+							} else {
+								return 'incremental';
+							}
+						}()))
+				]));
+	});
+var $author$project$Main$optionsEncoder = function (options) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'recent',
+				$author$project$Period$encode(options.recent)),
+				_Utils_Tuple2(
+				'upcoming',
+				$author$project$Period$encode(options.upcoming))
+			]));
+};
+var $author$project$Main$storageEncoder = function (model) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'options',
+				$author$project$Main$optionsEncoder(model.options)),
+				_Utils_Tuple2(
+				'habits',
+				A2($author$project$Store$encode, $author$project$Habit$encode, model.habits)),
+				_Utils_Tuple2(
+				'version',
+				$elm$json$Json$Encode$int(0))
+			]));
+};
+var $author$project$Main$store = _Platform_outgoingPort('store', $elm$core$Basics$identity);
+var $author$project$Main$storeModel = function (_v0) {
+	var model = _v0.a;
+	var cmd = _v0.b;
+	return _Utils_Tuple2(
+		model,
+		$elm$core$Platform$Cmd$batch(
+			_List_fromArray(
+				[
+					cmd,
+					$author$project$Main$store(
+					$author$project$Main$storageEncoder(model))
+				])));
+};
+var $author$project$Habit$unblock = F2(
+	function (time, habit) {
+		var _v0 = habit.block;
+		if ((_v0.$ === 'Blocker') && _v0.b) {
+			var hid = _v0.a;
+			return _Utils_update(
+				habit,
+				{
+					block: A2($author$project$Habit$Blocker, hid, false),
+					nextDue: A2($author$project$Period$addToPosix, habit.period, time)
+				});
+		} else {
+			return habit;
+		}
+	});
+var $elm$core$Dict$union = F2(
+	function (t1, t2) {
+		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
+	});
+var $author$project$Store$union = F2(
+	function (s2, s1) {
+		return _Utils_update(
+			s1,
+			{
+				items: A2($elm$core$Dict$union, s1.items, s2.items)
+			});
+	});
 var $elm$core$List$partition = F2(
 	function (pred, list) {
 		var step = F2(
@@ -12793,9 +13439,6 @@ var $mdgriffith$elm_style_animation$Animation$Model$isDone = function (property)
 			var cmds = property.a;
 			return A2($elm$core$List$all, $mdgriffith$elm_style_animation$Animation$Model$isCmdDone, cmds);
 	}
-};
-var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
-	return {$: 'Easing', a: a};
 };
 var $elm$core$Basics$abs = function (n) {
 	return (n < 0) ? (-n) : n;
@@ -13395,38 +14038,6 @@ var $mdgriffith$elm_style_animation$Animation$Model$setTarget = F3(
 				}
 		}
 	});
-var $mdgriffith$elm_style_animation$Animation$Model$propertyName = function (prop) {
-	switch (prop.$) {
-		case 'ExactProperty':
-			var name = prop.a;
-			return name;
-		case 'ColorProperty':
-			var name = prop.a;
-			return name;
-		case 'ShadowProperty':
-			var name = prop.a;
-			return name;
-		case 'Property':
-			var name = prop.a;
-			return name;
-		case 'Property2':
-			var name = prop.a;
-			return name;
-		case 'Property3':
-			var name = prop.a;
-			return name;
-		case 'Property4':
-			var name = prop.a;
-			return name;
-		case 'AngleProperty':
-			var name = prop.a;
-			return name;
-		case 'Points':
-			return 'points';
-		default:
-			return 'path';
-	}
-};
 var $mdgriffith$elm_style_animation$Animation$Model$zipPropertiesGreedy = F2(
 	function (initialProps, newTargetProps) {
 		var propertyMatch = F2(
@@ -13861,26 +14472,6 @@ var $mdgriffith$elm_style_animation$Animation$Model$alreadyThere = F2(
 				$elm$time$Time$millisToPosix(0),
 				A3($mdgriffith$elm_style_animation$Animation$Model$startTowards, false, current, target)));
 	});
-var $elm$core$List$filter = F2(
-	function (isGood, list) {
-		return A3(
-			$elm$core$List$foldr,
-			F2(
-				function (x, xs) {
-					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
-				}),
-			_List_Nil,
-			list);
-	});
-var $elm$core$List$member = F2(
-	function (x, xs) {
-		return A2(
-			$elm$core$List$any,
-			function (a) {
-				return _Utils_eq(a, x);
-			},
-			xs);
-	});
 var $mdgriffith$elm_style_animation$Animation$Model$replaceProps = F2(
 	function (props, replacements) {
 		var replacementNames = A2($elm$core$List$map, $mdgriffith$elm_style_animation$Animation$Model$propertyName, replacements);
@@ -14216,7 +14807,11 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{screen: newScreen}),
+							{
+								screen: newScreen,
+								screenTransition: $elm$core$Maybe$Just(
+									$author$project$Main$flipOn(model))
+							}),
 						$elm$core$Platform$Cmd$none);
 				}
 			case 'DoDeleteHabit':
@@ -14238,7 +14833,8 @@ var $author$project$Main$update = F2(
 										},
 										A2($author$project$Store$delete, habitId, model.habits)),
 									screen: parent,
-									screenTransition: $elm$core$Maybe$Nothing
+									screenTransition: $elm$core$Maybe$Just(
+										$author$project$Main$slideOffbottom(model))
 								}),
 							$elm$core$Platform$Cmd$none));
 				} else {
@@ -14294,7 +14890,9 @@ var $author$project$Main$update = F2(
 												$author$project$Store$filterIds,
 												$elm$core$Basics$eq(fields.habitId),
 												model.habits))),
-									screen: fields.parent
+									screen: fields.parent,
+									screenTransition: $elm$core$Maybe$Just(
+										$author$project$Main$flipOffRight(model))
 								}),
 							$elm$core$Platform$Cmd$none));
 				} else {
@@ -14308,7 +14906,9 @@ var $author$project$Main$update = F2(
 						model,
 						{
 							screen: $author$project$Main$SelectHabit(
-								{forHabit: _for, page: 0, parent: model.screen, selected: habitId})
+								{forHabit: 'last ' + _for, page: 0, parent: model.screen, selected: habitId}),
+							screenTransition: $elm$core$Maybe$Just(
+								$author$project$Main$flipOn(model))
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'DoSelectHabit':
@@ -14337,7 +14937,9 @@ var $author$project$Main$update = F2(
 										default:
 											return parent;
 									}
-								}()
+								}(),
+								screenTransition: $elm$core$Maybe$Just(
+									$author$project$Main$flipOffRight(model))
 							}),
 						$elm$core$Platform$Cmd$none);
 				} else {
@@ -14349,7 +14951,9 @@ var $author$project$Main$update = F2(
 						model,
 						{
 							screen: $author$project$Main$CreateHabit(
-								{block: $elm$core$Maybe$Nothing, description: '', parent: model.screen, period: '', tag: ''})
+								{block: $elm$core$Maybe$Nothing, description: '', parent: model.screen, period: '', tag: ''}),
+							screenTransition: $elm$core$Maybe$Just(
+								$author$project$Main$slideFromTopTransition(model))
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'DoCreateHabit':
@@ -14370,7 +14974,9 @@ var $author$project$Main$update = F2(
 								model,
 								{
 									habits: A2($author$project$Store$insert, newHabit, model.habits),
-									screen: fields.parent
+									screen: fields.parent,
+									screenTransition: $elm$core$Maybe$Just(
+										$author$project$Main$flipOffRight(model))
 								}),
 							$elm$core$Platform$Cmd$none));
 				} else {
@@ -14382,8 +14988,13 @@ var $author$project$Main$update = F2(
 						model,
 						{
 							screen: $author$project$Main$EditOptions(
-								{parent: model.screen, recent: '', upcoming: ''}),
-							screenTransition: $elm$core$Maybe$Nothing
+								{
+									parent: model.screen,
+									recent: $author$project$Period$toString(model.options.recent),
+									upcoming: $author$project$Period$toString(model.options.upcoming)
+								}),
+							screenTransition: $elm$core$Maybe$Just(
+								$author$project$Main$flipOn(model))
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'DoSaveOptions':
@@ -14401,7 +15012,12 @@ var $author$project$Main$update = F2(
 						_Utils_Tuple2(
 							_Utils_update(
 								model,
-								{options: updatedOptions, screen: fields.parent}),
+								{
+									options: updatedOptions,
+									screen: fields.parent,
+									screenTransition: $elm$core$Maybe$Just(
+										$author$project$Main$flipOffRight(model))
+								}),
 							$elm$core$Platform$Cmd$none));
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
@@ -14536,7 +15152,7 @@ var $author$project$Main$update = F2(
 					}
 				}
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-			default:
+			case 'Cancel':
 				var prev = function () {
 					var _v16 = model.screen;
 					switch (_v16.$) {
@@ -14559,45 +15175,69 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{screen: prev}),
+						{
+							screen: prev,
+							screenTransition: $elm$core$Maybe$Just(
+								$author$project$Main$flipOffLeft(model))
+						}),
 					$elm$core$Platform$Cmd$none);
+			case 'NewPageElement':
+				if (msg.a.$ === 'Ok') {
+					var el = msg.a.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								pageElement: $elm$core$Maybe$Just(el)
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{pageElement: $elm$core$Maybe$Nothing}),
+						$elm$core$Platform$Cmd$none);
+				}
+			default:
+				var page = msg.a;
+				var _v17 = model.screen;
+				switch (_v17.$) {
+					case 'HabitList':
+						var screen = _v17.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{
+									screen: $author$project$Main$HabitList(
+										_Utils_update(
+											screen,
+											{page: page})),
+									screenTransition: $elm$core$Maybe$Just(
+										(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+								}),
+							$elm$core$Platform$Cmd$none);
+					case 'SelectHabit':
+						var screen = _v17.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{
+									screen: $author$project$Main$SelectHabit(
+										_Utils_update(
+											screen,
+											{page: page})),
+									screenTransition: $elm$core$Maybe$Just(
+										(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+								}),
+							$elm$core$Platform$Cmd$none);
+					default:
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
 		}
 	});
 var $author$project$Main$Cancel = {$: 'Cancel'};
 var $author$project$Main$DoDeleteHabit = {$: 'DoDeleteHabit'};
 var $author$project$Main$DoEditHabit = {$: 'DoEditHabit'};
-var $author$project$Main$emptyDiv = A2($elm$html$Html$div, _List_Nil, _List_Nil);
-var $author$project$Main$viewLine = F2(
-	function (margin, line) {
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('page-line')
-				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('margin')
-						]),
-					_List_fromArray(
-						[margin])),
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('line-content')
-						]),
-					_List_fromArray(
-						[line]))
-				]));
-	});
-var $author$project$Main$emptyLine = function (a) {
-	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, $author$project$Main$emptyDiv);
-};
 var $author$project$Main$ChangeDescription = function (a) {
 	return {$: 'ChangeDescription', a: a};
 };
@@ -14614,14 +15254,21 @@ var $author$project$Main$OpenHabitSelect = F2(
 	function (a, b) {
 		return {$: 'OpenHabitSelect', a: a, b: b};
 	});
-var $author$project$Main$asLineContent = F3(
-	function (el, attribs, children) {
-		return A2(
-			$author$project$Main$viewLine,
-			$author$project$Main$emptyDiv,
-			A2(el, attribs, children));
-	});
 var $elm$html$Html$datalist = _VirtualDom_node('datalist');
+var $author$project$Main$emptyDiv = A2($elm$html$Html$div, _List_Nil, _List_Nil);
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
+var $elm$core$Set$insert = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var $elm$core$Set$fromList = function (list) {
+	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
+};
 var $elm$html$Html$label = _VirtualDom_node('label');
 var $elm$html$Html$Attributes$list = _VirtualDom_attribute('list');
 var $elm$html$Html$option = _VirtualDom_node('option');
@@ -14688,34 +15335,23 @@ var $author$project$Main$habitFieldsView = F3(
 		var tagOptions = A2(
 			$elm$core$List$map,
 			tagOption,
-			A2(
-				$elm$core$List$map,
-				function ($) {
-					return $.tag;
-				},
-				habits));
-		var filteredHabits = function () {
-			if (maybeHabit.$ === 'Nothing') {
-				return habits;
-			} else {
-				var habitId = maybeHabit.a;
-				return A2(
-					$elm$core$List$filter,
-					function (h) {
-						return !_Utils_eq(habitId, h.id);
-					},
-					habits);
-			}
-		}();
+			$elm$core$Set$toList(
+				$elm$core$Set$fromList(
+					A2(
+						$elm$core$List$map,
+						function ($) {
+							return $.tag;
+						},
+						habits))));
 		var blockText = function () {
 			var _v0 = fields.block;
 			if (_v0.$ === 'Nothing') {
-				return fields.description;
+				return 'last did';
 			} else {
 				var hid = _v0.a;
 				return A2(
 					$elm$core$Maybe$withDefault,
-					fields.description,
+					'last did',
 					A2(
 						$elm$core$Maybe$map,
 						function ($) {
@@ -14730,21 +15366,20 @@ var $author$project$Main$habitFieldsView = F3(
 								habits))));
 			}
 		}();
-		return A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					A3(
-					$author$project$Main$asLineContent,
+		return _List_fromArray(
+			[
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
 					$elm$html$Html$label,
 					_List_Nil,
 					_List_fromArray(
 						[
 							$elm$html$Html$text('I want to')
-						])),
-					A3(
-					$author$project$Main$asLineContent,
+						]))),
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
 					$elm$html$Html$input,
 					_List_fromArray(
 						[
@@ -14756,21 +15391,23 @@ var $author$project$Main$habitFieldsView = F3(
 									$author$project$Main$ChangeDescription(s));
 							})
 						]),
-					_List_Nil),
-					A3(
-					$author$project$Main$asLineContent,
+					_List_Nil)),
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
 					$elm$html$Html$label,
 					_List_Nil,
 					_List_fromArray(
 						[
 							$elm$html$Html$text('every')
-						])),
-					A3(
-					$author$project$Main$asLineContent,
+						]))),
+				_Utils_Tuple2(
+				A2($author$project$Main$periodOptionsView, fields.period, 'period-list'),
+				A2(
 					$elm$html$Html$input,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$placeholder('Period'),
+							$elm$html$Html$Attributes$placeholder('Day'),
 							$elm$html$Html$Attributes$value(fields.period),
 							$elm$html$Html$Attributes$list('period-list'),
 							$elm$html$Html$Events$onInput(
@@ -14779,17 +15416,19 @@ var $author$project$Main$habitFieldsView = F3(
 									$author$project$Main$ChangePeriod(s));
 							})
 						]),
-					_List_Nil),
-					A3(
-					$author$project$Main$asLineContent,
+					_List_Nil)),
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
 					$elm$html$Html$label,
 					_List_Nil,
 					_List_fromArray(
 						[
 							$elm$html$Html$text('after I')
-						])),
-					A3(
-					$author$project$Main$asLineContent,
+						]))),
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
 					$elm$html$Html$button,
 					_List_fromArray(
 						[
@@ -14800,17 +15439,25 @@ var $author$project$Main$habitFieldsView = F3(
 					_List_fromArray(
 						[
 							$elm$html$Html$text(blockText)
-						])),
-					A3(
-					$author$project$Main$asLineContent,
+						]))),
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
 					$elm$html$Html$label,
 					_List_Nil,
 					_List_fromArray(
 						[
-							$elm$html$Html$text('Tag')
-						])),
-					A3(
-					$author$project$Main$asLineContent,
+							$elm$html$Html$text('category')
+						]))),
+				_Utils_Tuple2(
+				A2(
+					$elm$html$Html$datalist,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$id('tag-list')
+						]),
+					tagOptions),
+				A2(
 					$elm$html$Html$input,
 					_List_fromArray(
 						[
@@ -14823,133 +15470,22 @@ var $author$project$Main$habitFieldsView = F3(
 									$author$project$Main$ChangeTag(s));
 							})
 						]),
-					_List_Nil),
-					A2(
-					$elm$html$Html$datalist,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$id('tag-list')
-						]),
-					tagOptions),
-					A2($author$project$Main$periodOptionsView, fields.period, 'period-list')
-				]));
+					_List_Nil))
+			]);
 	});
-var $author$project$Main$pageLines = 20;
 var $author$project$Store$values = function (store) {
 	return $elm$core$Dict$values(store.items);
 };
-var $author$project$Main$viewLineContent = function (line) {
-	return A2($author$project$Main$viewLine, $author$project$Main$emptyDiv, line);
-};
-var $author$project$Main$viewEditingPage = F2(
-	function (model, fields) {
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('page')
-				]),
-			_Utils_ap(
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('page-head')
-							]),
-						_List_Nil),
-						A3(
-						$author$project$Main$habitFieldsView,
-						fields,
-						$author$project$Store$values(model.habits),
-						$elm$core$Maybe$Just(fields.habitId)),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('button-line')
-								]),
-							_List_fromArray(
-								[
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$DoEditHabit)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Save')
-										])),
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$DoDeleteHabit)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Delete')
-										])),
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$Cancel)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Cancel')
-										]))
-								])))
-					]),
-				_Utils_ap(
-					A2(
-						$elm$core$List$map,
-						$author$project$Main$emptyLine,
-						A2($elm$core$List$range, 8, $author$project$Main$pageLines - 1)),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('page-foot')
-								]),
-							_List_Nil)
-						]))));
+var $author$project$Main$editPagelines = F2(
+	function (model, screen) {
+		return A3(
+			$author$project$Main$habitFieldsView,
+			screen,
+			$author$project$Store$values(model.habits),
+			$elm$core$Maybe$Just(screen.habitId));
 	});
+var $author$project$Main$pageLines = 18;
 var $author$project$Main$OpenEditOptions = {$: 'OpenEditOptions'};
-var $author$project$Main$OpenHabitCreate = {$: 'OpenHabitCreate'};
-var $author$project$Habit$isBlocked = function (habit) {
-	var _v0 = habit.block;
-	if ((_v0.$ === 'Blocker') && _v0.b) {
-		return true;
-	} else {
-		return false;
-	}
-};
-var $author$project$Main$isDueSoon = F2(
-	function (_v0, habit) {
-		var time = _v0.time;
-		var options = _v0.options;
-		return _Utils_cmp(
-			$elm$time$Time$posixToMillis(habit.nextDue),
-			$elm$time$Time$posixToMillis(
-				A2($author$project$Period$addToPosix, options.upcoming, time))) < 0;
-	});
-var $author$project$Main$shouldBeMarkedAsDone = F2(
-	function (model, habit) {
-		return $author$project$Habit$isBlocked(habit) ? true : (!A2($author$project$Main$isDueSoon, model, habit));
-	});
-var $author$project$Main$habitOrderer = F2(
-	function (model, habit) {
-		return A2($author$project$Main$shouldBeMarkedAsDone, model, habit) ? $elm$time$Time$posixToMillis(
-			A2($elm$core$Maybe$withDefault, model.time, habit.lastDone)) : ((-1) * ($elm$time$Time$posixToMillis(habit.nextDue) - $elm$time$Time$posixToMillis(model.time)));
-	});
-var $elm$core$List$sortBy = _List_sortBy;
 var $elm$core$List$takeReverse = F3(
 	function (n, list, kept) {
 		takeReverse:
@@ -15076,16 +15612,386 @@ var $elm$core$List$take = F2(
 	function (n, list) {
 		return A3($elm$core$List$takeFast, 0, n, list);
 	});
+var $author$project$Main$cullPageLines = F3(
+	function (_v0, _v1, lines) {
+		var nLines = _v0.nLines;
+		var pageNumber = _v1.pageNumber;
+		return A2(
+			$elm$core$List$take,
+			nLines,
+			A2($elm$core$List$drop, pageNumber * nLines, lines));
+	});
+var $author$project$Main$viewEmptyLine = A2(
+	$elm$html$Html$div,
+	_List_fromArray(
+		[
+			$elm$html$Html$Attributes$class('page-line')
+		]),
+	_List_fromArray(
+		[
+			A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('margin')
+				]),
+			_List_fromArray(
+				[$author$project$Main$emptyDiv])),
+			A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('line-content')
+				]),
+			_List_fromArray(
+				[$author$project$Main$emptyDiv]))
+		]));
+var $author$project$Main$ChangePage = function (a) {
+	return {$: 'ChangePage', a: a};
+};
+var $author$project$Main$viewPageFooter = F3(
+	function (_v0, _v1, lines) {
+		var nLines = _v0.nLines;
+		var pageNumber = _v1.pageNumber;
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('page-foot')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('margin')
+						]),
+					(pageNumber > 0) ? _List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('add-habit'),
+									$elm$html$Html$Events$onClick(
+									$author$project$Main$ChangePage(pageNumber - 1))
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('<')
+								]))
+						]) : _List_Nil),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('line-content')
+						]),
+					(_Utils_cmp(
+						$elm$core$List$length(lines),
+						nLines) > 0) ? _List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('add-habit'),
+									$elm$html$Html$Events$onClick(
+									$author$project$Main$ChangePage(pageNumber + 1))
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('>')
+								]))
+						]) : _List_Nil)
+				]));
+	});
+var $author$project$Main$viewPageLine = function (_v0) {
+	var margin = _v0.a;
+	var content = _v0.b;
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('page-line')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('margin')
+					]),
+				_List_fromArray(
+					[margin])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('line-content')
+					]),
+				_List_fromArray(
+					[content]))
+			]));
+};
+var $author$project$Main$viewPageLines = F2(
+	function (lines, footer) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('page-lines')
+				]),
+			A2(
+				$elm$core$List$map,
+				$author$project$Main$viewPageLine,
+				_Utils_ap(
+					lines,
+					_List_fromArray(
+						[footer]))));
+	});
+var $author$project$Main$viewPage = F3(
+	function (config, state, lines) {
+		var culledLines = A3($author$project$Main$cullPageLines, config, state, lines);
+		var nEmptyLines = config.nLines - $elm$core$List$length(culledLines);
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('page')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('page-head')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('margin')
+								]),
+							config.showOptions ? _List_fromArray(
+								[
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('add-habit'),
+											$elm$html$Html$Events$onClick($author$project$Main$OpenEditOptions)
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('-')
+										]))
+								]) : _List_Nil),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('line-content')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(config.title)
+								]))
+						])),
+					A2(
+					$author$project$Main$viewPageLines,
+					A3($author$project$Main$cullPageLines, config, state, lines),
+					config.footer),
+					A2(
+					$elm$html$Html$div,
+					_List_Nil,
+					A2(
+						$elm$core$List$map,
+						function (i) {
+							return $author$project$Main$viewEmptyLine;
+						},
+						A2($elm$core$List$range, 1, nEmptyLines))),
+					A3($author$project$Main$viewPageFooter, config, state, lines)
+				]));
+	});
+var $author$project$Main$viewEditingPage = F2(
+	function (model, screen) {
+		var title = screen.description;
+		var pageState = {pageNumber: 0};
+		var pageConfig = {
+			footer: _Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('button-line')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Main$DoEditHabit)
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Save')
+								])),
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Main$DoDeleteHabit)
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Delete')
+								])),
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Main$Cancel)
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Cancel')
+								]))
+						]))),
+			nLines: $author$project$Main$pageLines,
+			showOptions: false,
+			title: 'Edit ' + title
+		};
+		var lines = A2($author$project$Main$editPagelines, model, screen);
+		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+	});
+var $author$project$Main$DoSelectHabit = function (a) {
+	return {$: 'DoSelectHabit', a: a};
+};
+var $author$project$Main$habitSelectLine = F2(
+	function (model, habit) {
+		return _Utils_Tuple2(
+			$author$project$Main$emptyDiv,
+			A2(
+				$elm$html$Html$button,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('habit-button'),
+						$elm$html$Html$Events$onClick(
+						$author$project$Main$DoSelectHabit(
+							$elm$core$Maybe$Just(habit.id)))
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('habit-description')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(habit.description)
+							])),
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('habit-tag')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(habit.tag)
+							]))
+					])));
+	});
+var $author$project$Main$viewHabitSelectPage = F2(
+	function (model, screen) {
+		var pageState = {pageNumber: screen.page};
+		var pageConfig = {
+			footer: _Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('button-line')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Main$Cancel)
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Cancel')
+								]))
+						]))),
+			nLines: $author$project$Main$pageLines,
+			showOptions: false,
+			title: screen.forHabit + ' after'
+		};
+		var lines = A2(
+			$elm$core$List$map,
+			$author$project$Main$habitSelectLine(model),
+			A2(
+				$elm$core$List$sortBy,
+				function ($) {
+					return $.description;
+				},
+				$author$project$Store$values(model.habits)));
+		var _v0 = model;
+		var time = _v0.time;
+		var options = _v0.options;
+		var habits = _v0.habits;
+		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+	});
+var $author$project$Main$OpenHabitCreate = {$: 'OpenHabitCreate'};
+var $author$project$Habit$isBlocked = function (habit) {
+	var _v0 = habit.block;
+	if ((_v0.$ === 'Blocker') && _v0.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $author$project$Main$isDueSoon = F2(
+	function (_v0, habit) {
+		var time = _v0.time;
+		var options = _v0.options;
+		return _Utils_cmp(
+			$elm$time$Time$posixToMillis(habit.nextDue),
+			$elm$time$Time$posixToMillis(
+				A2($author$project$Period$addToPosix, options.upcoming, time))) < 0;
+	});
+var $author$project$Main$shouldBeMarkedAsDone = F2(
+	function (model, habit) {
+		return $author$project$Habit$isBlocked(habit) ? true : (!A2($author$project$Main$isDueSoon, model, habit));
+	});
+var $author$project$Main$habitOrderer = F2(
+	function (model, habit) {
+		return A2($author$project$Main$shouldBeMarkedAsDone, model, habit) ? $elm$time$Time$posixToMillis(
+			A2($elm$core$Maybe$withDefault, model.time, habit.lastDone)) : ((-1) * ($elm$time$Time$posixToMillis(habit.nextDue) - $elm$time$Time$posixToMillis(model.time)));
+	});
 var $author$project$Main$DoHabit = function (a) {
 	return {$: 'DoHabit', a: a};
 };
 var $author$project$Main$OpenHabitEdit = function (a) {
 	return {$: 'OpenHabitEdit', a: a};
 };
-var $author$project$Main$viewHabitLine = F2(
+var $author$project$Main$habitViewLine = F2(
 	function (model, habit) {
-		return A2(
-			$author$project$Main$viewLine,
+		return _Utils_Tuple2(
 			A2(
 				$elm$html$Html$button,
 				_List_fromArray(
@@ -15166,373 +16072,91 @@ var $author$project$Main$visibleHabits = function (model) {
 		$author$project$Main$viewHabitFilter(model),
 		model.habits);
 };
-var $author$project$Main$viewHabits = F2(
-	function (model, pageNumber) {
-		var visible = A2(
-			$elm$core$List$take,
-			$author$project$Main$pageLines,
-			A2(
-				$elm$core$List$drop,
-				pageNumber * $author$project$Main$pageLines,
+var $author$project$Main$viewHabitsListPage = F2(
+	function (model, habitListScreen) {
+		var pageState = {pageNumber: habitListScreen.page};
+		var pageConfig = {
+			footer: _Utils_Tuple2(
 				A2(
-					$elm$core$List$sortBy,
-					$author$project$Main$habitOrderer(model),
-					$author$project$Store$values(
-						$author$project$Main$visibleHabits(model)))));
+					$elm$html$Html$button,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('add-habit'),
+							$elm$html$Html$Events$onClick($author$project$Main$OpenHabitCreate)
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('+')
+						])),
+				$author$project$Main$emptyDiv),
+			nLines: $author$project$Main$pageLines,
+			showOptions: true,
+			title: 'Today I will'
+		};
+		var lines = A2(
+			$elm$core$List$map,
+			$author$project$Main$habitViewLine(model),
+			A2(
+				$elm$core$List$sortBy,
+				$author$project$Main$habitOrderer(model),
+				$author$project$Store$values(
+					$author$project$Main$visibleHabits(model))));
 		var _v0 = model;
 		var time = _v0.time;
 		var options = _v0.options;
 		var habits = _v0.habits;
-		return A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_Utils_ap(
+		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+	});
+var $author$project$Main$DoCreateHabit = {$: 'DoCreateHabit'};
+var $author$project$Main$createPagelines = F2(
+	function (model, screen) {
+		return A3(
+			$author$project$Main$habitFieldsView,
+			screen,
+			$author$project$Store$values(model.habits),
+			$elm$core$Maybe$Nothing);
+	});
+var $author$project$Main$viewNewPage = F2(
+	function (model, screen) {
+		var pageState = {pageNumber: 0};
+		var pageConfig = {
+			footer: _Utils_Tuple2(
+				$author$project$Main$emptyDiv,
 				A2(
-					$elm$core$List$map,
-					$author$project$Main$viewHabitLine(model),
-					visible),
-				A2(
-					$elm$core$List$cons,
-					A2(
-						$author$project$Main$viewLine,
-						A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('button-line')
+						]),
+					_List_fromArray(
+						[
+							A2(
 							$elm$html$Html$button,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('add-habit'),
-									$elm$html$Html$Events$onClick($author$project$Main$OpenHabitCreate)
+									$elm$html$Html$Events$onClick($author$project$Main$DoCreateHabit)
 								]),
 							_List_fromArray(
 								[
-									$elm$html$Html$text('+')
+									$elm$html$Html$text('Create')
 								])),
-						$author$project$Main$emptyDiv),
-					A2(
-						$elm$core$List$map,
-						$author$project$Main$emptyLine,
-						A2(
-							$elm$core$List$range,
-							$elm$core$List$length(visible),
-							$author$project$Main$pageLines - 1)))));
-	});
-var $author$project$Main$viewHabitsListPage = F2(
-	function (model, habits) {
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('page')
-				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('page-head')
-						]),
-					_List_fromArray(
-						[
 							A2(
-							$elm$html$Html$div,
+							$elm$html$Html$button,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('margin')
+									$elm$html$Html$Events$onClick($author$project$Main$Cancel)
 								]),
 							_List_fromArray(
 								[
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Attributes$class('add-habit'),
-											$elm$html$Html$Events$onClick($author$project$Main$OpenEditOptions)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('-')
-										]))
+									$elm$html$Html$text('Cancel')
 								]))
-						])),
-					A2($author$project$Main$viewHabits, model, habits.page),
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('page-foot')
-						]),
-					_List_Nil)
-				]));
-	});
-var $author$project$Main$DoSelectHabit = function (a) {
-	return {$: 'DoSelectHabit', a: a};
-};
-var $author$project$Main$getSelectMargin = F2(
-	function (selected, habit) {
-		return A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					$elm$html$Html$text(
-					A2(
-						$elm$core$Maybe$withDefault,
-						'',
-						A2(
-							$elm$core$Maybe$map,
-							function (hid) {
-								return _Utils_eq(hid, habit.id) ? '-' : '';
-							},
-							selected)))
-				]));
-	});
-var $author$project$Main$viewHabitLine2 = F3(
-	function (model, selected, habit) {
-		return A2(
-			$author$project$Main$viewLine,
-			A2($author$project$Main$getSelectMargin, selected, habit),
-			A2(
-				$elm$html$Html$button,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('habit-button-select'),
-						$elm$html$Html$Events$onClick(
-						$author$project$Main$DoSelectHabit(
-							$elm$core$Maybe$Just(habit.id)))
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('habit-description')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(habit.description)
-							])),
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('habit-tag')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(habit.tag)
-							]))
-					])));
-	});
-var $author$project$Main$viewHabitSelect = F2(
-	function (model, _v0) {
-		var page = _v0.page;
-		var forHabit = _v0.forHabit;
-		var selected = _v0.selected;
-		var visible = A2(
-			$elm$core$List$take,
-			$author$project$Main$pageLines,
-			A2(
-				$elm$core$List$drop,
-				page * $author$project$Main$pageLines,
-				A2(
-					$elm$core$List$sortBy,
-					function ($) {
-						return $.description;
-					},
-					$author$project$Store$values(model.habits))));
-		var _v1 = model;
-		var time = _v1.time;
-		var options = _v1.options;
-		var habits = _v1.habits;
-		return A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			A2(
-				$elm$core$List$cons,
-				A2(
-					$author$project$Main$viewLine,
-					A2(
-						$elm$core$Maybe$withDefault,
-						A2(
-							$elm$html$Html$div,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text('-')
-								])),
-						A2(
-							$elm$core$Maybe$map,
-							function (_v2) {
-								return $author$project$Main$emptyDiv;
-							},
-							selected)),
-					A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('habit-button-select'),
-								$elm$html$Html$Events$onClick(
-								$author$project$Main$DoSelectHabit($elm$core$Maybe$Nothing))
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$span,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('habit-description')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text(forHabit)
-									]))
-							]))),
-				_Utils_ap(
-					A2(
-						$elm$core$List$map,
-						A2($author$project$Main$viewHabitLine2, model, selected),
-						visible),
-					A2(
-						$elm$core$List$cons,
-						A2(
-							$author$project$Main$viewLine,
-							$author$project$Main$emptyDiv,
-							A2(
-								$elm$html$Html$button,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('button-line-select'),
-										$elm$html$Html$Events$onClick($author$project$Main$Cancel)
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('Cancel')
-									]))),
-						A2(
-							$elm$core$List$map,
-							$author$project$Main$emptyLine,
-							A2(
-								$elm$core$List$range,
-								$elm$core$List$length(visible),
-								$author$project$Main$pageLines - 1))))));
-	});
-var $author$project$Main$viewHabitsSelectPage = F2(
-	function (model, habits) {
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('page')
-				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('page-head')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('margin')
-								]),
-							_List_Nil),
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('page-content')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Do ' + (habits.forHabit + ' after'))
-								]))
-						])),
-					A2($author$project$Main$viewHabitSelect, model, habits),
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('page-foot')
-						]),
-					_List_Nil)
-				]));
-	});
-var $author$project$Main$DoCreateHabit = {$: 'DoCreateHabit'};
-var $author$project$Main$viewNewPage = F2(
-	function (model, fields) {
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('page')
-				]),
-			_Utils_ap(
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('page-head')
-							]),
-						_List_Nil),
-						A3(
-						$author$project$Main$habitFieldsView,
-						fields,
-						$author$project$Store$values(model.habits),
-						$elm$core$Maybe$Nothing),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('button-line')
-								]),
-							_List_fromArray(
-								[
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$DoCreateHabit)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Save')
-										])),
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$Cancel)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Cancel')
-										]))
-								])))
-					]),
-				_Utils_ap(
-					A2(
-						$elm$core$List$map,
-						$author$project$Main$emptyLine,
-						A2($elm$core$List$range, 8, $author$project$Main$pageLines - 1)),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('page-foot')
-								]),
-							_List_Nil)
-						]))));
+						]))),
+			nLines: $author$project$Main$pageLines,
+			showOptions: false,
+			title: 'new habit'
+		};
+		var lines = A2($author$project$Main$createPagelines, model, screen);
+		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$ChangeOptionsRecent = function (a) {
 	return {$: 'ChangeOptionsRecent', a: a};
@@ -15542,139 +16166,98 @@ var $author$project$Main$ChangeOptionsUpcoming = function (a) {
 };
 var $author$project$Main$DoSaveOptions = {$: 'DoSaveOptions'};
 var $author$project$Main$viewOptionsPage = F2(
-	function (model, fields) {
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('page')
-				]),
-			_Utils_ap(
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('page-head')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('margin')
-									]),
-								_List_fromArray(
-									[
-										A2(
-										$elm$html$Html$button,
-										_List_fromArray(
-											[
-												$elm$html$Html$Attributes$class('add-habit'),
-												$elm$html$Html$Events$onClick($author$project$Main$OpenEditOptions)
-											]),
-										_List_fromArray(
-											[
-												$elm$html$Html$text('-')
-											]))
-									]))
-							])),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$label,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Show upcoming')
-								]))),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$input,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$value(fields.upcoming),
-									$elm$html$Html$Attributes$list('upcoming-list'),
-									$elm$html$Html$Events$onInput(
-									function (s) {
-										return $author$project$Main$ChangeFormField(
-											$author$project$Main$ChangeOptionsUpcoming(s));
-									})
-								]),
-							_List_Nil)),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$label,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Show recently done')
-								]))),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$input,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$value(fields.recent),
-									$elm$html$Html$Attributes$list('recent-list'),
-									$elm$html$Html$Events$onInput(
-									function (s) {
-										return $author$project$Main$ChangeFormField(
-											$author$project$Main$ChangeOptionsRecent(s));
-									})
-								]),
-							_List_Nil)),
-						$author$project$Main$viewLineContent(
-						A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('button-line')
-								]),
-							_List_fromArray(
-								[
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$DoSaveOptions)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Save')
-										])),
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$Cancel)
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('Cancel')
-										]))
-								])))
-					]),
-				_Utils_ap(
-					A2(
-						$elm$core$List$map,
-						$author$project$Main$emptyLine,
-						A2($elm$core$List$range, 4, $author$project$Main$pageLines - 1)),
+	function (model, screen) {
+		var pageState = {pageNumber: 0};
+		var pageConfig = {
+			footer: _Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('button-line')
+						]),
 					_List_fromArray(
 						[
 							A2(
-							$elm$html$Html$div,
+							$elm$html$Html$button,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('page-foot')
+									$elm$html$Html$Events$onClick($author$project$Main$DoSaveOptions)
 								]),
-							_List_Nil),
-							A2($author$project$Main$periodOptionsView, fields.upcoming, 'upcoming-list'),
-							A2($author$project$Main$periodOptionsView, fields.recent, 'recent-list')
-						]))));
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Save')
+								])),
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Main$Cancel)
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Cancel')
+								]))
+						]))),
+			nLines: $author$project$Main$pageLines,
+			showOptions: false,
+			title: 'View Options'
+		};
+		var lines = _List_fromArray(
+			[
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Show upcoming')
+						]))),
+				_Utils_Tuple2(
+				A2($author$project$Main$periodOptionsView, screen.upcoming, 'upcoming-list'),
+				A2(
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$value(screen.upcoming),
+							$elm$html$Html$Attributes$list('upcoming-list'),
+							$elm$html$Html$Events$onInput(
+							function (s) {
+								return $author$project$Main$ChangeFormField(
+									$author$project$Main$ChangeOptionsUpcoming(s));
+							})
+						]),
+					_List_Nil)),
+				_Utils_Tuple2(
+				$author$project$Main$emptyDiv,
+				A2(
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Show recently done')
+						]))),
+				_Utils_Tuple2(
+				A2($author$project$Main$periodOptionsView, screen.recent, 'recent-list'),
+				A2(
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$value(screen.recent),
+							$elm$html$Html$Attributes$list('recent-list'),
+							$elm$html$Html$Events$onInput(
+							function (s) {
+								return $author$project$Main$ChangeFormField(
+									$author$project$Main$ChangeOptionsRecent(s));
+							})
+						]),
+					_List_Nil))
+			]);
+		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
 	});
-var $author$project$Main$viewPage = F2(
+var $author$project$Main$viewScreen = F2(
 	function (model, page) {
 		switch (page.$) {
 			case 'HabitList':
@@ -15691,27 +16274,595 @@ var $author$project$Main$viewPage = F2(
 				return A2($author$project$Main$viewOptionsPage, model, optionsPage);
 			default:
 				var habitSelect = page.a;
-				return A2($author$project$Main$viewHabitsSelectPage, model, habitSelect);
+				return A2($author$project$Main$viewHabitSelectPage, model, habitSelect);
 		}
 	});
+var $mdgriffith$elm_style_animation$Animation$Render$iePrefix = '-ms-';
+var $mdgriffith$elm_style_animation$Animation$Render$webkitPrefix = '-webkit-';
+var $mdgriffith$elm_style_animation$Animation$Render$prefix = function (stylePair) {
+	var propValue = stylePair.b;
+	var propName = stylePair.a;
+	switch (propName) {
+		case 'transform':
+			return _List_fromArray(
+				[
+					stylePair,
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
+					propValue),
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
+					propValue)
+				]);
+		case 'transform-origin':
+			return _List_fromArray(
+				[
+					stylePair,
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
+					propValue),
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
+					propValue)
+				]);
+		case 'filter':
+			return _List_fromArray(
+				[
+					stylePair,
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
+					propValue),
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
+					propValue)
+				]);
+		default:
+			return _List_fromArray(
+				[stylePair]);
+	}
+};
+var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
+var $elm$svg$Svg$Attributes$cx = _VirtualDom_attribute('cx');
+var $elm$svg$Svg$Attributes$cy = _VirtualDom_attribute('cy');
+var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
+var $elm$svg$Svg$Attributes$offset = _VirtualDom_attribute('offset');
+var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
+var $elm$core$Basics$cos = _Basics_cos;
+var $elm$core$Basics$degrees = function (angleInDegrees) {
+	return (angleInDegrees * $elm$core$Basics$pi) / 180;
+};
+var $elm$core$Basics$sin = _Basics_sin;
+var $mdgriffith$elm_style_animation$Animation$Render$pathCmdValue = function (cmd) {
+	var renderPoints = function (coords) {
+		return A2(
+			$elm$core$String$join,
+			' ',
+			A2(
+				$elm$core$List$map,
+				function (_v11) {
+					var x = _v11.a;
+					var y = _v11.b;
+					return $elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position));
+				},
+				coords));
+	};
+	switch (cmd.$) {
+		case 'Move':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'm ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'MoveTo':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'M ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'Line':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'l ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'LineTo':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'L ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'Horizontal':
+			var a = cmd.a;
+			return 'h ' + $elm$core$String$fromFloat(a.position);
+		case 'HorizontalTo':
+			var a = cmd.a;
+			return 'H ' + $elm$core$String$fromFloat(a.position);
+		case 'Vertical':
+			var a = cmd.a;
+			return 'v ' + $elm$core$String$fromFloat(a.position);
+		case 'VerticalTo':
+			var a = cmd.a;
+			return 'V ' + $elm$core$String$fromFloat(a.position);
+		case 'Curve':
+			var control1 = cmd.a.control1;
+			var control2 = cmd.a.control2;
+			var point = cmd.a.point;
+			var _v1 = point;
+			var p1x = _v1.a;
+			var p1y = _v1.b;
+			var _v2 = control2;
+			var c2x = _v2.a;
+			var c2y = _v2.b;
+			var _v3 = control1;
+			var c1x = _v3.a;
+			var c1y = _v3.b;
+			return 'c ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(c2x.position) + (' ' + ($elm$core$String$fromFloat(c2y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))))))));
+		case 'CurveTo':
+			var control1 = cmd.a.control1;
+			var control2 = cmd.a.control2;
+			var point = cmd.a.point;
+			var _v4 = point;
+			var p1x = _v4.a;
+			var p1y = _v4.b;
+			var _v5 = control2;
+			var c2x = _v5.a;
+			var c2y = _v5.b;
+			var _v6 = control1;
+			var c1x = _v6.a;
+			var c1y = _v6.b;
+			return 'C ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(c2x.position) + (' ' + ($elm$core$String$fromFloat(c2y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))))))));
+		case 'Quadratic':
+			var control = cmd.a.control;
+			var point = cmd.a.point;
+			var _v7 = point;
+			var p1x = _v7.a;
+			var p1y = _v7.b;
+			var _v8 = control;
+			var c1x = _v8.a;
+			var c1y = _v8.b;
+			return 'q ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))));
+		case 'QuadraticTo':
+			var control = cmd.a.control;
+			var point = cmd.a.point;
+			var _v9 = point;
+			var p1x = _v9.a;
+			var p1y = _v9.b;
+			var _v10 = control;
+			var c1x = _v10.a;
+			var c1y = _v10.b;
+			return 'Q ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))));
+		case 'SmoothQuadratic':
+			var points = cmd.a;
+			return 't ' + renderPoints(points);
+		case 'SmoothQuadraticTo':
+			var points = cmd.a;
+			return 'T ' + renderPoints(points);
+		case 'Smooth':
+			var points = cmd.a;
+			return 's ' + renderPoints(points);
+		case 'SmoothTo':
+			var points = cmd.a;
+			return 'S ' + renderPoints(points);
+		case 'ClockwiseArc':
+			var arc = cmd.a;
+			var deltaAngle = arc.endAngle.position - arc.startAngle.position;
+			if (_Utils_cmp(deltaAngle, 360 - 1.0e-6) > 0) {
+				var dy = arc.radius.position * $elm$core$Basics$sin(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				var dx = arc.radius.position * $elm$core$Basics$cos(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position - dx) + (',' + ($elm$core$String$fromFloat(arc.y.position - dy) + (' A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position + dx) + (',' + $elm$core$String$fromFloat(arc.y.position + dy)))))))))))))));
+			} else {
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (' 0 ' + (((deltaAngle >= 180) ? '1' : '0') + (' ' + ('1' + (' ' + ($elm$core$String$fromFloat(
+					arc.x.position + (arc.radius.position * $elm$core$Basics$cos(
+						$elm$core$Basics$degrees(arc.endAngle.position)))) + (',' + $elm$core$String$fromFloat(
+					arc.y.position + (arc.radius.position * $elm$core$Basics$sin(
+						$elm$core$Basics$degrees(arc.endAngle.position))))))))))))));
+			}
+		case 'AntiClockwiseArc':
+			var arc = cmd.a;
+			var deltaAngle = arc.endAngle.position - arc.startAngle.position;
+			if (_Utils_cmp(deltaAngle, 360 - 1.0e-6) > 0) {
+				var dy = arc.radius.position * $elm$core$Basics$sin(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				var dx = arc.radius.position * $elm$core$Basics$cos(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,0,' + ($elm$core$String$fromFloat(arc.x.position - dx) + (',' + ($elm$core$String$fromFloat(arc.y.position - dy) + (' A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position + dx) + (',' + $elm$core$String$fromFloat(arc.y.position + dy)))))))))))))));
+			} else {
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (' 0 ' + ((((arc.startAngle.position - arc.endAngle.position) >= 180) ? '1' : '0') + (' ' + ('0' + (' ' + ($elm$core$String$fromFloat(
+					arc.x.position + (arc.radius.position * $elm$core$Basics$cos(arc.endAngle.position))) + (',' + $elm$core$String$fromFloat(
+					arc.y.position + (arc.radius.position * $elm$core$Basics$sin(arc.endAngle.position)))))))))))));
+			}
+		default:
+			return 'z';
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$propertyValue = F2(
+	function (prop, delim) {
+		switch (prop.$) {
+			case 'ExactProperty':
+				var value = prop.b;
+				return value;
+			case 'ColorProperty':
+				var r = prop.b;
+				var g = prop.c;
+				var b = prop.d;
+				var a = prop.e;
+				return 'rgba(' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(r.position)) + (',' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(g.position)) + (',' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(b.position)) + (',' + ($elm$core$String$fromFloat(a.position) + ')')))))));
+			case 'ShadowProperty':
+				var name = prop.a;
+				var inset = prop.b;
+				var shadow = prop.c;
+				return (inset ? 'inset ' : '') + ($elm$core$String$fromFloat(shadow.offsetX.position) + ('px' + (' ' + ($elm$core$String$fromFloat(shadow.offsetY.position) + ('px' + (' ' + ($elm$core$String$fromFloat(shadow.blur.position) + ('px' + (' ' + ((((name === 'text-shadow') || (name === 'drop-shadow')) ? '' : ($elm$core$String$fromFloat(shadow.size.position) + ('px' + ' '))) + ('rgba(' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(shadow.red.position)) + (', ' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(shadow.green.position)) + (', ' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(shadow.blue.position)) + (', ' + ($elm$core$String$fromFloat(shadow.alpha.position) + ')'))))))))))))))))));
+			case 'Property':
+				var x = prop.b;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					x.unit);
+			case 'Property2':
+				var x = prop.b;
+				var y = prop.c;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					_Utils_ap(
+						x.unit,
+						_Utils_ap(
+							delim,
+							_Utils_ap(
+								$elm$core$String$fromFloat(y.position),
+								y.unit))));
+			case 'Property3':
+				var x = prop.b;
+				var y = prop.c;
+				var z = prop.d;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					_Utils_ap(
+						x.unit,
+						_Utils_ap(
+							delim,
+							_Utils_ap(
+								$elm$core$String$fromFloat(y.position),
+								_Utils_ap(
+									y.unit,
+									_Utils_ap(
+										delim,
+										_Utils_ap(
+											$elm$core$String$fromFloat(z.position),
+											z.unit)))))));
+			case 'Property4':
+				var w = prop.b;
+				var x = prop.c;
+				var y = prop.d;
+				var z = prop.e;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(w.position),
+					_Utils_ap(
+						w.unit,
+						_Utils_ap(
+							delim,
+							_Utils_ap(
+								$elm$core$String$fromFloat(x.position),
+								_Utils_ap(
+									x.unit,
+									_Utils_ap(
+										delim,
+										_Utils_ap(
+											$elm$core$String$fromFloat(y.position),
+											_Utils_ap(
+												y.unit,
+												_Utils_ap(
+													delim,
+													_Utils_ap(
+														$elm$core$String$fromFloat(z.position),
+														z.unit))))))))));
+			case 'AngleProperty':
+				var x = prop.b;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					x.unit);
+			case 'Points':
+				var coords = prop.a;
+				return A2(
+					$elm$core$String$join,
+					' ',
+					A2(
+						$elm$core$List$map,
+						function (_v1) {
+							var x = _v1.a;
+							var y = _v1.b;
+							return $elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position));
+						},
+						coords));
+			default:
+				var cmds = prop.a;
+				return A2(
+					$elm$core$String$join,
+					' ',
+					A2($elm$core$List$map, $mdgriffith$elm_style_animation$Animation$Render$pathCmdValue, cmds));
+		}
+	});
+var $elm$svg$Svg$Attributes$r = _VirtualDom_attribute('r');
+var $elm$svg$Svg$Attributes$rx = _VirtualDom_attribute('rx');
+var $elm$svg$Svg$Attributes$ry = _VirtualDom_attribute('ry');
+var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
+var $elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
+var $elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
+var $mdgriffith$elm_style_animation$Animation$Render$renderAttrs = function (prop) {
+	if (A2(
+		$elm$core$String$startsWith,
+		'attr:',
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop))) {
+		return $elm$core$Maybe$Just(
+			A2(
+				$elm$html$Html$Attributes$attribute,
+				A2(
+					$elm$core$String$dropLeft,
+					5,
+					$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop)),
+				A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+	} else {
+		switch (prop.$) {
+			case 'Points':
+				var pts = prop.a;
+				return $elm$core$Maybe$Just(
+					$elm$svg$Svg$Attributes$points(
+						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+			case 'Path':
+				var cmds = prop.a;
+				return $elm$core$Maybe$Just(
+					$elm$svg$Svg$Attributes$d(
+						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+			case 'Property':
+				var name = prop.a;
+				var m1 = prop.b;
+				switch (name) {
+					case 'x':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$x(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'y':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$y(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'cx':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$cx(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'cy':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$cy(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'rx':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$rx(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'ry':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$ry(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'r':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$r(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'offset':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$offset(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					default:
+						return $elm$core$Maybe$Nothing;
+				}
+			case 'Property4':
+				var name = prop.a;
+				var m1 = prop.b;
+				var m2 = prop.c;
+				var m3 = prop.d;
+				var m4 = prop.e;
+				return (name === 'viewBox') ? $elm$core$Maybe$Just(
+					$elm$svg$Svg$Attributes$viewBox(
+						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' '))) : $elm$core$Maybe$Nothing;
+			default:
+				return $elm$core$Maybe$Nothing;
+		}
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$isAttr = function (prop) {
+	return A2(
+		$elm$core$String$startsWith,
+		'attr:',
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop)) || function () {
+		switch (prop.$) {
+			case 'Points':
+				return true;
+			case 'Path':
+				return true;
+			case 'Property':
+				var name = prop.a;
+				return (name === 'cx') || ((name === 'cy') || ((name === 'x') || ((name === 'y') || ((name === 'rx') || ((name === 'ry') || ((name === 'r') || (name === 'offset')))))));
+			case 'Property4':
+				var name = prop.a;
+				return name === 'viewBox';
+			default:
+				return false;
+		}
+	}();
+};
+var $mdgriffith$elm_style_animation$Animation$Render$isFilter = function (prop) {
+	return A2(
+		$elm$core$List$member,
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
+		_List_fromArray(
+			['filter-url', 'blur', 'brightness', 'contrast', 'grayscale', 'hue-rotate', 'invert', 'saturate', 'sepia', 'drop-shadow']));
+};
+var $mdgriffith$elm_style_animation$Animation$Render$render3dRotation = function (prop) {
+	if (prop.$ === 'Property3') {
+		var x = prop.b;
+		var y = prop.c;
+		var z = prop.d;
+		return 'rotateX(' + ($elm$core$String$fromFloat(x.position) + (x.unit + (') rotateY(' + ($elm$core$String$fromFloat(y.position) + (y.unit + (') rotateZ(' + ($elm$core$String$fromFloat(z.position) + (z.unit + ')'))))))));
+	} else {
+		return '';
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$renderValues = function (_v0) {
+	var model = _v0.a;
+	var _v1 = A2($elm$core$List$partition, $mdgriffith$elm_style_animation$Animation$Render$isAttr, model.style);
+	var attrProps = _v1.a;
+	var styleProps = _v1.b;
+	var _v2 = A3(
+		$elm$core$List$foldl,
+		F2(
+			function (prop, _v3) {
+				var myStyle = _v3.a;
+				var myTransforms = _v3.b;
+				var myFilters = _v3.c;
+				return $mdgriffith$elm_style_animation$Animation$Render$isTransformation(prop) ? _Utils_Tuple3(
+					myStyle,
+					_Utils_ap(
+						myTransforms,
+						_List_fromArray(
+							[prop])),
+					myFilters) : ($mdgriffith$elm_style_animation$Animation$Render$isFilter(prop) ? _Utils_Tuple3(
+					myStyle,
+					myTransforms,
+					_Utils_ap(
+						myFilters,
+						_List_fromArray(
+							[prop]))) : _Utils_Tuple3(
+					_Utils_ap(
+						myStyle,
+						_List_fromArray(
+							[prop])),
+					myTransforms,
+					myFilters));
+			}),
+		_Utils_Tuple3(_List_Nil, _List_Nil, _List_Nil),
+		styleProps);
+	var style = _v2.a;
+	var transforms = _v2.b;
+	var filters = _v2.c;
+	var renderedFilters = $elm$core$List$isEmpty(filters) ? _List_Nil : _List_fromArray(
+		[
+			_Utils_Tuple2(
+			'filter',
+			A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					function (prop) {
+						var name = $mdgriffith$elm_style_animation$Animation$Model$propertyName(prop);
+						return (name === 'filter-url') ? ('url(\"' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + '\")')) : ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) + ('(' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + ')')));
+					},
+					filters)))
+		]);
+	var renderedStyle = A2(
+		$elm$core$List$map,
+		function (prop) {
+			return _Utils_Tuple2(
+				$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
+				A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' '));
+		},
+		style);
+	var renderedTransforms = $elm$core$List$isEmpty(transforms) ? _List_Nil : _List_fromArray(
+		[
+			_Utils_Tuple2(
+			'transform',
+			A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					function (prop) {
+						return ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) === 'rotate3d') ? $mdgriffith$elm_style_animation$Animation$Render$render3dRotation(prop) : ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) + ('(' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + ')')));
+					},
+					transforms)))
+		]);
+	return _Utils_Tuple2(
+		_Utils_ap(
+			renderedTransforms,
+			_Utils_ap(renderedFilters, renderedStyle)),
+		attrProps);
+};
+var $mdgriffith$elm_style_animation$Animation$Render$render = function (animation) {
+	var _v0 = $mdgriffith$elm_style_animation$Animation$Render$renderValues(animation);
+	var style = _v0.a;
+	var attrProps = _v0.b;
+	var otherAttrs = A2($elm$core$List$filterMap, $mdgriffith$elm_style_animation$Animation$Render$renderAttrs, attrProps);
+	var styleAttr = A2(
+		$elm$core$List$map,
+		function (_v1) {
+			var prop = _v1.a;
+			var val = _v1.b;
+			return A2($elm$html$Html$Attributes$style, prop, val);
+		},
+		A2($elm$core$List$concatMap, $mdgriffith$elm_style_animation$Animation$Render$prefix, style));
+	return _Utils_ap(styleAttr, otherAttrs);
+};
+var $mdgriffith$elm_style_animation$Animation$render = $mdgriffith$elm_style_animation$Animation$Render$render;
+var $author$project$Main$viewScreenTransition = F2(
+	function (model, _v0) {
+		var transition = _v0.a;
+		var _v1 = function () {
+			var _v2 = transition.direction;
+			if (_v2.$ === 'TransitionIn') {
+				return _Utils_Tuple2(model.screen, transition.previous);
+			} else {
+				return _Utils_Tuple2(transition.previous, model.screen);
+			}
+		}();
+		var top = _v1.a;
+		var bottom = _v1.b;
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('static-page')
+						]),
+					_List_fromArray(
+						[
+							A2($author$project$Main$viewScreen, model, bottom)
+						])),
+					A2(
+					$elm$html$Html$div,
+					A2(
+						$elm$core$List$cons,
+						$elm$html$Html$Attributes$class('transition-page'),
+						$mdgriffith$elm_style_animation$Animation$render(transition.style)),
+					_List_fromArray(
+						[
+							A2($author$project$Main$viewScreen, model, top)
+						]))
+				]));
+	});
+var $author$project$Main$maybeViewTransition = function (model) {
+	var _v0 = model.screenTransition;
+	if (_v0.$ === 'Nothing') {
+		return A2($author$project$Main$viewScreen, model, model.screen);
+	} else {
+		var transition = _v0.a;
+		return A2($author$project$Main$viewScreenTransition, model, transition);
+	}
+};
 var $author$project$Main$view = function (model) {
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
-				$elm$html$Html$Attributes$class('page-container')
+				$elm$html$Html$Attributes$class('page-container'),
+				$elm$html$Html$Attributes$id('habits-view')
 			]),
 		_List_fromArray(
 			[
 				A2(
 				$elm$html$Html$div,
+				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$Attributes$class('middle')
-					]),
-				_List_fromArray(
-					[
-						A2($author$project$Main$viewPage, model, model.screen)
+						$author$project$Main$maybeViewTransition(model)
 					]))
 			]));
 };
@@ -15742,4 +16893,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["String.String","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":[],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["Main.FormChangeMsg"],"Cancel":[]}},"Main.FormChangeMsg":{"args":[],"tags":{"ChangeDescription":["String.String"],"ChangeTag":["String.String"],"ChangePeriod":["String.String"],"ToggleBlocked":[],"ChangeBlocked":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["String.String","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":[],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["Main.FormChangeMsg"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"ChangePage":["Basics.Int"]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Main.FormChangeMsg":{"args":[],"tags":{"ChangeDescription":["String.String"],"ChangeTag":["String.String"],"ChangePeriod":["String.String"],"ToggleBlocked":[],"ChangeBlocked":["String.String"],"ChangeOptionsRecent":["String.String"],"ChangeOptionsUpcoming":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
