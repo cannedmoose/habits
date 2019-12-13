@@ -24,11 +24,6 @@ type alias Anim =
     Animation.Messenger.State Msg
 
 
-pageLines : Int
-pageLines =
-    18
-
-
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -42,7 +37,7 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        -- TODO should show error instead of with default
+        -- TODO Show error when decoding fails
         storage =
             JD.decodeValue storageDecoder flags.model
                 |> Result.withDefault defaultStorageModel
@@ -194,7 +189,7 @@ subscriptions model =
 
 getPageElement : Cmd Msg
 getPageElement =
-    -- TODO need to handle viewport resize.
+    -- TODO Subscribe to viewport change so we can redo this
     Task.attempt NewPageElement (Dom.getElement "habits-view")
 
 
@@ -264,19 +259,16 @@ editHabitScreen model habitId =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        NoOp ->
+    case ( msg, model.screen ) of
+        ( NoOp, _ ) ->
             ( model, Cmd.none )
 
-        NoOps s ->
-            ( model, Cmd.none )
-
-        Tick time ->
+        ( Tick time, _ ) ->
             ( { model | time = time }
             , Cmd.none
             )
 
-        AnimateScreen animMsg ->
+        ( AnimateScreen animMsg, _ ) ->
             case model.screenTransition of
                 Nothing ->
                     ( model, Cmd.none )
@@ -288,12 +280,12 @@ update msg model =
                     in
                     ( { model | screenTransition = Just (ScreenTransition { transition | style = style }) }, cmd )
 
-        ClearTransition ->
+        ( ClearTransition, _ ) ->
             ( { model | screenTransition = Nothing }
             , Cmd.none
             )
 
-        DoHabit habitId ->
+        ( DoHabit habitId, _ ) ->
             let
                 updatedHabit =
                     Store.filterIds ((==) habitId) model.habits
@@ -305,17 +297,10 @@ update msg model =
                         |> Store.mapValues (Habit.unblock model.time)
                         |> Store.union updatedHabit
             in
-            ( { model
-                | habits =
-                    Store.filterIds ((==) habitId) model.habits
-                        |> Store.mapValues (Habit.doHabit model.time)
-                        |> Store.union model.habits
-              }
-            , Cmd.none
-            )
+            ( { model | habits = updatedBlocked }, Cmd.none )
                 |> storeModel
 
-        OpenHabitEdit habitId ->
+        ( OpenHabitEdit habitId, _ ) ->
             let
                 maybeScreen =
                     editHabitScreen model habitId
@@ -332,100 +317,79 @@ update msg model =
                     , Cmd.none
                     )
 
-        DoDeleteHabit ->
-            case model.screen of
-                EditHabit { habitId, parent } ->
-                    ( { model
-                        | habits =
-                            Store.delete habitId model.habits
-                                |> Store.mapValues
-                                    (\habit ->
-                                        if Habit.isBlocker habitId habit then
-                                            { habit | block = Habit.Unblocked }
+        ( DoDeleteHabit, EditHabit { habitId, parent } ) ->
+            ( let
+                deletedHabit =
+                    Store.delete habitId model.habits
 
-                                        else
-                                            habit
-                                    )
-                        , screen = parent
-                        , screenTransition =
-                            Just (slideOffbottom model)
-                      }
-                    , Cmd.none
-                    )
-                        |> storeModel
+                updated =
+                    Store.filterValues (Habit.isBlocker habitId) deletedHabit
+                        |> Store.mapValues (\habit -> { habit | block = Habit.Unblocked })
+                        |> Store.union deletedHabit
+              in
+              { model
+                | habits = updated
+                , screen = parent
+                , screenTransition =
+                    Just (slideOffbottom model)
+              }
+            , Cmd.none
+            )
+                |> storeModel
 
-                _ ->
-                    ( model, Cmd.none )
-
-        DoEditHabit ->
-            case model.screen of
-                EditHabit fields ->
-                    ( { model
-                        | habits =
-                            Store.filterIds ((==) fields.habitId) model.habits
-                                |> Store.mapValues
-                                    (\habit ->
-                                        { habit
-                                            | description = fields.description
-                                            , tag = fields.tag
-                                            , period = Period.parse fields.period
-                                            , block =
-                                                case ( fields.block, habit.block ) of
-                                                    ( Nothing, _ ) ->
-                                                        Habit.Unblocked
-
-                                                    ( Just hid, Habit.Blocker _ True ) ->
-                                                        Habit.Blocker hid True
-
-                                                    ( Just hid, Habit.Blocker _ False ) ->
-                                                        Habit.Blocker hid False
-
-                                                    ( Just hid, Habit.Unblocked ) ->
-                                                        Habit.Blocker hid False
-                                        }
-                                    )
-                                |> Store.union model.habits
-                        , screen = fields.parent
-                        , screenTransition = Just (flipOffRight model)
-                      }
-                    , Cmd.none
-                    )
-                        |> storeModel
-
-                _ ->
-                    ( model, Cmd.none )
-
-        OpenHabitSelect for habitId ->
+        ( DoEditHabit, EditHabit fields ) ->
             ( { model
-                | screen = SelectHabit { page = 0, selected = habitId, forHabit = "last " ++ for, parent = model.screen }
+                | habits =
+                    Store.filterIds ((==) fields.habitId) model.habits
+                        |> Store.mapValues
+                            (\habit ->
+                                { habit
+                                    | description = fields.description
+                                    , tag = fields.tag
+                                    , period = Period.parse fields.period
+                                    , block = Habit.updateBlock fields.block habit.block
+                                }
+                            )
+                        |> Store.union model.habits
+                , screen = fields.parent
+                , screenTransition = Just (flipOffRight model)
+              }
+            , Cmd.none
+            )
+                |> storeModel
+
+        ( OpenHabitSelect for habitId, _ ) ->
+            ( { model
+                | screen =
+                    SelectHabit
+                        { page = 0
+                        , selected = habitId
+                        , forHabit = "last " ++ for
+                        , parent = model.screen
+                        }
                 , screenTransition = Just (flipOn model)
               }
             , Cmd.none
             )
 
-        DoSelectHabit habitId ->
-            case model.screen of
-                SelectHabit { parent } ->
-                    ( { model
-                        | screen =
-                            case parent of
-                                EditHabit screen ->
-                                    EditHabit { screen | block = habitId }
+        ( DoSelectHabit habitId, SelectHabit { parent } ) ->
+            ( { model
+                | screen =
+                    case parent of
+                        EditHabit screen ->
+                            EditHabit { screen | block = habitId }
 
-                                CreateHabit screen ->
-                                    CreateHabit { screen | block = habitId }
+                        CreateHabit screen ->
+                            CreateHabit { screen | block = habitId }
 
-                                _ ->
-                                    parent
-                        , screenTransition = Just (flipOffRight model)
-                      }
-                    , Cmd.none
-                    )
+                        _ ->
+                            parent
+                , screenTransition = Just (flipOffRight model)
+              }
+            , Cmd.none
+            )
 
-                _ ->
-                    ( model, Cmd.none )
-
-        OpenHabitCreate ->
+        ( OpenHabitCreate, _ ) ->
             ( { model
                 | screen =
                     CreateHabit
@@ -441,33 +405,28 @@ update msg model =
             , Cmd.none
             )
 
-        DoCreateHabit ->
-            -- TODO THIS SHOULD MAKE SURE DESCRIPTION IS FILLED
-            case model.screen of
-                CreateHabit fields ->
-                    let
-                        newHabit =
-                            Habit.newHabit
-                                model.time
-                                fields.description
-                                fields.tag
-                                (Store.getNextId model.habits)
-                                (Period.parse fields.period)
-                                fields.block
-                    in
-                    ( { model
-                        | habits = Store.insert newHabit model.habits
-                        , screen = fields.parent
-                        , screenTransition = Just (flipOffRight model)
-                      }
-                    , Cmd.none
-                    )
-                        |> storeModel
+        ( DoCreateHabit, CreateHabit fields ) ->
+            -- TODO Make sure description is filled otherwise error
+            let
+                newHabit =
+                    Habit.newHabit
+                        model.time
+                        fields.description
+                        fields.tag
+                        (Store.getNextId model.habits)
+                        (Period.parse fields.period)
+                        fields.block
+            in
+            ( { model
+                | habits = Store.insert newHabit model.habits
+                , screen = fields.parent
+                , screenTransition = Just (flipOffRight model)
+              }
+            , Cmd.none
+            )
+                |> storeModel
 
-                _ ->
-                    ( model, Cmd.none )
-
-        OpenEditOptions ->
+        ( OpenEditOptions, _ ) ->
             ( { model
                 | screen =
                     EditOptions
@@ -480,73 +439,78 @@ update msg model =
             , Cmd.none
             )
 
-        DoSaveOptions ->
-            case model.screen of
-                EditOptions fields ->
-                    let
-                        options =
-                            model.options
+        ( DoSaveOptions, EditOptions fields ) ->
+            let
+                options =
+                    model.options
 
-                        updatedOptions =
-                            { options
-                                | recent = Period.parse fields.recent
-                                , upcoming = Period.parse fields.upcoming
-                            }
-                    in
-                    ( { model | options = updatedOptions, screen = fields.parent, screenTransition = Just (flipOffRight model) }
-                    , Cmd.none
-                    )
-                        |> storeModel
+                updatedOptions =
+                    { options
+                        | recent = Period.parse fields.recent
+                        , upcoming = Period.parse fields.upcoming
+                    }
+            in
+            ( { model | options = updatedOptions, screen = fields.parent, screenTransition = Just (flipOffRight model) }
+            , Cmd.none
+            )
+                |> storeModel
 
-                _ ->
-                    ( model, Cmd.none )
-
-        ChangeFormField formChangeMsg ->
-            case ( formChangeMsg, model.screen ) of
-                ( ChangeDescription str, EditHabit page ) ->
+        ( ChangeFormField formChangeMsg, EditHabit page ) ->
+            case formChangeMsg of
+                ChangeDescription str ->
                     ( { model | screen = EditHabit { page | description = str } }
                     , Cmd.none
                     )
 
-                ( ChangeDescription str, CreateHabit page ) ->
-                    ( { model | screen = CreateHabit { page | description = str } }
-                    , Cmd.none
-                    )
-
-                ( ChangeTag str, EditHabit page ) ->
+                ChangeTag str ->
                     ( { model | screen = EditHabit { page | tag = str } }
                     , Cmd.none
                     )
 
-                ( ChangeTag str, CreateHabit page ) ->
-                    ( { model | screen = CreateHabit { page | tag = str } }
-                    , Cmd.none
-                    )
-
-                ( ChangePeriod str, EditHabit page ) ->
+                ChangePeriod str ->
                     ( { model | screen = EditHabit { page | period = str } }
                     , Cmd.none
                     )
 
-                ( ChangePeriod str, CreateHabit page ) ->
+                _ ->
+                    ( model, Cmd.none )
+
+        ( ChangeFormField formChangeMsg, CreateHabit page ) ->
+            case formChangeMsg of
+                ChangeDescription str ->
+                    ( { model | screen = CreateHabit { page | description = str } }
+                    , Cmd.none
+                    )
+
+                ChangeTag str ->
+                    ( { model | screen = CreateHabit { page | tag = str } }
+                    , Cmd.none
+                    )
+
+                ChangePeriod str ->
                     ( { model | screen = CreateHabit { page | period = str } }
                     , Cmd.none
                     )
 
-                ( ChangeOptionsRecent str, EditOptions page ) ->
+                _ ->
+                    ( model, Cmd.none )
+
+        ( ChangeFormField formChangeMsg, EditOptions page ) ->
+            case formChangeMsg of
+                ChangeOptionsRecent str ->
                     ( { model | screen = EditOptions { page | recent = str } }
                     , Cmd.none
                     )
 
-                ( ChangeOptionsUpcoming str, EditOptions page ) ->
+                ChangeOptionsUpcoming str ->
                     ( { model | screen = EditOptions { page | upcoming = str } }
                     , Cmd.none
                     )
 
-                ( _, _ ) ->
+                _ ->
                     ( model, Cmd.none )
 
-        Cancel ->
+        ( Cancel, _ ) ->
             let
                 prev =
                     case model.screen of
@@ -572,46 +536,44 @@ update msg model =
             , Cmd.none
             )
 
-        NewPageElement (Ok el) ->
+        ( NewPageElement (Ok el), _ ) ->
             ( { model | pageElement = Just el }, Cmd.none )
 
-        NewPageElement _ ->
+        ( NewPageElement _, _ ) ->
             ( { model | pageElement = Nothing }, Cmd.none )
 
-        ChangePage page ->
-            case model.screen of
-                HabitList screen ->
-                    ( { model
-                        | screen = HabitList { screen | page = page }
-                        , screenTransition =
-                            Just
-                                (if page < screen.page then
-                                    flipOffLeft model
+        ( ChangePage page, HabitList screen ) ->
+            ( { model
+                | screen = HabitList { screen | page = page }
+                , screenTransition =
+                    Just
+                        (if page < screen.page then
+                            flipOffLeft model
 
-                                 else
-                                    flipOn model
-                                )
-                      }
-                    , Cmd.none
-                    )
+                         else
+                            flipOn model
+                        )
+              }
+            , Cmd.none
+            )
 
-                SelectHabit screen ->
-                    ( { model
-                        | screen = SelectHabit { screen | page = page }
-                        , screenTransition =
-                            Just
-                                (if page < screen.page then
-                                    flipOffLeft model
+        ( ChangePage page, SelectHabit screen ) ->
+            ( { model
+                | screen = SelectHabit { screen | page = page }
+                , screenTransition =
+                    Just
+                        (if page < screen.page then
+                            flipOffLeft model
 
-                                 else
-                                    flipOn model
-                                )
-                      }
-                    , Cmd.none
-                    )
+                         else
+                            flipOn model
+                        )
+              }
+            , Cmd.none
+            )
 
-                _ ->
-                    ( model, Cmd.none )
+        ( _, _ ) ->
+            ( model, Cmd.none )
 
 
 habitOrderer : Model -> Habit -> Int
@@ -870,7 +832,7 @@ habitFieldsView fields habits maybeHabit =
     , ( emptyDiv, label [] [ text "every" ] )
     , ( periodOptionsView fields.period "period-list"
       , input
-            -- TODO THIS SHOULD select entire thing when clicked.
+            -- TODO Select entire description when clicked
             [ placeholder "Day", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
             []
       )
@@ -1011,14 +973,6 @@ habitSelectLine model habit =
 
 
 
--- Line helpers
-
-
-emptyDiv =
-    div [] []
-
-
-
 -- Due Helpers
 -- TODO move some of these into habit
 
@@ -1106,6 +1060,16 @@ optionsEncoder options =
 -- Page view helpers
 
 
+emptyDiv : Html Msg
+emptyDiv =
+    div [] []
+
+
+pageLines : Int
+pageLines =
+    18
+
+
 type alias PageConfig =
     { showOptions : Bool
     , title : String
@@ -1173,7 +1137,6 @@ viewPageLines lines footer =
 
 viewPageFooter : PageConfig -> PageState -> PageLines -> Html Msg
 viewPageFooter { nLines } { pageNumber } lines =
-    -- TODO hook these up to next/prev pages
     div
         [ class "page-foot" ]
         [ div
@@ -1240,9 +1203,22 @@ viewPage config state lines =
 
 -- Transition helpers
 {-
-   For accuracy store viewport dimensions (need to sub to task)
-   Also find page container dimensions for the flip through
-   can use animation.set for zindex.
+    TODO
+    - fix overflow for bottom/right transitions
+    - Make them faster
+
+   Type of transitions
+
+         slideFromTop (old one static, new one slide in)
+              New Habit
+         slideOffbottom (old one slide out, new one static)
+              Delete habit
+         flipOffRight (old one slide off - need z index, new one static)
+              Prev Page Page, save (all of them), Select habit
+         flipOffLeft (old one slide off - need z index, new one static)
+              Cancel (all of them)
+         flipOn (old one static, new one slide in - need z index)
+              Next Page
 -}
 
 
@@ -1274,8 +1250,6 @@ slideFromTopTransition { screen, pageElement } =
 
 slideOffbottom : Model -> ScreenTransition
 slideOffbottom { screen, pageElement } =
-    -- TODO need to fix overflow
-    -- Our visible area should be (100 vw) * page height + margins.
     let
         top =
             case pageElement of
@@ -1302,8 +1276,6 @@ slideOffbottom { screen, pageElement } =
 
 flipOffRight : Model -> ScreenTransition
 flipOffRight { screen, pageElement } =
-    -- TODO need to fix overflow
-    -- Our visible area should be (100 vw) * page height + margins.
     let
         left =
             case pageElement of
@@ -1334,8 +1306,6 @@ flipOffRight { screen, pageElement } =
 
 flipOffLeft : Model -> ScreenTransition
 flipOffLeft { screen, pageElement } =
-    -- TODO need to fix overflow
-    -- Our visible area should be (100 vw) * page height + margins.
     let
         right =
             case pageElement of
@@ -1392,49 +1362,3 @@ flipOn { screen, pageElement } =
                     ]
                 )
         }
-
-
-
-{-
-         Type of transitions
-
-      slideFromTop (old one static, new one slide in)
-           New Habit
-      slideOffbottom (old one slide out, new one static)
-           Delete habit
-      flipOffRight (old one slide off - need z index, new one static)
-           Prev Page Page, save (all of them), Select habit
-      flipOffLeft (old one slide off - need z index, new one static)
-           Cancel (all of them)
-      flipOn (old one static, new one slide in - need z index)
-           Next Page
-
-   -- Transitions
-      initalPageTransitionStyle =
-          Animation.styleWith
-              (Animation.easing
-                  { duration = 750
-                  , ease = Ease.inOutQuart
-                  }
-              )
-              [ Animation.right (Animation.px 0) ]
-
-
-      pageTransitionStyle model =
-          Animation.interrupt
-              [ Animation.to [ Animation.right (Animation.px -510) ]
-              , Animation.Messenger.send (SwapPages (Store.getNextId model.pageTransitions))
-              , Animation.to [ Animation.right (Animation.px 0) ]
-              , Animation.Messenger.send (ClearTransition (Store.getNextId model.pageTransitions))
-              ]
-
-
-      openPageTransition : Model -> PageTransition
-      openPageTransition model =
-          Transition
-              { previous = { model | pageTransitions = Store.empty Store.IncrementalId }
-              , style = pageTransitionStyle model initalPageTransitionStyle
-              , above = True
-              }
-
--}

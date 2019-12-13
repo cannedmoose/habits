@@ -14715,324 +14715,326 @@ var $mdgriffith$elm_style_animation$Animation$Messenger$update = F2(
 	function (tick, animation) {
 		return A2($mdgriffith$elm_style_animation$Animation$Model$updateAnimation, tick, animation);
 	});
+var $author$project$Habit$updateBlock = F2(
+	function (maybeBlock, block) {
+		var _v0 = _Utils_Tuple2(maybeBlock, block);
+		if (_v0.a.$ === 'Nothing') {
+			var _v1 = _v0.a;
+			return $author$project$Habit$Unblocked;
+		} else {
+			if (_v0.b.$ === 'Blocker') {
+				if (_v0.b.b) {
+					var hid = _v0.a.a;
+					var _v2 = _v0.b;
+					return A2($author$project$Habit$Blocker, hid, true);
+				} else {
+					var hid = _v0.a.a;
+					var _v3 = _v0.b;
+					return A2($author$project$Habit$Blocker, hid, false);
+				}
+			} else {
+				var hid = _v0.a.a;
+				var _v4 = _v0.b;
+				return A2($author$project$Habit$Blocker, hid, false);
+			}
+		}
+	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
-		switch (msg.$) {
-			case 'NoOp':
-				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-			case 'NoOps':
-				var s = msg.a;
-				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-			case 'Tick':
-				var time = msg.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{time: time}),
-					$elm$core$Platform$Cmd$none);
-			case 'AnimateScreen':
-				var animMsg = msg.a;
-				var _v1 = model.screenTransition;
-				if (_v1.$ === 'Nothing') {
+		var _v0 = _Utils_Tuple2(msg, model.screen);
+		_v0$22:
+		while (true) {
+			switch (_v0.a.$) {
+				case 'NoOp':
+					var _v1 = _v0.a;
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				} else {
-					var transition = _v1.a.a;
-					var _v2 = A2($mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, transition.style);
-					var style = _v2.a;
-					var cmd = _v2.b;
+				case 'Tick':
+					var time = _v0.a.a;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{
-								screenTransition: $elm$core$Maybe$Just(
-									$author$project$Main$ScreenTransition(
-										_Utils_update(
-											transition,
-											{style: style})))
-							}),
-						cmd);
-				}
-			case 'ClearTransition':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{screenTransition: $elm$core$Maybe$Nothing}),
-					$elm$core$Platform$Cmd$none);
-			case 'DoHabit':
-				var habitId = msg.a;
-				var updatedHabit = A2(
-					$author$project$Store$union,
-					model.habits,
-					A2(
-						$author$project$Store$mapValues,
-						$author$project$Habit$doHabit(model.time),
-						A2(
-							$author$project$Store$filterIds,
-							$elm$core$Basics$eq(habitId),
-							model.habits)));
-				var updatedBlocked = A2(
-					$author$project$Store$union,
-					updatedHabit,
-					A2(
-						$author$project$Store$mapValues,
-						$author$project$Habit$unblock(model.time),
-						A2(
-							$author$project$Store$filterValues,
-							$author$project$Habit$isBlocker(habitId),
-							updatedHabit)));
-				return $author$project$Main$storeModel(
-					_Utils_Tuple2(
-						_Utils_update(
-							model,
-							{
-								habits: A2(
-									$author$project$Store$union,
-									model.habits,
-									A2(
-										$author$project$Store$mapValues,
-										$author$project$Habit$doHabit(model.time),
-										A2(
-											$author$project$Store$filterIds,
-											$elm$core$Basics$eq(habitId),
-											model.habits)))
-							}),
-						$elm$core$Platform$Cmd$none));
-			case 'OpenHabitEdit':
-				var habitId = msg.a;
-				var maybeScreen = A2($author$project$Main$editHabitScreen, model, habitId);
-				if (maybeScreen.$ === 'Nothing') {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				} else {
-					var newScreen = maybeScreen.a;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{
-								screen: newScreen,
-								screenTransition: $elm$core$Maybe$Just(
-									$author$project$Main$flipOn(model))
-							}),
+							{time: time}),
 						$elm$core$Platform$Cmd$none);
-				}
-			case 'DoDeleteHabit':
-				var _v4 = model.screen;
-				if (_v4.$ === 'EditHabit') {
-					var habitId = _v4.a.habitId;
-					var parent = _v4.a.parent;
-					return $author$project$Main$storeModel(
-						_Utils_Tuple2(
+				case 'AnimateScreen':
+					var animMsg = _v0.a.a;
+					var _v2 = model.screenTransition;
+					if (_v2.$ === 'Nothing') {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					} else {
+						var transition = _v2.a.a;
+						var _v3 = A2($mdgriffith$elm_style_animation$Animation$Messenger$update, animMsg, transition.style);
+						var style = _v3.a;
+						var cmd = _v3.b;
+						return _Utils_Tuple2(
 							_Utils_update(
 								model,
 								{
-									habits: A2(
-										$author$project$Store$mapValues,
-										function (habit) {
-											return A2($author$project$Habit$isBlocker, habitId, habit) ? _Utils_update(
-												habit,
-												{block: $author$project$Habit$Unblocked}) : habit;
-										},
-										A2($author$project$Store$delete, habitId, model.habits)),
-									screen: parent,
 									screenTransition: $elm$core$Maybe$Just(
-										$author$project$Main$slideOffbottom(model))
+										$author$project$Main$ScreenTransition(
+											_Utils_update(
+												transition,
+												{style: style})))
 								}),
-							$elm$core$Platform$Cmd$none));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 'DoEditHabit':
-				var _v5 = model.screen;
-				if (_v5.$ === 'EditHabit') {
-					var fields = _v5.a;
+							cmd);
+					}
+				case 'ClearTransition':
+					var _v4 = _v0.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{screenTransition: $elm$core$Maybe$Nothing}),
+						$elm$core$Platform$Cmd$none);
+				case 'DoHabit':
+					var habitId = _v0.a.a;
+					var updatedHabit = A2(
+						$author$project$Store$union,
+						model.habits,
+						A2(
+							$author$project$Store$mapValues,
+							$author$project$Habit$doHabit(model.time),
+							A2(
+								$author$project$Store$filterIds,
+								$elm$core$Basics$eq(habitId),
+								model.habits)));
+					var updatedBlocked = A2(
+						$author$project$Store$union,
+						updatedHabit,
+						A2(
+							$author$project$Store$mapValues,
+							$author$project$Habit$unblock(model.time),
+							A2(
+								$author$project$Store$filterValues,
+								$author$project$Habit$isBlocker(habitId),
+								updatedHabit)));
 					return $author$project$Main$storeModel(
 						_Utils_Tuple2(
 							_Utils_update(
 								model,
+								{habits: updatedBlocked}),
+							$elm$core$Platform$Cmd$none));
+				case 'OpenHabitEdit':
+					var habitId = _v0.a.a;
+					var maybeScreen = A2($author$project$Main$editHabitScreen, model, habitId);
+					if (maybeScreen.$ === 'Nothing') {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					} else {
+						var newScreen = maybeScreen.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
 								{
-									habits: A2(
+									screen: newScreen,
+									screenTransition: $elm$core$Maybe$Just(
+										$author$project$Main$flipOn(model))
+								}),
+							$elm$core$Platform$Cmd$none);
+					}
+				case 'DoDeleteHabit':
+					if (_v0.b.$ === 'EditHabit') {
+						var _v6 = _v0.a;
+						var habitId = _v0.b.a.habitId;
+						var parent = _v0.b.a.parent;
+						return $author$project$Main$storeModel(
+							_Utils_Tuple2(
+								function () {
+									var deletedHabit = A2($author$project$Store$delete, habitId, model.habits);
+									var updated = A2(
 										$author$project$Store$union,
-										model.habits,
+										deletedHabit,
 										A2(
 											$author$project$Store$mapValues,
 											function (habit) {
 												return _Utils_update(
 													habit,
-													{
-														block: function () {
-															var _v6 = _Utils_Tuple2(fields.block, habit.block);
-															if (_v6.a.$ === 'Nothing') {
-																var _v7 = _v6.a;
-																return $author$project$Habit$Unblocked;
-															} else {
-																if (_v6.b.$ === 'Blocker') {
-																	if (_v6.b.b) {
-																		var hid = _v6.a.a;
-																		var _v8 = _v6.b;
-																		return A2($author$project$Habit$Blocker, hid, true);
-																	} else {
-																		var hid = _v6.a.a;
-																		var _v9 = _v6.b;
-																		return A2($author$project$Habit$Blocker, hid, false);
-																	}
-																} else {
-																	var hid = _v6.a.a;
-																	var _v10 = _v6.b;
-																	return A2($author$project$Habit$Blocker, hid, false);
-																}
-															}
-														}(),
-														description: fields.description,
-														period: $author$project$Period$parse(fields.period),
-														tag: fields.tag
-													});
+													{block: $author$project$Habit$Unblocked});
 											},
 											A2(
-												$author$project$Store$filterIds,
-												$elm$core$Basics$eq(fields.habitId),
-												model.habits))),
-									screen: fields.parent,
-									screenTransition: $elm$core$Maybe$Just(
-										$author$project$Main$flipOffRight(model))
-								}),
-							$elm$core$Platform$Cmd$none));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 'OpenHabitSelect':
-				var _for = msg.a;
-				var habitId = msg.b;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							screen: $author$project$Main$SelectHabit(
-								{forHabit: 'last ' + _for, page: 0, parent: model.screen, selected: habitId}),
-							screenTransition: $elm$core$Maybe$Just(
-								$author$project$Main$flipOn(model))
-						}),
-					$elm$core$Platform$Cmd$none);
-			case 'DoSelectHabit':
-				var habitId = msg.a;
-				var _v11 = model.screen;
-				if (_v11.$ === 'SelectHabit') {
-					var parent = _v11.a.parent;
+												$author$project$Store$filterValues,
+												$author$project$Habit$isBlocker(habitId),
+												deletedHabit)));
+									return _Utils_update(
+										model,
+										{
+											habits: updated,
+											screen: parent,
+											screenTransition: $elm$core$Maybe$Just(
+												$author$project$Main$slideOffbottom(model))
+										});
+								}(),
+								$elm$core$Platform$Cmd$none));
+					} else {
+						break _v0$22;
+					}
+				case 'DoEditHabit':
+					if (_v0.b.$ === 'EditHabit') {
+						var _v7 = _v0.a;
+						var fields = _v0.b.a;
+						return $author$project$Main$storeModel(
+							_Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										habits: A2(
+											$author$project$Store$union,
+											model.habits,
+											A2(
+												$author$project$Store$mapValues,
+												function (habit) {
+													return _Utils_update(
+														habit,
+														{
+															block: A2($author$project$Habit$updateBlock, fields.block, habit.block),
+															description: fields.description,
+															period: $author$project$Period$parse(fields.period),
+															tag: fields.tag
+														});
+												},
+												A2(
+													$author$project$Store$filterIds,
+													$elm$core$Basics$eq(fields.habitId),
+													model.habits))),
+										screen: fields.parent,
+										screenTransition: $elm$core$Maybe$Just(
+											$author$project$Main$flipOffRight(model))
+									}),
+								$elm$core$Platform$Cmd$none));
+					} else {
+						break _v0$22;
+					}
+				case 'OpenHabitSelect':
+					var _v8 = _v0.a;
+					var _for = _v8.a;
+					var habitId = _v8.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
 							{
-								screen: function () {
-									switch (parent.$) {
-										case 'EditHabit':
-											var screen = parent.a;
-											return $author$project$Main$EditHabit(
-												_Utils_update(
-													screen,
-													{block: habitId}));
-										case 'CreateHabit':
-											var screen = parent.a;
-											return $author$project$Main$CreateHabit(
-												_Utils_update(
-													screen,
-													{block: habitId}));
-										default:
-											return parent;
-									}
-								}(),
+								screen: $author$project$Main$SelectHabit(
+									{forHabit: 'last ' + _for, page: 0, parent: model.screen, selected: habitId}),
 								screenTransition: $elm$core$Maybe$Just(
-									$author$project$Main$flipOffRight(model))
+									$author$project$Main$flipOn(model))
 							}),
 						$elm$core$Platform$Cmd$none);
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 'OpenHabitCreate':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							screen: $author$project$Main$CreateHabit(
-								{block: $elm$core$Maybe$Nothing, description: '', parent: model.screen, period: '', tag: ''}),
-							screenTransition: $elm$core$Maybe$Just(
-								$author$project$Main$slideFromTopTransition(model))
-						}),
-					$elm$core$Platform$Cmd$none);
-			case 'DoCreateHabit':
-				var _v13 = model.screen;
-				if (_v13.$ === 'CreateHabit') {
-					var fields = _v13.a;
-					var newHabit = A6(
-						$author$project$Habit$newHabit,
-						model.time,
-						fields.description,
-						fields.tag,
-						$author$project$Store$getNextId(model.habits),
-						$author$project$Period$parse(fields.period),
-						fields.block);
-					return $author$project$Main$storeModel(
-						_Utils_Tuple2(
+				case 'DoSelectHabit':
+					if (_v0.b.$ === 'SelectHabit') {
+						var habitId = _v0.a.a;
+						var parent = _v0.b.a.parent;
+						return _Utils_Tuple2(
 							_Utils_update(
 								model,
 								{
-									habits: A2($author$project$Store$insert, newHabit, model.habits),
-									screen: fields.parent,
+									screen: function () {
+										switch (parent.$) {
+											case 'EditHabit':
+												var screen = parent.a;
+												return $author$project$Main$EditHabit(
+													_Utils_update(
+														screen,
+														{block: habitId}));
+											case 'CreateHabit':
+												var screen = parent.a;
+												return $author$project$Main$CreateHabit(
+													_Utils_update(
+														screen,
+														{block: habitId}));
+											default:
+												return parent;
+										}
+									}(),
 									screenTransition: $elm$core$Maybe$Just(
 										$author$project$Main$flipOffRight(model))
 								}),
-							$elm$core$Platform$Cmd$none));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 'OpenEditOptions':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							screen: $author$project$Main$EditOptions(
-								{
-									parent: model.screen,
-									recent: $author$project$Period$toString(model.options.recent),
-									upcoming: $author$project$Period$toString(model.options.upcoming)
-								}),
-							screenTransition: $elm$core$Maybe$Just(
-								$author$project$Main$flipOn(model))
-						}),
-					$elm$core$Platform$Cmd$none);
-			case 'DoSaveOptions':
-				var _v14 = model.screen;
-				if (_v14.$ === 'EditOptions') {
-					var fields = _v14.a;
-					var options = model.options;
-					var updatedOptions = _Utils_update(
-						options,
-						{
-							recent: $author$project$Period$parse(fields.recent),
-							upcoming: $author$project$Period$parse(fields.upcoming)
-						});
-					return $author$project$Main$storeModel(
-						_Utils_Tuple2(
-							_Utils_update(
-								model,
-								{
-									options: updatedOptions,
-									screen: fields.parent,
-									screenTransition: $elm$core$Maybe$Just(
-										$author$project$Main$flipOffRight(model))
-								}),
-							$elm$core$Platform$Cmd$none));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 'ChangeFormField':
-				var formChangeMsg = msg.a;
-				var _v15 = _Utils_Tuple2(formChangeMsg, model.screen);
-				_v15$8:
-				while (true) {
-					switch (_v15.b.$) {
+							$elm$core$Platform$Cmd$none);
+					} else {
+						break _v0$22;
+					}
+				case 'OpenHabitCreate':
+					var _v10 = _v0.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								screen: $author$project$Main$CreateHabit(
+									{block: $elm$core$Maybe$Nothing, description: '', parent: model.screen, period: '', tag: ''}),
+								screenTransition: $elm$core$Maybe$Just(
+									$author$project$Main$slideFromTopTransition(model))
+							}),
+						$elm$core$Platform$Cmd$none);
+				case 'DoCreateHabit':
+					if (_v0.b.$ === 'CreateHabit') {
+						var _v11 = _v0.a;
+						var fields = _v0.b.a;
+						var newHabit = A6(
+							$author$project$Habit$newHabit,
+							model.time,
+							fields.description,
+							fields.tag,
+							$author$project$Store$getNextId(model.habits),
+							$author$project$Period$parse(fields.period),
+							fields.block);
+						return $author$project$Main$storeModel(
+							_Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										habits: A2($author$project$Store$insert, newHabit, model.habits),
+										screen: fields.parent,
+										screenTransition: $elm$core$Maybe$Just(
+											$author$project$Main$flipOffRight(model))
+									}),
+								$elm$core$Platform$Cmd$none));
+					} else {
+						break _v0$22;
+					}
+				case 'OpenEditOptions':
+					var _v12 = _v0.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								screen: $author$project$Main$EditOptions(
+									{
+										parent: model.screen,
+										recent: $author$project$Period$toString(model.options.recent),
+										upcoming: $author$project$Period$toString(model.options.upcoming)
+									}),
+								screenTransition: $elm$core$Maybe$Just(
+									$author$project$Main$flipOn(model))
+							}),
+						$elm$core$Platform$Cmd$none);
+				case 'DoSaveOptions':
+					if (_v0.b.$ === 'EditOptions') {
+						var _v13 = _v0.a;
+						var fields = _v0.b.a;
+						var options = model.options;
+						var updatedOptions = _Utils_update(
+							options,
+							{
+								recent: $author$project$Period$parse(fields.recent),
+								upcoming: $author$project$Period$parse(fields.upcoming)
+							});
+						return $author$project$Main$storeModel(
+							_Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										options: updatedOptions,
+										screen: fields.parent,
+										screenTransition: $elm$core$Maybe$Just(
+											$author$project$Main$flipOffRight(model))
+									}),
+								$elm$core$Platform$Cmd$none));
+					} else {
+						break _v0$22;
+					}
+				case 'ChangeFormField':
+					switch (_v0.b.$) {
 						case 'EditHabit':
-							switch (_v15.a.$) {
+							var formChangeMsg = _v0.a.a;
+							var page = _v0.b.a;
+							switch (formChangeMsg.$) {
 								case 'ChangeDescription':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15044,8 +15046,7 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeTag':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15057,8 +15058,7 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangePeriod':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15070,13 +15070,14 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								default:
-									break _v15$8;
+									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							}
 						case 'CreateHabit':
-							switch (_v15.a.$) {
+							var formChangeMsg = _v0.a.a;
+							var page = _v0.b.a;
+							switch (formChangeMsg.$) {
 								case 'ChangeDescription':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15088,8 +15089,7 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeTag':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15101,8 +15101,7 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangePeriod':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15114,13 +15113,14 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								default:
-									break _v15$8;
+									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							}
 						case 'EditOptions':
-							switch (_v15.a.$) {
+							var formChangeMsg = _v0.a.a;
+							var page = _v0.b.a;
+							switch (formChangeMsg.$) {
 								case 'ChangeOptionsRecent':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15132,8 +15132,7 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								case 'ChangeOptionsUpcoming':
-									var str = _v15.a.a;
-									var page = _v15.b.a;
+									var str = formChangeMsg.a;
 									return _Utils_Tuple2(
 										_Utils_update(
 											model,
@@ -15145,95 +15144,98 @@ var $author$project$Main$update = F2(
 											}),
 										$elm$core$Platform$Cmd$none);
 								default:
-									break _v15$8;
+									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							}
 						default:
-							break _v15$8;
+							break _v0$22;
 					}
-				}
-				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-			case 'Cancel':
-				var prev = function () {
-					var _v16 = model.screen;
-					switch (_v16.$) {
-						case 'HabitList':
-							return model.screen;
-						case 'EditHabit':
-							var parent = _v16.a.parent;
-							return parent;
-						case 'CreateHabit':
-							var parent = _v16.a.parent;
-							return parent;
-						case 'EditOptions':
-							var parent = _v16.a.parent;
-							return parent;
-						default:
-							var parent = _v16.a.parent;
-							return parent;
-					}
-				}();
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							screen: prev,
-							screenTransition: $elm$core$Maybe$Just(
-								$author$project$Main$flipOffLeft(model))
-						}),
-					$elm$core$Platform$Cmd$none);
-			case 'NewPageElement':
-				if (msg.a.$ === 'Ok') {
-					var el = msg.a.a;
+				case 'Cancel':
+					var _v17 = _v0.a;
+					var prev = function () {
+						var _v18 = model.screen;
+						switch (_v18.$) {
+							case 'HabitList':
+								return model.screen;
+							case 'EditHabit':
+								var parent = _v18.a.parent;
+								return parent;
+							case 'CreateHabit':
+								var parent = _v18.a.parent;
+								return parent;
+							case 'EditOptions':
+								var parent = _v18.a.parent;
+								return parent;
+							default:
+								var parent = _v18.a.parent;
+								return parent;
+						}
+					}();
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
 							{
-								pageElement: $elm$core$Maybe$Just(el)
+								screen: prev,
+								screenTransition: $elm$core$Maybe$Just(
+									$author$project$Main$flipOffLeft(model))
 							}),
 						$elm$core$Platform$Cmd$none);
-				} else {
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{pageElement: $elm$core$Maybe$Nothing}),
-						$elm$core$Platform$Cmd$none);
-				}
-			default:
-				var page = msg.a;
-				var _v17 = model.screen;
-				switch (_v17.$) {
-					case 'HabitList':
-						var screen = _v17.a;
+				case 'NewPageElement':
+					if (_v0.a.a.$ === 'Ok') {
+						var el = _v0.a.a.a;
 						return _Utils_Tuple2(
 							_Utils_update(
 								model,
 								{
-									screen: $author$project$Main$HabitList(
-										_Utils_update(
-											screen,
-											{page: page})),
-									screenTransition: $elm$core$Maybe$Just(
-										(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+									pageElement: $elm$core$Maybe$Just(el)
 								}),
 							$elm$core$Platform$Cmd$none);
-					case 'SelectHabit':
-						var screen = _v17.a;
+					} else {
 						return _Utils_Tuple2(
 							_Utils_update(
 								model,
-								{
-									screen: $author$project$Main$SelectHabit(
-										_Utils_update(
-											screen,
-											{page: page})),
-									screenTransition: $elm$core$Maybe$Just(
-										(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
-								}),
+								{pageElement: $elm$core$Maybe$Nothing}),
 							$elm$core$Platform$Cmd$none);
-					default:
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
+					}
+				case 'ChangePage':
+					switch (_v0.b.$) {
+						case 'HabitList':
+							var page = _v0.a.a;
+							var screen = _v0.b.a;
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										screen: $author$project$Main$HabitList(
+											_Utils_update(
+												screen,
+												{page: page})),
+										screenTransition: $elm$core$Maybe$Just(
+											(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+									}),
+								$elm$core$Platform$Cmd$none);
+						case 'SelectHabit':
+							var page = _v0.a.a;
+							var screen = _v0.b.a;
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										screen: $author$project$Main$SelectHabit(
+											_Utils_update(
+												screen,
+												{page: page})),
+										screenTransition: $elm$core$Maybe$Just(
+											(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+									}),
+								$elm$core$Platform$Cmd$none);
+						default:
+							break _v0$22;
+					}
+				default:
+					break _v0$22;
+			}
 		}
+		return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 	});
 var $author$project$Main$Cancel = {$: 'Cancel'};
 var $author$project$Main$DoDeleteHabit = {$: 'DoDeleteHabit'};

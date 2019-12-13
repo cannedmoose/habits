@@ -1,16 +1,14 @@
 P1 Add way to upgrade between storage model versions...
 
-P1 Change options icon
-
-P1 dedupe tags
-
 P1 DECODING FAILURE SHOULD CAUSE AN ERROR
+
+P1 Add error modal
+
+P2 Change options icon
+
 
 P2 Online sync
 
 P2 add sliding for lines 
-P2 add headers to Pages (Editing, New, Options, TODO)
 
 P2 Pause
-
-P2 Think about page builder

@@ -87,6 +87,22 @@ unblock time habit =
             habit
 
 
+updateBlock : Maybe HabitId -> Block -> Block
+updateBlock maybeBlock block =
+    case ( maybeBlock, block ) of
+        ( Nothing, _ ) ->
+            Unblocked
+
+        ( Just hid, Blocker _ True ) ->
+            Blocker hid True
+
+        ( Just hid, Blocker _ False ) ->
+            Blocker hid False
+
+        ( Just hid, Unblocked ) ->
+            Blocker hid False
+
+
 doHabit : Posix -> Habit -> Habit
 doHabit time habit =
     { habit
