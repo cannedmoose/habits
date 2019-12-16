@@ -205,8 +205,11 @@ storeModel ( model, cmd ) =
     ( model, Cmd.batch [ cmd, store (storageEncoder model) ] )
 
 
-
--- UPDATE
+type ModelDelta a b
+    = DeltaDoHabit HabitId Posix
+    | DeltaDeleteHabit HabitId
+    | DeltaEditHabit (HabitFields a)
+    | DeltaCreateHabit (HabitFields b)
 
 
 type Msg
@@ -609,7 +612,9 @@ maybeViewTransition : Model -> Html Msg
 maybeViewTransition model =
     case model.screenTransition of
         Nothing ->
-            viewScreen model model.screen
+            div
+                [ class "static-page" ]
+                [ viewScreen model model.screen ]
 
         Just transition ->
             viewScreenTransition model transition
@@ -1225,24 +1230,24 @@ viewPage config state lines =
 slideFromTopTransition : Model -> ScreenTransition
 slideFromTopTransition { screen, pageElement } =
     let
-        bottom =
+        top =
             case pageElement of
                 Nothing ->
                     0
 
                 Just el ->
-                    el.element.y + el.element.height
+                    -1 * (el.element.y + el.element.height)
     in
     ScreenTransition
         { previous = screen
         , direction = TransitionIn
         , style =
             Animation.interrupt
-                [ Animation.to [ Animation.bottom (Animation.px 0) ]
+                [ Animation.to [ Animation.top (Animation.px 0) ]
                 , Animation.Messenger.send ClearTransition
                 ]
                 (Animation.style
-                    [ Animation.bottom (Animation.px bottom)
+                    [ Animation.top (Animation.px top)
                     ]
                 )
         }

@@ -12940,24 +12940,15 @@ var $author$project$Habit$newHabit = F6(
 				}
 			}());
 	});
-var $mdgriffith$elm_style_animation$Animation$bottom = function (_v0) {
-	var val = _v0.a;
-	var len = _v0.b;
-	return A3(
-		$mdgriffith$elm_style_animation$Animation$length,
-		'bottom',
-		val,
-		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
-};
 var $author$project$Main$slideFromTopTransition = function (_v0) {
 	var screen = _v0.screen;
 	var pageElement = _v0.pageElement;
-	var bottom = function () {
+	var top = function () {
 		if (pageElement.$ === 'Nothing') {
 			return 0;
 		} else {
 			var el = pageElement.a;
-			return el.element.y + el.element.height;
+			return (-1) * (el.element.y + el.element.height);
 		}
 	}();
 	return $author$project$Main$ScreenTransition(
@@ -12971,7 +12962,7 @@ var $author$project$Main$slideFromTopTransition = function (_v0) {
 						$mdgriffith$elm_style_animation$Animation$to(
 						_List_fromArray(
 							[
-								$mdgriffith$elm_style_animation$Animation$bottom(
+								$mdgriffith$elm_style_animation$Animation$top(
 								$mdgriffith$elm_style_animation$Animation$px(0))
 							])),
 						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
@@ -12979,8 +12970,8 @@ var $author$project$Main$slideFromTopTransition = function (_v0) {
 				$mdgriffith$elm_style_animation$Animation$style(
 					_List_fromArray(
 						[
-							$mdgriffith$elm_style_animation$Animation$bottom(
-							$mdgriffith$elm_style_animation$Animation$px(bottom))
+							$mdgriffith$elm_style_animation$Animation$top(
+							$mdgriffith$elm_style_animation$Animation$px(top))
 						])))
 		});
 };
@@ -16843,7 +16834,16 @@ var $author$project$Main$viewScreenTransition = F2(
 var $author$project$Main$maybeViewTransition = function (model) {
 	var _v0 = model.screenTransition;
 	if (_v0.$ === 'Nothing') {
-		return A2($author$project$Main$viewScreen, model, model.screen);
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('static-page')
+				]),
+			_List_fromArray(
+				[
+					A2($author$project$Main$viewScreen, model, model.screen)
+				]));
 	} else {
 		var transition = _v0.a;
 		return A2($author$project$Main$viewScreenTransition, model, transition);
