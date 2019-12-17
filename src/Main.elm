@@ -7,6 +7,7 @@ import Browser.Dom as Dom
 import Dict exposing (Dict)
 import Ease
 import Habit exposing (Habit, HabitId)
+import HabitStore exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -14,8 +15,10 @@ import Json.Decode as JD
 import Json.Encode as JE
 import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
+import Random
+import Random.Char
+import Random.String
 import Set exposing (..)
-import Store exposing (Store)
 import Task
 import Time exposing (Posix, posixToMillis)
 
@@ -40,14 +43,24 @@ init flags =
         -- TODO Show error when decoding fails
         storage =
             JD.decodeValue storageDecoder flags.model
-                |> Result.withDefault defaultStorageModel
+
+        _ =
+            case storage of
+                Err err ->
+                    Debug.log "Decode error " err |> (\_ -> "")
+
+                _ ->
+                    ""
+
+        storage2 =
+            Result.withDefault defaultStorageModel storage
 
         time =
             Time.millisToPosix flags.time
     in
     ( { time = time
-      , habits = storage.habits
-      , options = storage.options
+      , habits = applyDeltas Dict.empty storage2.habits
+      , options = storage2.options
       , screen = HabitList { page = 0 }
       , screenTransition = Nothing
       , pageElement = Nothing
@@ -66,14 +79,14 @@ type alias Flags =
 
 type alias StorageModel =
     { options : Options
-    , habits : Store Habit
+    , habits : List HabitDelta
     , version : Int
     }
 
 
 type alias Model =
     { time : Posix
-    , habits : Store Habit
+    , habits : Dict HabitId Habit
     , options : Options
     , screen : Screen
     , screenTransition : Maybe ScreenTransition
@@ -105,21 +118,21 @@ type alias HabitListScreen =
     { page : Int }
 
 
+type alias FormFields =
+    Dict String String
+
+
 type alias EditHabitScreen =
     { habitId : HabitId
-    , description : String
-    , tag : String
-    , period : String
-    , block : Maybe String
+    , fields : FormFields
+    , deltas : List HabitStore.HabitFieldChange
     , parent : Screen
     }
 
 
 type alias CreateHabitScreen =
-    { description : String
-    , tag : String
-    , period : String
-    , block : Maybe String
+    { fields : FormFields
+    , deltas : List HabitStore.HabitFieldChange
     , parent : Screen
     }
 
@@ -205,11 +218,8 @@ storeModel ( model, cmd ) =
     ( model, Cmd.batch [ cmd, store (storageEncoder model) ] )
 
 
-type ModelDelta a b
-    = DeltaDoHabit HabitId Posix
-    | DeltaDeleteHabit HabitId
-    | DeltaEditHabit (HabitFields a)
-    | DeltaCreateHabit (HabitFields b)
+
+-- UPDATE
 
 
 type Msg
@@ -230,48 +240,72 @@ type Msg
     | DoSelectHabit (Maybe HabitId)
       -- Habit Creation
     | OpenHabitCreate
-    | DoCreateHabit
+    | DoCreateHabit (Maybe HabitId)
       -- Options
     | OpenEditOptions
     | DoSaveOptions
       -- Form Editing
-    | ChangeFormField FormChangeMsg
+    | ChangeFormField String String
+    | BlurFormField String
     | Cancel
     | NewPageElement (Result Dom.Error Dom.Element)
     | ChangePage Int
 
 
-type FormChangeMsg
-    = ChangeDescription String
-    | ChangeTag String
-    | ChangePeriod String
-    | ToggleBlocked
-    | ChangeBlocked String
-    | ChangeOptionsRecent String
-    | ChangeOptionsUpcoming String
+
+{-
+   So need to generate our random ID
+   The best way is to probably :
+       OnClick create we don't change pages yet
+           We generate an id
+           then we change pages and create
+-}
+
+
+habitToFields : Habit -> FormFields
+habitToFields habit =
+    let
+        blocker =
+            Habit.getBlocker habit
+                |> Maybe.map (\id -> ( "block", id ))
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
+    in
+    Dict.fromList
+        ([ ( "description", habit.description )
+         , ( "tag", habit.tag )
+         , ( "period", Period.toString habit.period )
+         ]
+            ++ blocker
+        )
 
 
 editHabitScreen : Model -> HabitId -> Maybe Screen
 editHabitScreen model habitId =
-    Store.get habitId model.habits
+    Dict.get habitId model.habits
         |> Maybe.map
             (\habit ->
-                EditHabit { habitId = habitId, parent = model.screen, description = habit.description, tag = habit.tag, period = Period.toString habit.period, block = Habit.getBlocker habit }
+                EditHabit
+                    { habitId = habitId
+                    , parent = model.screen
+                    , deltas = []
+                    , fields = habitToFields habit
+                    }
             )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case ( msg, model.screen ) of
-        ( NoOp, _ ) ->
+    case ( model.screen, msg ) of
+        ( _, NoOp ) ->
             ( model, Cmd.none )
 
-        ( Tick time, _ ) ->
+        ( _, Tick time ) ->
             ( { model | time = time }
             , Cmd.none
             )
 
-        ( AnimateScreen animMsg, _ ) ->
+        ( _, AnimateScreen animMsg ) ->
             case model.screenTransition of
                 Nothing ->
                     ( model, Cmd.none )
@@ -283,237 +317,7 @@ update msg model =
                     in
                     ( { model | screenTransition = Just (ScreenTransition { transition | style = style }) }, cmd )
 
-        ( ClearTransition, _ ) ->
-            ( { model | screenTransition = Nothing }
-            , Cmd.none
-            )
-
-        ( DoHabit habitId, _ ) ->
-            let
-                updatedHabit =
-                    Store.filterIds ((==) habitId) model.habits
-                        |> Store.mapValues (Habit.doHabit model.time)
-                        |> Store.union model.habits
-
-                updatedBlocked =
-                    Store.filterValues (Habit.isBlocker habitId) updatedHabit
-                        |> Store.mapValues (Habit.unblock model.time)
-                        |> Store.union updatedHabit
-            in
-            ( { model | habits = updatedBlocked }, Cmd.none )
-                |> storeModel
-
-        ( OpenHabitEdit habitId, _ ) ->
-            let
-                maybeScreen =
-                    editHabitScreen model habitId
-            in
-            case maybeScreen of
-                Nothing ->
-                    ( model, Cmd.none )
-
-                Just newScreen ->
-                    ( { model
-                        | screen = newScreen
-                        , screenTransition = Just (flipOn model)
-                      }
-                    , Cmd.none
-                    )
-
-        ( DoDeleteHabit, EditHabit { habitId, parent } ) ->
-            ( let
-                deletedHabit =
-                    Store.delete habitId model.habits
-
-                updated =
-                    Store.filterValues (Habit.isBlocker habitId) deletedHabit
-                        |> Store.mapValues (\habit -> { habit | block = Habit.Unblocked })
-                        |> Store.union deletedHabit
-              in
-              { model
-                | habits = updated
-                , screen = parent
-                , screenTransition =
-                    Just (slideOffbottom model)
-              }
-            , Cmd.none
-            )
-                |> storeModel
-
-        ( DoEditHabit, EditHabit fields ) ->
-            ( { model
-                | habits =
-                    Store.filterIds ((==) fields.habitId) model.habits
-                        |> Store.mapValues
-                            (\habit ->
-                                { habit
-                                    | description = fields.description
-                                    , tag = fields.tag
-                                    , period = Period.parse fields.period
-                                    , block = Habit.updateBlock fields.block habit.block
-                                }
-                            )
-                        |> Store.union model.habits
-                , screen = fields.parent
-                , screenTransition = Just (flipOffRight model)
-              }
-            , Cmd.none
-            )
-                |> storeModel
-
-        ( OpenHabitSelect for habitId, _ ) ->
-            ( { model
-                | screen =
-                    SelectHabit
-                        { page = 0
-                        , selected = habitId
-                        , forHabit = "last " ++ for
-                        , parent = model.screen
-                        }
-                , screenTransition = Just (flipOn model)
-              }
-            , Cmd.none
-            )
-
-        ( DoSelectHabit habitId, SelectHabit { parent } ) ->
-            ( { model
-                | screen =
-                    case parent of
-                        EditHabit screen ->
-                            EditHabit { screen | block = habitId }
-
-                        CreateHabit screen ->
-                            CreateHabit { screen | block = habitId }
-
-                        _ ->
-                            parent
-                , screenTransition = Just (flipOffRight model)
-              }
-            , Cmd.none
-            )
-
-        ( OpenHabitCreate, _ ) ->
-            ( { model
-                | screen =
-                    CreateHabit
-                        { description = ""
-                        , tag = ""
-                        , period = ""
-                        , block = Nothing
-                        , parent = model.screen
-                        }
-                , screenTransition =
-                    Just (slideFromTopTransition model)
-              }
-            , Cmd.none
-            )
-
-        ( DoCreateHabit, CreateHabit fields ) ->
-            -- TODO Make sure description is filled otherwise error
-            let
-                newHabit =
-                    Habit.newHabit
-                        model.time
-                        fields.description
-                        fields.tag
-                        (Store.getNextId model.habits)
-                        (Period.parse fields.period)
-                        fields.block
-            in
-            ( { model
-                | habits = Store.insert newHabit model.habits
-                , screen = fields.parent
-                , screenTransition = Just (flipOffRight model)
-              }
-            , Cmd.none
-            )
-                |> storeModel
-
-        ( OpenEditOptions, _ ) ->
-            ( { model
-                | screen =
-                    EditOptions
-                        { upcoming = Period.toString model.options.upcoming
-                        , recent = Period.toString model.options.recent
-                        , parent = model.screen
-                        }
-                , screenTransition = Just (flipOn model)
-              }
-            , Cmd.none
-            )
-
-        ( DoSaveOptions, EditOptions fields ) ->
-            let
-                options =
-                    model.options
-
-                updatedOptions =
-                    { options
-                        | recent = Period.parse fields.recent
-                        , upcoming = Period.parse fields.upcoming
-                    }
-            in
-            ( { model | options = updatedOptions, screen = fields.parent, screenTransition = Just (flipOffRight model) }
-            , Cmd.none
-            )
-                |> storeModel
-
-        ( ChangeFormField formChangeMsg, EditHabit page ) ->
-            case formChangeMsg of
-                ChangeDescription str ->
-                    ( { model | screen = EditHabit { page | description = str } }
-                    , Cmd.none
-                    )
-
-                ChangeTag str ->
-                    ( { model | screen = EditHabit { page | tag = str } }
-                    , Cmd.none
-                    )
-
-                ChangePeriod str ->
-                    ( { model | screen = EditHabit { page | period = str } }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        ( ChangeFormField formChangeMsg, CreateHabit page ) ->
-            case formChangeMsg of
-                ChangeDescription str ->
-                    ( { model | screen = CreateHabit { page | description = str } }
-                    , Cmd.none
-                    )
-
-                ChangeTag str ->
-                    ( { model | screen = CreateHabit { page | tag = str } }
-                    , Cmd.none
-                    )
-
-                ChangePeriod str ->
-                    ( { model | screen = CreateHabit { page | period = str } }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        ( ChangeFormField formChangeMsg, EditOptions page ) ->
-            case formChangeMsg of
-                ChangeOptionsRecent str ->
-                    ( { model | screen = EditOptions { page | recent = str } }
-                    , Cmd.none
-                    )
-
-                ChangeOptionsUpcoming str ->
-                    ( { model | screen = EditOptions { page | upcoming = str } }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        ( Cancel, _ ) ->
+        ( _, Cancel ) ->
             let
                 prev =
                     case model.screen of
@@ -539,13 +343,226 @@ update msg model =
             , Cmd.none
             )
 
-        ( NewPageElement (Ok el), _ ) ->
+        ( _, ClearTransition ) ->
+            ( { model | screenTransition = Nothing }
+            , Cmd.none
+            )
+
+        ( _, DoHabit habitId ) ->
+            let
+                newStore =
+                    Dict.get habitId model.habits
+                        |> Maybe.map (doHabitDeltas model.habits model.time)
+                        |> Maybe.map (applyDeltas model.habits)
+                        |> Maybe.withDefault model.habits
+            in
+            ( { model | habits = newStore }, Cmd.none ) |> storeModel
+
+        ( _, OpenHabitEdit habitId ) ->
+            let
+                maybeScreen =
+                    editHabitScreen model habitId
+            in
+            case maybeScreen of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just newScreen ->
+                    ( { model
+                        | screen = newScreen
+                        , screenTransition = Just (flipOn model)
+                      }
+                    , Cmd.none
+                    )
+
+        ( _, OpenHabitSelect for habitId ) ->
+            ( { model
+                | screen =
+                    SelectHabit
+                        { page = 0
+                        , selected = habitId
+                        , forHabit = "last " ++ for
+                        , parent = model.screen
+                        }
+                , screenTransition = Just (flipOn model)
+              }
+            , Cmd.none
+            )
+
+        ( _, OpenHabitCreate ) ->
+            ( { model
+                | screen =
+                    CreateHabit
+                        { fields = habitToFields (HabitStore.emptyHabit "")
+                        , deltas = []
+                        , parent = model.screen
+                        }
+                , screenTransition =
+                    Just (slideFromTopTransition model)
+              }
+            , Cmd.none
+            )
+
+        ( _, OpenEditOptions ) ->
+            ( { model
+                | screen =
+                    EditOptions
+                        { upcoming = Period.toString model.options.upcoming
+                        , recent = Period.toString model.options.recent
+                        , parent = model.screen
+                        }
+                , screenTransition = Just (flipOn model)
+              }
+            , Cmd.none
+            )
+
+        ( _, NewPageElement (Ok el) ) ->
             ( { model | pageElement = Just el }, Cmd.none )
 
-        ( NewPageElement _, _ ) ->
+        ( _, NewPageElement _ ) ->
             ( { model | pageElement = Nothing }, Cmd.none )
 
-        ( ChangePage page, HabitList screen ) ->
+        ( EditHabit { habitId, parent }, DoDeleteHabit ) ->
+            let
+                newStore =
+                    deleteHabitDeltas model.habits model.time habitId
+                        |> applyDeltas model.habits
+            in
+            ( { model
+                | habits = newStore
+                , screen = parent
+                , screenTransition =
+                    Just (slideOffbottom model)
+              }
+            , Cmd.none
+            )
+                |> storeModel
+
+        ( EditHabit fields, DoEditHabit ) ->
+            let
+                newStore =
+                    editHabitDeltas model.habits model.time fields.habitId fields.deltas
+                        |> applyDeltas model.habits
+            in
+            ( { model
+                | habits = newStore
+                , screen = fields.parent
+                , screenTransition =
+                    Just (flipOffRight model)
+              }
+            , Cmd.none
+            )
+                |> storeModel
+
+        ( SelectHabit { parent }, DoSelectHabit maybeHabitId ) ->
+            let
+                updateScreen screen =
+                    case maybeHabitId of
+                        Just habitId ->
+                            { screen
+                                | fields = Dict.insert "block" habitId screen.fields
+                                , deltas =
+                                    HabitStore.buildFieldChanges
+                                        screen.deltas
+                                        (HabitStore.BlockChange (Habit.Blocker habitId True))
+                            }
+
+                        Nothing ->
+                            { screen
+                                | fields = Dict.remove "block" screen.fields
+                                , deltas =
+                                    HabitStore.buildFieldChanges
+                                        screen.deltas
+                                        (HabitStore.BlockChange Habit.Unblocked)
+                            }
+            in
+            ( { model
+                | screen =
+                    case parent of
+                        EditHabit screen ->
+                            EditHabit (updateScreen screen)
+
+                        CreateHabit screen ->
+                            CreateHabit (updateScreen screen)
+
+                        _ ->
+                            parent
+                , screenTransition = Just (flipOffRight model)
+              }
+            , Cmd.none
+            )
+
+        ( CreateHabit fields, DoCreateHabit maybeId ) ->
+            case maybeId of
+                Nothing ->
+                    let
+                        idGenerator =
+                            Random.map Just (Random.String.string 8 Random.Char.alchemicalSymbol)
+                    in
+                    ( model, Random.generate DoCreateHabit idGenerator )
+
+                Just id ->
+                    let
+                        newStore =
+                            addHabitDeltas model.habits model.time id fields.deltas
+                                |> applyDeltas model.habits
+                    in
+                    ( { model
+                        | habits = newStore
+                        , screen = fields.parent
+                        , screenTransition =
+                            Just (flipOffRight model)
+                      }
+                    , Cmd.none
+                    )
+                        |> storeModel
+
+        ( EditOptions fields, DoSaveOptions ) ->
+            let
+                options =
+                    model.options
+
+                updatedOptions =
+                    { options
+                        | recent = Period.parse fields.recent
+                        , upcoming = Period.parse fields.upcoming
+                    }
+            in
+            ( { model
+                | options = updatedOptions
+                , screen = fields.parent
+                , screenTransition = Just (flipOffRight model)
+              }
+            , Cmd.none
+            )
+                |> storeModel
+
+        ( EditHabit page, ChangeFormField field val ) ->
+            ( { model | screen = EditHabit (updateHabitFormFields page field val) }
+            , Cmd.none
+            )
+
+        ( CreateHabit page, ChangeFormField field val ) ->
+            ( { model | screen = CreateHabit (updateHabitFormFields page field val) }
+            , Cmd.none
+            )
+
+        ( EditOptions page, ChangeFormField field val ) ->
+            case field of
+                "recent" ->
+                    ( { model | screen = EditOptions { page | recent = val } }
+                    , Cmd.none
+                    )
+
+                "upcoming" ->
+                    ( { model | screen = EditOptions { page | upcoming = val } }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ( HabitList screen, ChangePage page ) ->
             ( { model
                 | screen = HabitList { screen | page = page }
                 , screenTransition =
@@ -560,7 +577,7 @@ update msg model =
             , Cmd.none
             )
 
-        ( ChangePage page, SelectHabit screen ) ->
+        ( SelectHabit screen, ChangePage page ) ->
             ( { model
                 | screen = SelectHabit { screen | page = page }
                 , screenTransition =
@@ -579,6 +596,39 @@ update msg model =
             ( model, Cmd.none )
 
 
+updateHabitFormFields page field val =
+    case field of
+        "description" ->
+            { page
+                | fields = Dict.insert "description" val page.fields
+                , deltas =
+                    HabitStore.buildFieldChanges
+                        page.deltas
+                        (HabitStore.DescriptionChange val)
+            }
+
+        "tag" ->
+            { page
+                | fields = Dict.insert "tag" val page.fields
+                , deltas =
+                    HabitStore.buildFieldChanges
+                        page.deltas
+                        (HabitStore.TagChange val)
+            }
+
+        "period" ->
+            { page
+                | fields = Dict.insert "period" val page.fields
+                , deltas =
+                    HabitStore.buildFieldChanges
+                        page.deltas
+                        (HabitStore.PeriodChange (Period.parse val))
+            }
+
+        _ ->
+            page
+
+
 habitOrderer : Model -> Habit -> Int
 habitOrderer model habit =
     if shouldBeMarkedAsDone model habit then
@@ -589,9 +639,9 @@ habitOrderer model habit =
         -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
 
 
-visibleHabits : Model -> Store Habit
+visibleHabits : Model -> Dict HabitId Habit
 visibleHabits model =
-    Store.filterValues (viewHabitFilter model) model.habits
+    Dict.filter (\k v -> viewHabitFilter model v) model.habits
 
 
 
@@ -690,7 +740,7 @@ viewHabitsListPage model habitListScreen =
 
         lines =
             visibleHabits model
-                |> Store.values
+                |> Dict.values
                 |> List.sortBy (habitOrderer model)
                 |> List.map (habitViewLine model)
     in
@@ -733,7 +783,8 @@ viewEditingPage : Model -> EditHabitScreen -> Html Msg
 viewEditingPage model screen =
     let
         title =
-            screen.description
+            Dict.get "discription" screen.fields
+                |> Maybe.withDefault "Unnamed habit"
 
         pageConfig =
             { showOptions = False
@@ -761,7 +812,7 @@ viewEditingPage model screen =
 
 editPagelines : Model -> EditHabitScreen -> PageLines
 editPagelines model screen =
-    habitFieldsView screen (Store.values model.habits) (Just screen.habitId)
+    habitFieldsView screen.fields (Dict.values model.habits) (Just screen.habitId)
 
 
 
@@ -778,7 +829,7 @@ viewNewPage model screen =
                 ( emptyDiv
                 , div
                     [ class "button-line" ]
-                    [ button [ onClick DoCreateHabit ] [ text "Create" ]
+                    [ button [ onClick (DoCreateHabit Nothing) ] [ text "Create" ]
                     , button [ onClick Cancel ] [ text "Cancel" ]
                     ]
                 )
@@ -796,11 +847,16 @@ viewNewPage model screen =
 
 createPagelines : Model -> CreateHabitScreen -> PageLines
 createPagelines model screen =
-    habitFieldsView screen (Store.values model.habits) Nothing
+    habitFieldsView screen.fields (Dict.values model.habits) Nothing
+
+
+getWithDefault : Dict String String -> String -> String -> String
+getWithDefault dict default key =
+    Dict.get key dict |> Maybe.withDefault default
 
 
 habitFieldsView :
-    HabitFields a
+    Dict String String
     -> List Habit
     -> Maybe HabitId
     -> PageLines
@@ -815,10 +871,13 @@ habitFieldsView fields habits maybeHabit =
                 |> Set.toList
                 |> List.map tagOption
 
+        fieldGetter =
+            getWithDefault fields ""
+
         -- TODO this should only change on blur of description field
         -- Should not be clickable if not filled out
         blockText =
-            case fields.block of
+            case Dict.get "block" fields of
                 Nothing ->
                     "last did"
 
@@ -831,20 +890,20 @@ habitFieldsView fields habits maybeHabit =
     [ ( emptyDiv, label [] [ text "I want to" ] )
     , ( emptyDiv
       , input
-            [ placeholder "Do Something", value fields.description, onInput (\s -> ChangeFormField (ChangeDescription s)) ]
+            [ placeholder "Do Something", value (fieldGetter "description"), onInput (ChangeFormField "description") ]
             []
       )
     , ( emptyDiv, label [] [ text "every" ] )
-    , ( periodOptionsView fields.period "period-list"
+    , ( periodOptionsView (fieldGetter "period") "period-list"
       , input
             -- TODO Select entire description when clicked
-            [ placeholder "Day", value fields.period, list "period-list", onInput (\s -> ChangeFormField (ChangePeriod s)) ]
+            [ placeholder "Day", value (fieldGetter "period"), list "period-list", onInput (ChangeFormField "period") ]
             []
       )
     , ( emptyDiv, label [] [ text "after I" ] )
     , ( emptyDiv
       , button
-            [ class "habit-button-select", onClick (OpenHabitSelect fields.description fields.block) ]
+            [ class "habit-button-select", onClick (OpenHabitSelect (fieldGetter "description") (Dict.get "block" fields)) ]
             [ text blockText ]
       )
     , ( emptyDiv, label [] [ text "category" ] )
@@ -852,7 +911,7 @@ habitFieldsView fields habits maybeHabit =
             [ id "tag-list" ]
             tagOptions
       , input
-            [ placeholder "Todo", value fields.tag, list "tag-list", onInput (\s -> ChangeFormField (ChangeTag s)) ]
+            [ placeholder "Todo", value (fieldGetter "tag"), list "tag-list", onInput (ChangeFormField "tag") ]
             []
       )
     ]
@@ -886,13 +945,13 @@ viewOptionsPage model screen =
             [ ( emptyDiv, label [] [ text "Show upcoming" ] )
             , ( periodOptionsView screen.upcoming "upcoming-list"
               , input
-                    [ value screen.upcoming, list "upcoming-list", onInput (\s -> ChangeFormField (ChangeOptionsUpcoming s)) ]
+                    [ value screen.upcoming, list "upcoming-list", onInput (ChangeFormField "upcoming") ]
                     []
               )
             , ( emptyDiv, label [] [ text "Show recently done" ] )
             , ( periodOptionsView screen.recent "recent-list"
               , input
-                    [ value screen.recent, list "recent-list", onInput (\s -> ChangeFormField (ChangeOptionsRecent s)) ]
+                    [ value screen.recent, list "recent-list", onInput (ChangeFormField "recent") ]
                     []
               )
             ]
@@ -953,7 +1012,7 @@ viewHabitSelectPage model screen =
             model
 
         lines =
-            Store.values model.habits
+            Dict.values model.habits
                 |> List.sortBy .description
                 |> List.map (habitSelectLine model)
     in
@@ -1026,14 +1085,14 @@ viewHabitFilter model habit =
 
 defaultStorageModel : StorageModel
 defaultStorageModel =
-    StorageModel defaultOptions (Store.empty Store.RandomId) 0
+    StorageModel defaultOptions [] 0
 
 
 storageDecoder : JD.Decoder StorageModel
 storageDecoder =
     JD.map3 StorageModel
         (JD.field "options" optionsDecoder)
-        (JD.field "habits" (Store.decode Habit.decoder))
+        (JD.field "habits" (JD.list HabitStore.decoder))
         (JD.succeed 0)
 
 
@@ -1041,7 +1100,7 @@ storageEncoder : Model -> JE.Value
 storageEncoder model =
     JE.object
         [ ( "options", optionsEncoder model.options )
-        , ( "habits", Store.encode Habit.encode model.habits )
+        , ( "habits", JE.list HabitStore.encode (HabitStore.deltasFromDict model.time model.habits) )
         , ( "version", JE.int 0 )
         ]
 

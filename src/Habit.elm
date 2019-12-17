@@ -4,7 +4,6 @@ import Dict exposing (Dict)
 import Json.Decode as JD exposing (Decoder, field, int, string)
 import Json.Encode as JE
 import Period exposing (Period, addToPosix)
-import Store exposing (Store)
 import Time exposing (Posix)
 
 
@@ -29,32 +28,8 @@ type Block
     | Unblocked
 
 
-newHabit : Posix -> String -> String -> HabitId -> Period -> Maybe HabitId -> Habit
-newHabit time desc tag id period block =
-    Habit desc
-        tag
-        id
-        period
-        Nothing
-        time
-        0
-        (case block of
-            Nothing ->
-                Unblocked
 
-            Just hid ->
-                Blocker hid False
-        )
-
-
-getBlocker : Habit -> Maybe HabitId
-getBlocker habit =
-    case habit.block of
-        Blocker otherId _ ->
-            Just otherId
-
-        Unblocked ->
-            Nothing
+-- TODO CONSOLIDE BLOCK METHODS
 
 
 isBlocker : HabitId -> Habit -> Bool
@@ -64,6 +39,16 @@ isBlocker habitId habit =
             habitId == otherId
 
         Unblocked ->
+            False
+
+
+isBlockedBy : HabitId -> Habit -> Bool
+isBlockedBy habitId habit =
+    case habit.block of
+        Blocker otherId True ->
+            habitId == otherId
+
+        _ ->
             False
 
 
@@ -77,56 +62,37 @@ isBlocked habit =
             False
 
 
-unblock : Posix -> Habit -> Habit
-unblock time habit =
+getBlocker : Habit -> Maybe HabitId
+getBlocker habit =
     case habit.block of
-        Blocker hid True ->
-            { habit | block = Blocker hid False, nextDue = addToPosix habit.period time }
+        Blocker otherId _ ->
+            Just otherId
 
-        _ ->
-            habit
+        Unblocked ->
+            Nothing
 
 
-updateBlock : Maybe HabitId -> Block -> Block
-updateBlock maybeBlock block =
-    case ( maybeBlock, block ) of
-        ( Nothing, _ ) ->
+doUnblock : Block -> Block
+doUnblock block =
+    case block of
+        Blocker otherId _ ->
+            Blocker otherId True
+
+        Unblocked ->
             Unblocked
 
-        ( Just hid, Blocker _ True ) ->
-            Blocker hid True
 
-        ( Just hid, Blocker _ False ) ->
-            Blocker hid False
+unblocked : Block -> Block
+unblocked block =
+    case block of
+        Blocker otherId True ->
+            Blocker otherId False
 
-        ( Just hid, Unblocked ) ->
-            Blocker hid False
+        Blocker otherId False ->
+            Blocker otherId False
 
-
-doHabit : Posix -> Habit -> Habit
-doHabit time habit =
-    { habit
-        | lastDone = Just time
-        , nextDue = addToPosix habit.period time
-        , doneCount = habit.doneCount + 1
-        , block =
-            case habit.block of
-                Blocker otherId _ ->
-                    Blocker otherId True
-
-                Unblocked ->
-                    Unblocked
-    }
-
-
-posixDecoder : Decoder Posix
-posixDecoder =
-    JD.map Time.millisToPosix int
-
-
-posixJE : Posix -> JE.Value
-posixJE time =
-    JE.int (Time.posixToMillis time)
+        Unblocked ->
+            Unblocked
 
 
 blockDecoder : Decoder Block
@@ -162,38 +128,4 @@ blockJE block =
                 [ ( "status", JE.string "UnblockedBy" )
                 , ( "id", JE.string habit )
                 ]
-        )
-
-
-decoder : Decoder Habit
-decoder =
-    JD.map8 Habit
-        (field "description" string)
-        (field "tag" string)
-        (field "id" string)
-        (field "period" Period.decoder)
-        (JD.maybe (field "lastDone" posixDecoder))
-        (field "nextDue" posixDecoder)
-        (field "doneCount" int)
-        (field "block" blockDecoder)
-
-
-encode : Habit -> JE.Value
-encode habit =
-    JE.object
-        ([ ( "description", JE.string habit.description )
-         , ( "tag", JE.string habit.tag )
-         , ( "id", JE.string habit.id )
-         , ( "period", Period.encode habit.period )
-         , ( "nextDue", posixJE habit.nextDue )
-         , ( "doneCount", JE.int habit.doneCount )
-         , ( "block", blockJE habit.block )
-         ]
-            ++ (case habit.lastDone of
-                    Nothing ->
-                        []
-
-                    Just l ->
-                        [ ( "lastDone", posixJE l ) ]
-               )
         )

@@ -1,4 +1,4 @@
-module Period exposing (Period(..), addToPosix, decoder, encode, minusFromPosix, parse, periodParser, toMillis, toString)
+module Period exposing (..)
 
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as Encode
