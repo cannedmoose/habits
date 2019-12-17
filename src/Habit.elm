@@ -34,22 +34,9 @@ type Block
 
 isBlocker : HabitId -> Habit -> Bool
 isBlocker habitId habit =
-    case habit.block of
-        Blocker otherId _ ->
-            habitId == otherId
-
-        Unblocked ->
-            False
-
-
-isBlockedBy : HabitId -> Habit -> Bool
-isBlockedBy habitId habit =
-    case habit.block of
-        Blocker otherId True ->
-            habitId == otherId
-
-        _ ->
-            False
+    blockerId habit
+        |> Maybe.map ((==) habitId)
+        |> Maybe.withDefault False
 
 
 isBlocked : Habit -> Bool
@@ -62,37 +49,24 @@ isBlocked habit =
             False
 
 
-getBlocker : Habit -> Maybe HabitId
-getBlocker habit =
+doUnblock : Block -> Block
+doUnblock block =
+    case block of
+        Blocker otherId _ ->
+            Blocker otherId False
+
+        Unblocked ->
+            Unblocked
+
+
+blockerId : Habit -> Maybe HabitId
+blockerId habit =
     case habit.block of
         Blocker otherId _ ->
             Just otherId
 
         Unblocked ->
             Nothing
-
-
-doUnblock : Block -> Block
-doUnblock block =
-    case block of
-        Blocker otherId _ ->
-            Blocker otherId True
-
-        Unblocked ->
-            Unblocked
-
-
-unblocked : Block -> Block
-unblocked block =
-    case block of
-        Blocker otherId True ->
-            Blocker otherId False
-
-        Blocker otherId False ->
-            Blocker otherId False
-
-        Unblocked ->
-            Unblocked
 
 
 blockDecoder : Decoder Block

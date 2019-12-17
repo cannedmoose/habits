@@ -137,6 +137,13 @@ type alias CreateHabitScreen =
     }
 
 
+type alias HabitForm a =
+    { a
+        | fields : FormFields
+        , deltas : List HabitStore.HabitFieldChange
+    }
+
+
 type alias SelectHabitScreen =
     { page : Int
     , selected : Maybe HabitId
@@ -163,15 +170,6 @@ type ScreenTransition
         , style : Anim
         , direction : TransitionDirection
         }
-
-
-type alias HabitFields a =
-    { a
-        | description : String
-        , tag : String
-        , period : String
-        , block : Maybe String
-    }
 
 
 
@@ -266,7 +264,7 @@ habitToFields : Habit -> FormFields
 habitToFields habit =
     let
         blocker =
-            Habit.getBlocker habit
+            Habit.blockerId habit
                 |> Maybe.map (\id -> ( "block", id ))
                 |> Maybe.map List.singleton
                 |> Maybe.withDefault []
@@ -422,15 +420,15 @@ update msg model =
         ( _, NewPageElement _ ) ->
             ( { model | pageElement = Nothing }, Cmd.none )
 
-        ( EditHabit { habitId, parent }, DoDeleteHabit ) ->
+        ( EditHabit screen, DoDeleteHabit ) ->
             let
                 newStore =
-                    deleteHabitDeltas model.habits model.time habitId
+                    deleteHabitDeltas model.habits model.time screen.habitId
                         |> applyDeltas model.habits
             in
             ( { model
                 | habits = newStore
-                , screen = parent
+                , screen = screen.parent
                 , screenTransition =
                     Just (slideOffbottom model)
               }
@@ -438,15 +436,15 @@ update msg model =
             )
                 |> storeModel
 
-        ( EditHabit fields, DoEditHabit ) ->
+        ( EditHabit screen, DoEditHabit ) ->
             let
                 newStore =
-                    editHabitDeltas model.habits model.time fields.habitId fields.deltas
+                    editHabitDeltas model.habits model.time screen.habitId screen.deltas
                         |> applyDeltas model.habits
             in
             ( { model
                 | habits = newStore
-                , screen = fields.parent
+                , screen = screen.parent
                 , screenTransition =
                     Just (flipOffRight model)
               }
@@ -492,7 +490,7 @@ update msg model =
             , Cmd.none
             )
 
-        ( CreateHabit fields, DoCreateHabit maybeId ) ->
+        ( CreateHabit screen, DoCreateHabit maybeId ) ->
             case maybeId of
                 Nothing ->
                     let
@@ -504,12 +502,12 @@ update msg model =
                 Just id ->
                     let
                         newStore =
-                            addHabitDeltas model.habits model.time id fields.deltas
+                            addHabitDeltas model.habits model.time id screen.deltas
                                 |> applyDeltas model.habits
                     in
                     ( { model
                         | habits = newStore
-                        , screen = fields.parent
+                        , screen = screen.parent
                         , screenTransition =
                             Just (flipOffRight model)
                       }
@@ -517,20 +515,20 @@ update msg model =
                     )
                         |> storeModel
 
-        ( EditOptions fields, DoSaveOptions ) ->
+        ( EditOptions screen, DoSaveOptions ) ->
             let
                 options =
                     model.options
 
                 updatedOptions =
                     { options
-                        | recent = Period.parse fields.recent
-                        , upcoming = Period.parse fields.upcoming
+                        | recent = Period.parse screen.recent
+                        , upcoming = Period.parse screen.upcoming
                     }
             in
             ( { model
                 | options = updatedOptions
-                , screen = fields.parent
+                , screen = screen.parent
                 , screenTransition = Just (flipOffRight model)
               }
             , Cmd.none
@@ -596,6 +594,7 @@ update msg model =
             ( model, Cmd.none )
 
 
+updateHabitFormFields : HabitForm a -> String -> String -> HabitForm a
 updateHabitFormFields page field val =
     case field of
         "description" ->

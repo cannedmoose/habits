@@ -48,7 +48,7 @@ doHabitDeltas : Dict HabitId Habit -> Posix -> Habit -> List HabitDelta
 doHabitDeltas store time habit =
     let
         blockedHabits =
-            Dict.filter (\k h -> Habit.isBlockedBy habit.id h) store
+            Dict.filter (\k h -> Habit.isBlocker habit.id h && Habit.isBlocked h) store
                 |> Dict.keys
     in
     [ Group time ("do " ++ habit.id)

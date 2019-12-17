@@ -1,14 +1,9 @@
-P1 Add way to upgrade between storage model versions...
-
-P1 DECODING FAILURE SHOULD CAUSE AN ERROR
-
 P1 Add error modal
-
+  P2 Expose decode failure as an error
+P1 add sliding for lines 
 P2 Change options icon
 
 
 P2 Online sync
-
-P2 add sliding for lines 
 
 P2 Pause

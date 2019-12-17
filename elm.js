@@ -12146,15 +12146,34 @@ var $elm$core$Dict$filter = F2(
 			$elm$core$Dict$empty,
 			dict);
 	});
+var $author$project$Habit$blockerId = function (habit) {
+	var _v0 = habit.block;
+	if (_v0.$ === 'Blocker') {
+		var otherId = _v0.a;
+		return $elm$core$Maybe$Just(otherId);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
 var $author$project$Habit$isBlocker = F2(
 	function (habitId, habit) {
-		var _v0 = habit.block;
-		if (_v0.$ === 'Blocker') {
-			var otherId = _v0.a;
-			return _Utils_eq(habitId, otherId);
-		} else {
-			return false;
-		}
+		return A2(
+			$elm$core$Maybe$withDefault,
+			false,
+			A2(
+				$elm$core$Maybe$map,
+				$elm$core$Basics$eq(habitId),
+				$author$project$Habit$blockerId(habit)));
 	});
 var $author$project$HabitStore$deleteHabitDeltas = F3(
 	function (store, time, habitId) {
@@ -12213,21 +12232,19 @@ var $author$project$Period$addToPosix = F2(
 var $author$project$Habit$doUnblock = function (block) {
 	if (block.$ === 'Blocker') {
 		var otherId = block.a;
-		return A2($author$project$Habit$Blocker, otherId, true);
+		return A2($author$project$Habit$Blocker, otherId, false);
 	} else {
 		return $author$project$Habit$Unblocked;
 	}
 };
-var $author$project$Habit$isBlockedBy = F2(
-	function (habitId, habit) {
-		var _v0 = habit.block;
-		if ((_v0.$ === 'Blocker') && _v0.b) {
-			var otherId = _v0.a;
-			return _Utils_eq(habitId, otherId);
-		} else {
-			return false;
-		}
-	});
+var $author$project$Habit$isBlocked = function (habit) {
+	var _v0 = habit.block;
+	if ((_v0.$ === 'Blocker') && _v0.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
 var $author$project$HabitStore$doHabitDeltas = F3(
 	function (store, time, habit) {
 		var blockedHabits = $elm$core$Dict$keys(
@@ -12235,7 +12252,7 @@ var $author$project$HabitStore$doHabitDeltas = F3(
 				$elm$core$Dict$filter,
 				F2(
 					function (k, h) {
-						return A2($author$project$Habit$isBlockedBy, habit.id, h);
+						return A2($author$project$Habit$isBlocker, habit.id, h) && $author$project$Habit$isBlocked(h);
 					}),
 				store));
 		return _Utils_ap(
@@ -12283,25 +12300,6 @@ var $author$project$HabitStore$editHabitDeltas = F4(
 			A2($author$project$HabitStore$Group, time, 'edit ' + habitId),
 			changeDeltas);
 	});
-var $author$project$Habit$getBlocker = function (habit) {
-	var _v0 = habit.block;
-	if (_v0.$ === 'Blocker') {
-		var otherId = _v0.a;
-		return $elm$core$Maybe$Just(otherId);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
 var $elm$core$List$singleton = function (value) {
 	return _List_fromArray(
 		[value]);
@@ -12341,7 +12339,7 @@ var $author$project$Main$habitToFields = function (habit) {
 				function (id) {
 					return _Utils_Tuple2('block', id);
 				},
-				$author$project$Habit$getBlocker(habit))));
+				$author$project$Habit$blockerId(habit))));
 	return $elm$core$Dict$fromList(
 		_Utils_ap(
 			_List_fromArray(
@@ -15479,20 +15477,19 @@ var $author$project$Main$update = F2(
 					}
 				case 'DoDeleteHabit':
 					if (_v0.a.$ === 'EditHabit') {
-						var habitId = _v0.a.a.habitId;
-						var parent = _v0.a.a.parent;
+						var screen = _v0.a.a;
 						var _v11 = _v0.b;
 						var newStore = A2(
 							$author$project$HabitStore$applyDeltas,
 							model.habits,
-							A3($author$project$HabitStore$deleteHabitDeltas, model.habits, model.time, habitId));
+							A3($author$project$HabitStore$deleteHabitDeltas, model.habits, model.time, screen.habitId));
 						return $author$project$Main$storeModel(
 							_Utils_Tuple2(
 								_Utils_update(
 									model,
 									{
 										habits: newStore,
-										screen: parent,
+										screen: screen.parent,
 										screenTransition: $elm$core$Maybe$Just(
 											$author$project$Main$slideOffbottom(model))
 									}),
@@ -15502,19 +15499,19 @@ var $author$project$Main$update = F2(
 					}
 				case 'DoEditHabit':
 					if (_v0.a.$ === 'EditHabit') {
-						var fields = _v0.a.a;
+						var screen = _v0.a.a;
 						var _v12 = _v0.b;
 						var newStore = A2(
 							$author$project$HabitStore$applyDeltas,
 							model.habits,
-							A4($author$project$HabitStore$editHabitDeltas, model.habits, model.time, fields.habitId, fields.deltas));
+							A4($author$project$HabitStore$editHabitDeltas, model.habits, model.time, screen.habitId, screen.deltas));
 						return $author$project$Main$storeModel(
 							_Utils_Tuple2(
 								_Utils_update(
 									model,
 									{
 										habits: newStore,
-										screen: fields.parent,
+										screen: screen.parent,
 										screenTransition: $elm$core$Maybe$Just(
 											$author$project$Main$flipOffRight(model))
 									}),
@@ -15578,7 +15575,7 @@ var $author$project$Main$update = F2(
 					}
 				case 'DoCreateHabit':
 					if (_v0.a.$ === 'CreateHabit') {
-						var fields = _v0.a.a;
+						var screen = _v0.a.a;
 						var maybeId = _v0.b.a;
 						if (maybeId.$ === 'Nothing') {
 							var idGenerator = A2(
@@ -15593,14 +15590,14 @@ var $author$project$Main$update = F2(
 							var newStore = A2(
 								$author$project$HabitStore$applyDeltas,
 								model.habits,
-								A4($author$project$HabitStore$addHabitDeltas, model.habits, model.time, id, fields.deltas));
+								A4($author$project$HabitStore$addHabitDeltas, model.habits, model.time, id, screen.deltas));
 							return $author$project$Main$storeModel(
 								_Utils_Tuple2(
 									_Utils_update(
 										model,
 										{
 											habits: newStore,
-											screen: fields.parent,
+											screen: screen.parent,
 											screenTransition: $elm$core$Maybe$Just(
 												$author$project$Main$flipOffRight(model))
 										}),
@@ -15611,14 +15608,14 @@ var $author$project$Main$update = F2(
 					}
 				case 'DoSaveOptions':
 					if (_v0.a.$ === 'EditOptions') {
-						var fields = _v0.a.a;
+						var screen = _v0.a.a;
 						var _v16 = _v0.b;
 						var options = model.options;
 						var updatedOptions = _Utils_update(
 							options,
 							{
-								recent: $author$project$Period$parse(fields.recent),
-								upcoming: $author$project$Period$parse(fields.upcoming)
+								recent: $author$project$Period$parse(screen.recent),
+								upcoming: $author$project$Period$parse(screen.upcoming)
 							});
 						return $author$project$Main$storeModel(
 							_Utils_Tuple2(
@@ -15626,7 +15623,7 @@ var $author$project$Main$update = F2(
 									model,
 									{
 										options: updatedOptions,
-										screen: fields.parent,
+										screen: screen.parent,
 										screenTransition: $elm$core$Maybe$Just(
 											$author$project$Main$flipOffRight(model))
 									}),
@@ -16459,14 +16456,6 @@ var $author$project$Main$viewHabitSelectPage = F2(
 		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$OpenHabitCreate = {$: 'OpenHabitCreate'};
-var $author$project$Habit$isBlocked = function (habit) {
-	var _v0 = habit.block;
-	if ((_v0.$ === 'Blocker') && _v0.b) {
-		return true;
-	} else {
-		return false;
-	}
-};
 var $author$project$Main$isDueSoon = F2(
 	function (_v0, habit) {
 		var time = _v0.time;
