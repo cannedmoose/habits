@@ -47,8 +47,9 @@ init flags =
         _ =
             case storage of
                 Err err ->
-                    Debug.log "Decode error " err |> (\_ -> "")
+                    ""
 
+                -- Debug.log "Decode error " err |> (\_ -> "")
                 _ ->
                     ""
 
