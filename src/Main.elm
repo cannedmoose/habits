@@ -379,7 +379,7 @@ update msg model =
                     SelectHabit
                         { page = 0
                         , selected = habitId
-                        , forHabit = "last " ++ for
+                        , forHabit = "\"" ++ for ++ "\""
                         , parent = model.screen
                         }
                 , screenTransition = Just (flipOn model)
@@ -721,7 +721,7 @@ viewHabitsListPage model habitListScreen =
     let
         pageConfig =
             { showOptions = True
-            , title = "Today I will"
+            , title = "today I will"
             , footer =
                 ( button
                     [ class "add-habit", onClick OpenHabitCreate ]
@@ -787,7 +787,7 @@ viewEditingPage model screen =
 
         pageConfig =
             { showOptions = False
-            , title = "Edit " ++ title
+            , title = "edit \"" ++ title ++ "\""
             , footer =
                 ( emptyDiv
                 , div
@@ -878,13 +878,13 @@ habitFieldsView fields habits maybeHabit =
         blockText =
             case Dict.get "block" fields of
                 Nothing ->
-                    "last did"
+                    "last time"
 
                 Just hid ->
                     List.filter (\h -> h.id == hid) habits
                         |> List.head
                         |> Maybe.map .description
-                        |> Maybe.withDefault "last did"
+                        |> Maybe.withDefault "last time"
     in
     [ ( emptyDiv, label [] [ text "I want to" ] )
     , ( emptyDiv
@@ -899,7 +899,7 @@ habitFieldsView fields habits maybeHabit =
             [ placeholder "Day", value (fieldGetter "period"), list "period-list", onInput (ChangeFormField "period") ]
             []
       )
-    , ( emptyDiv, label [] [ text "after I" ] )
+    , ( emptyDiv, label [] [ text "after" ] )
     , ( emptyDiv
       , button
             [ class "habit-button-select", onClick (OpenHabitSelect (fieldGetter "description") (Dict.get "block" fields)) ]

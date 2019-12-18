@@ -1,9 +1,12 @@
 P1 Add error modal
   P2 Expose decode failure as an error
-P1 add sliding for lines 
-P2 Change options icon
+P1 add sliding for lines
 
+
+P2 Change options icon
 
 P2 Online sync
 
 P2 Pause
+
+P2 More styling

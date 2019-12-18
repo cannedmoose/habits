@@ -15423,7 +15423,7 @@ var $author$project$Main$update = F2(
 							model,
 							{
 								screen: $author$project$Main$SelectHabit(
-									{forHabit: 'last ' + _for, page: 0, parent: model.screen, selected: habitId}),
+									{forHabit: '\"' + (_for + '\"'), page: 0, parent: model.screen, selected: habitId}),
 								screenTransition: $elm$core$Maybe$Just(
 									$author$project$Main$flipOn(model))
 							}),
@@ -15848,12 +15848,12 @@ var $author$project$Main$habitFieldsView = F3(
 		var blockText = function () {
 			var _v0 = A2($elm$core$Dict$get, 'block', fields);
 			if (_v0.$ === 'Nothing') {
-				return 'last did';
+				return 'last time';
 			} else {
 				var hid = _v0.a;
 				return A2(
 					$elm$core$Maybe$withDefault,
-					'last did',
+					'last time',
 					A2(
 						$elm$core$Maybe$map,
 						function ($) {
@@ -15925,7 +15925,7 @@ var $author$project$Main$habitFieldsView = F3(
 					_List_Nil,
 					_List_fromArray(
 						[
-							$elm$html$Html$text('after I')
+							$elm$html$Html$text('after')
 						]))),
 				_Utils_Tuple2(
 				$author$project$Main$emptyDiv,
@@ -16369,7 +16369,7 @@ var $author$project$Main$viewEditingPage = F2(
 						]))),
 			nLines: $author$project$Main$pageLines,
 			showOptions: false,
-			title: 'Edit ' + title
+			title: 'edit \"' + (title + '\"')
 		};
 		var lines = A2($author$project$Main$editPagelines, model, screen);
 		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
@@ -16588,7 +16588,7 @@ var $author$project$Main$viewHabitsListPage = F2(
 				$author$project$Main$emptyDiv),
 			nLines: $author$project$Main$pageLines,
 			showOptions: true,
-			title: 'Today I will'
+			title: 'today I will'
 		};
 		var lines = A2(
 			$elm$core$List$map,

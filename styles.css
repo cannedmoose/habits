@@ -185,13 +185,13 @@ html {
   flex-direction: row;
 }
 
-.button-line button {
+.button-line button,
+.add-habit,
+.habit-edit {
   color: #cc0000;
-  width: auto;
 }
 
-.button-line-select {
-  color: #cc0000;
+.button-line button {
   width: auto;
 }
 
@@ -251,8 +251,14 @@ body {
   flex-direction: row;
   min-height: 2em;
   max-height: 2em;
+  align-items: flex-end;
 
   border-bottom: 2px solid #add8e6;
+}
+.page-head > .line-content {
+  font-weight: bold;
+  font-size: 1.3em;
+  margin-left: 8px;
 }
 
 .page-line {
@@ -261,8 +267,8 @@ body {
   min-height: 1.1em;
   max-height: 1.1em;
   height: 1.1em;
-
   border-bottom: 1px solid #add8e6;
+  box-sizing: border-box;
 }
 
 .line-content {
