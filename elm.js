@@ -12428,14 +12428,6 @@ var $mdgriffith$elm_style_animation$Animation$interrupt = F2(
 					running: true
 				}));
 	});
-var $mdgriffith$elm_style_animation$Animation$Length = F2(
-	function (a, b) {
-		return {$: 'Length', a: a, b: b};
-	});
-var $mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
-var $mdgriffith$elm_style_animation$Animation$px = function (myPx) {
-	return A2($mdgriffith$elm_style_animation$Animation$Length, myPx, $mdgriffith$elm_style_animation$Animation$Px);
-};
 var $mdgriffith$elm_style_animation$Animation$Model$Property = F2(
 	function (a, b) {
 		return {$: 'Property', a: a, b: b};
@@ -12498,14 +12490,22 @@ var $mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
 			return 'pc';
 	}
 };
-var $mdgriffith$elm_style_animation$Animation$right = function (_v0) {
+var $mdgriffith$elm_style_animation$Animation$left = function (_v0) {
 	var val = _v0.a;
 	var len = _v0.b;
 	return A3(
 		$mdgriffith$elm_style_animation$Animation$length,
-		'right',
+		'left',
 		val,
 		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $mdgriffith$elm_style_animation$Animation$Length = F2(
+	function (a, b) {
+		return {$: 'Length', a: a, b: b};
+	});
+var $mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
+var $mdgriffith$elm_style_animation$Animation$px = function (myPx) {
+	return A2($mdgriffith$elm_style_animation$Animation$Length, myPx, $mdgriffith$elm_style_animation$Animation$Px);
 };
 var $mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
 	return {$: 'Send', a: a};
@@ -12519,6 +12519,38 @@ var $mdgriffith$elm_style_animation$Animation$Model$Set = function (a) {
 var $mdgriffith$elm_style_animation$Animation$set = function (props) {
 	return $mdgriffith$elm_style_animation$Animation$Model$Set(props);
 };
+var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
+	return {$: 'Easing', a: a};
+};
+var $elm$core$Basics$round = _Basics_round;
+var $mdgriffith$elm_style_animation$Animation$easing = function (_v0) {
+	var duration = _v0.duration;
+	var ease = _v0.ease;
+	return $mdgriffith$elm_style_animation$Animation$Model$Easing(
+		{
+			duration: $elm$time$Time$millisToPosix(
+				$elm$core$Basics$round(duration)),
+			ease: ease,
+			progress: 1,
+			start: 0
+		});
+};
+var $elm$core$Basics$pow = _Basics_pow;
+var $elm_community$easing_functions$Ease$inCubic = function (time) {
+	return A2($elm$core$Basics$pow, time, 3);
+};
+var $elm_community$easing_functions$Ease$inOut = F3(
+	function (e1, e2, time) {
+		return (time < 0.5) ? (e1(time * 2) / 2) : (0.5 + (e2((time - 0.5) * 2) / 2));
+	});
+var $elm_community$easing_functions$Ease$flip = F2(
+	function (easing, time) {
+		return 1 - easing(1 - time);
+	});
+var $elm_community$easing_functions$Ease$outCubic = $elm_community$easing_functions$Ease$flip($elm_community$easing_functions$Ease$inCubic);
+var $elm_community$easing_functions$Ease$inOutCubic = A2($elm_community$easing_functions$Ease$inOut, $elm_community$easing_functions$Ease$inCubic, $elm_community$easing_functions$Ease$outCubic);
+var $author$project$Main$slideEase = $mdgriffith$elm_style_animation$Animation$easing(
+	{duration: 400, ease: $elm_community$easing_functions$Ease$inOutCubic});
 var $mdgriffith$elm_style_animation$Animation$initialState = function (current) {
 	return $mdgriffith$elm_style_animation$Animation$Model$Animation(
 		{
@@ -12531,9 +12563,6 @@ var $mdgriffith$elm_style_animation$Animation$initialState = function (current) 
 				dt: $elm$time$Time$millisToPosix(0)
 			}
 		});
-};
-var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
-	return {$: 'Easing', a: a};
 };
 var $elm$core$Basics$pi = _Basics_pi;
 var $mdgriffith$elm_style_animation$Animation$Model$AtSpeed = function (a) {
@@ -13131,76 +13160,28 @@ var $mdgriffith$elm_style_animation$Animation$style = function (props) {
 			$mdgriffith$elm_style_animation$Animation$setDefaultInterpolation,
 			$mdgriffith$elm_style_animation$Animation$Render$warnForDoubleListedProperties(props)));
 };
-var $mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
-	return {$: 'To', a: a};
+var $mdgriffith$elm_style_animation$Animation$Model$ToWith = function (a) {
+	return {$: 'ToWith', a: a};
 };
-var $mdgriffith$elm_style_animation$Animation$to = function (props) {
-	return $mdgriffith$elm_style_animation$Animation$Model$To(props);
-};
+var $mdgriffith$elm_style_animation$Animation$toWith = F2(
+	function (interp, props) {
+		return $mdgriffith$elm_style_animation$Animation$Model$ToWith(
+			A2(
+				$elm$core$List$map,
+				$mdgriffith$elm_style_animation$Animation$Model$mapToMotion(
+					function (m) {
+						return _Utils_update(
+							m,
+							{interpolation: interp});
+					}),
+				props));
+	});
 var $mdgriffith$elm_style_animation$Animation$top = function (_v0) {
 	var val = _v0.a;
 	var len = _v0.b;
 	return A3(
 		$mdgriffith$elm_style_animation$Animation$length,
 		'top',
-		val,
-		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
-};
-var $author$project$Main$flipOffLeft = function (_v0) {
-	var screen = _v0.screen;
-	var pageElement = _v0.pageElement;
-	var right = function () {
-		if (pageElement.$ === 'Nothing') {
-			return 0;
-		} else {
-			var el = pageElement.a;
-			return el.element.width;
-		}
-	}();
-	return $author$project$Main$ScreenTransition(
-		{
-			direction: $author$project$Main$TransitionOut,
-			previous: screen,
-			style: A2(
-				$mdgriffith$elm_style_animation$Animation$interrupt,
-				_List_fromArray(
-					[
-						$mdgriffith$elm_style_animation$Animation$to(
-						_List_fromArray(
-							[
-								$mdgriffith$elm_style_animation$Animation$right(
-								$mdgriffith$elm_style_animation$Animation$px(right))
-							])),
-						$mdgriffith$elm_style_animation$Animation$set(
-						_List_fromArray(
-							[
-								A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '1')
-							])),
-						$mdgriffith$elm_style_animation$Animation$to(
-						_List_fromArray(
-							[
-								$mdgriffith$elm_style_animation$Animation$right(
-								$mdgriffith$elm_style_animation$Animation$px(0))
-							])),
-						$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
-					]),
-				$mdgriffith$elm_style_animation$Animation$style(
-					_List_fromArray(
-						[
-							$mdgriffith$elm_style_animation$Animation$top(
-							$mdgriffith$elm_style_animation$Animation$px(0)),
-							$mdgriffith$elm_style_animation$Animation$right(
-							$mdgriffith$elm_style_animation$Animation$px(0)),
-							A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '2')
-						])))
-		});
-};
-var $mdgriffith$elm_style_animation$Animation$left = function (_v0) {
-	var val = _v0.a;
-	var len = _v0.b;
-	return A3(
-		$mdgriffith$elm_style_animation$Animation$length,
-		'left',
 		val,
 		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
 };
@@ -13223,7 +13204,9 @@ var $author$project$Main$flipOffRight = function (_v0) {
 				$mdgriffith$elm_style_animation$Animation$interrupt,
 				_List_fromArray(
 					[
-						$mdgriffith$elm_style_animation$Animation$to(
+						A2(
+						$mdgriffith$elm_style_animation$Animation$toWith,
+						$author$project$Main$slideEase,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_style_animation$Animation$left(
@@ -13234,7 +13217,9 @@ var $author$project$Main$flipOffRight = function (_v0) {
 							[
 								A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '1')
 							])),
-						$mdgriffith$elm_style_animation$Animation$to(
+						A2(
+						$mdgriffith$elm_style_animation$Animation$toWith,
+						$author$project$Main$slideEase,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_style_animation$Animation$left(
@@ -13254,6 +13239,15 @@ var $author$project$Main$flipOffRight = function (_v0) {
 		});
 };
 var $author$project$Main$TransitionIn = {$: 'TransitionIn'};
+var $mdgriffith$elm_style_animation$Animation$right = function (_v0) {
+	var val = _v0.a;
+	var len = _v0.b;
+	return A3(
+		$mdgriffith$elm_style_animation$Animation$length,
+		'right',
+		val,
+		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
 var $author$project$Main$flipOn = function (_v0) {
 	var screen = _v0.screen;
 	var pageElement = _v0.pageElement;
@@ -13273,7 +13267,9 @@ var $author$project$Main$flipOn = function (_v0) {
 				$mdgriffith$elm_style_animation$Animation$interrupt,
 				_List_fromArray(
 					[
-						$mdgriffith$elm_style_animation$Animation$to(
+						A2(
+						$mdgriffith$elm_style_animation$Animation$toWith,
+						$author$project$Main$slideEase,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_style_animation$Animation$right(
@@ -13284,7 +13280,9 @@ var $author$project$Main$flipOn = function (_v0) {
 							[
 								A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '2')
 							])),
-						$mdgriffith$elm_style_animation$Animation$to(
+						A2(
+						$mdgriffith$elm_style_animation$Animation$toWith,
+						$author$project$Main$slideEase,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_style_animation$Animation$right(
@@ -13364,6 +13362,12 @@ var $elm$random$Random$generate = F2(
 			$elm$random$Random$Generate(
 				A2($elm$random$Random$map, tagger, generator)));
 	});
+var $mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
+	return {$: 'To', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$to = function (props) {
+	return $mdgriffith$elm_style_animation$Animation$Model$To(props);
+};
 var $author$project$Main$slideFromTopTransition = function (_v0) {
 	var screen = _v0.screen;
 	var pageElement = _v0.pageElement;
@@ -13781,7 +13785,6 @@ var $elm$core$List$partition = F2(
 			_Utils_Tuple2(_List_Nil, _List_Nil),
 			list);
 	});
-var $elm$core$Basics$round = _Basics_round;
 var $mdgriffith$elm_style_animation$Animation$Model$refreshTiming = F2(
 	function (now, timing) {
 		var dt = $elm$time$Time$posixToMillis(now) - $elm$time$Time$posixToMillis(timing.current);
@@ -15366,7 +15369,7 @@ var $author$project$Main$update = F2(
 							{
 								screen: prev,
 								screenTransition: $elm$core$Maybe$Just(
-									$author$project$Main$flipOffLeft(model))
+									$author$project$Main$flipOffRight(model))
 							}),
 						$elm$core$Platform$Cmd$none);
 				case 'ClearTransition':
@@ -15455,7 +15458,7 @@ var $author$project$Main$update = F2(
 										upcoming: $author$project$Period$toString(model.options.upcoming)
 									}),
 								screenTransition: $elm$core$Maybe$Just(
-									$author$project$Main$flipOn(model))
+									$author$project$Main$slideFromTopTransition(model))
 							}),
 						$elm$core$Platform$Cmd$none);
 				case 'NewPageElement':
@@ -15707,7 +15710,7 @@ var $author$project$Main$update = F2(
 												screen,
 												{page: page})),
 										screenTransition: $elm$core$Maybe$Just(
-											(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+											(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model) : $author$project$Main$flipOn(model))
 									}),
 								$elm$core$Platform$Cmd$none);
 						case 'SelectHabit':
@@ -15722,7 +15725,7 @@ var $author$project$Main$update = F2(
 												screen,
 												{page: page})),
 										screenTransition: $elm$core$Maybe$Just(
-											(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffLeft(model) : $author$project$Main$flipOn(model))
+											(_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model) : $author$project$Main$flipOn(model))
 									}),
 								$elm$core$Platform$Cmd$none);
 						default:
@@ -16319,8 +16322,8 @@ var $author$project$Main$viewEditingPage = F2(
 	function (model, screen) {
 		var title = A2(
 			$elm$core$Maybe$withDefault,
-			'Unnamed habit',
-			A2($elm$core$Dict$get, 'discription', screen.fields));
+			'',
+			A2($elm$core$Dict$get, 'description', screen.fields));
 		var pageState = {pageNumber: 0};
 		var pageConfig = {
 			footer: _Utils_Tuple2(

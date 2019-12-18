@@ -336,7 +336,7 @@ update msg model =
             in
             ( { model
                 | screen = prev
-                , screenTransition = Just (flipOffLeft model)
+                , screenTransition = Just (flipOffRight model)
               }
             , Cmd.none
             )
@@ -409,7 +409,7 @@ update msg model =
                         , recent = Period.toString model.options.recent
                         , parent = model.screen
                         }
-                , screenTransition = Just (flipOn model)
+                , screenTransition = Just (slideFromTopTransition model)
               }
             , Cmd.none
             )
@@ -566,7 +566,7 @@ update msg model =
                 , screenTransition =
                     Just
                         (if page < screen.page then
-                            flipOffLeft model
+                            flipOffRight model
 
                          else
                             flipOn model
@@ -581,7 +581,7 @@ update msg model =
                 , screenTransition =
                     Just
                         (if page < screen.page then
-                            flipOffLeft model
+                            flipOffRight model
 
                          else
                             flipOn model
@@ -782,8 +782,8 @@ viewEditingPage : Model -> EditHabitScreen -> Html Msg
 viewEditingPage model screen =
     let
         title =
-            Dict.get "discription" screen.fields
-                |> Maybe.withDefault "Unnamed habit"
+            Dict.get "description" screen.fields
+                |> Maybe.withDefault ""
 
         pageConfig =
             { showOptions = False
@@ -1337,6 +1337,13 @@ slideOffbottom { screen, pageElement } =
         }
 
 
+slideEase =
+    Animation.easing
+        { duration = 400
+        , ease = Ease.inOutCubic
+        }
+
+
 flipOffRight : Model -> ScreenTransition
 flipOffRight { screen, pageElement } =
     let
@@ -1353,9 +1360,13 @@ flipOffRight { screen, pageElement } =
         , direction = TransitionOut
         , style =
             Animation.interrupt
-                [ Animation.to [ Animation.left (Animation.px left) ]
+                [ Animation.toWith
+                    slideEase
+                    [ Animation.left (Animation.px left) ]
                 , Animation.set [ Animation.exactly "z-index" "1" ]
-                , Animation.to [ Animation.left (Animation.px 0) ]
+                , Animation.toWith
+                    slideEase
+                    [ Animation.left (Animation.px 0) ]
                 , Animation.Messenger.send ClearTransition
                 ]
                 (Animation.style
@@ -1383,9 +1394,9 @@ flipOffLeft { screen, pageElement } =
         , direction = TransitionOut
         , style =
             Animation.interrupt
-                [ Animation.to [ Animation.right (Animation.px right) ]
+                [ Animation.toWith slideEase [ Animation.right (Animation.px right) ]
                 , Animation.set [ Animation.exactly "z-index" "1" ]
-                , Animation.to [ Animation.right (Animation.px 0) ]
+                , Animation.toWith slideEase [ Animation.right (Animation.px 0) ]
                 , Animation.Messenger.send ClearTransition
                 ]
                 (Animation.style
@@ -1413,9 +1424,9 @@ flipOn { screen, pageElement } =
         , direction = TransitionIn
         , style =
             Animation.interrupt
-                [ Animation.to [ Animation.right (Animation.px right) ]
+                [ Animation.toWith slideEase [ Animation.right (Animation.px right) ]
                 , Animation.set [ Animation.exactly "z-index" "2" ]
-                , Animation.to [ Animation.right (Animation.px 0) ]
+                , Animation.toWith slideEase [ Animation.right (Animation.px 0) ]
                 , Animation.Messenger.send ClearTransition
                 ]
                 (Animation.style
