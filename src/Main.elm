@@ -62,9 +62,10 @@ init flags =
     ( { time = time
       , habits = applyDeltas Dict.empty storage2.habits
       , options = storage2.options
-      , screen = HabitList { page = 0 }
+      , screen = NoScreen
       , screenTransition = Nothing
       , animations = Dict.empty
+      , modal = NoModal
       , pageElement = Nothing
       }
     , getPageElement
@@ -88,6 +89,16 @@ type alias StorageModel =
     }
 
 
+type Modal
+    = NoModal
+    | IntroModal -- Opened on home screen BEFORE ANYTHING (and haven;t seend before)
+      -- TODO add initial page transition
+    | FirstHabitModal -- Opened on home screen after page transitions in if no habits exist (and haven;t seend before)
+    | AddingHabitModal -- Opened on add screen if no hobits exist (and haven't seen before)
+    | DoHabitModal -- Opened on home screen if habits exist (and haven;t seend before)
+    | OpenOptionsModal -- Opened on home screen after habit is done (and haven't seen before)
+
+
 type alias Model =
     { time : Posix
     , habits : Dict HabitId Habit
@@ -95,6 +106,7 @@ type alias Model =
     , screen : Screen
     , screenTransition : Maybe ScreenTransition
     , animations : Dict String Anim
+    , modal : Modal
 
     -- TODO maybe move pageElement into screen?
     , pageElement : Maybe Dom.Element
@@ -104,6 +116,7 @@ type alias Model =
 type alias Options =
     { recent : Period
     , upcoming : Period
+    , seenModals : List Modal
     }
 
 
@@ -111,6 +124,7 @@ defaultOptions : Options
 defaultOptions =
     { recent = Hours 12
     , upcoming = Hours 12
+    , seenModals = []
     }
 
 
@@ -120,6 +134,7 @@ type Screen
     | CreateHabit CreateHabitScreen
     | SelectHabit SelectHabitScreen
     | EditOptions EditOptionsScreen
+    | NoScreen
 
 
 type alias HabitListScreen =
@@ -258,16 +273,59 @@ type Msg
     | Cancel
     | NewPageElement (Result Dom.Error Dom.Element)
     | ChangePage Int
+    | CloseModal
+    | ClearModal
 
 
+afterModalModelUpdate : Modal -> Model -> Model
+afterModalModelUpdate modal model =
+    case ( model.screen, modal ) of
+        ( NoScreen, IntroModal ) ->
+            { model | screen = HabitList { page = 0 } } |> slideFromTopTransition NoScreen
 
-{-
-   So need to generate our random ID
-   The best way is to probably :
-       OnClick create we don't change pages yet
-           We generate an id
-           then we change pages and create
--}
+        ( _, _ ) ->
+            model
+
+
+afterTransitionModalUpdate : Model -> Model
+afterTransitionModalUpdate model =
+    let
+        options =
+            model.options
+    in
+    case model.screen of
+        HabitList _ ->
+            if not (List.member FirstHabitModal options.seenModals) then
+                { model | modal = FirstHabitModal, options = { options | seenModals = FirstHabitModal :: options.seenModals } } |> modalInTransition
+
+            else if not (List.member DoHabitModal options.seenModals) && not (Dict.isEmpty model.habits) then
+                { model | modal = DoHabitModal, options = { options | seenModals = DoHabitModal :: options.seenModals } } |> modalInTransition
+
+            else
+                model
+
+        CreateHabit _ ->
+            if not (List.member AddingHabitModal options.seenModals) then
+                { model | modal = AddingHabitModal, options = { options | seenModals = AddingHabitModal :: options.seenModals } } |> modalInTransition
+
+            else
+                model
+
+        _ ->
+            model
+
+
+afterDoHabitModalUpdate : Model -> Model
+afterDoHabitModalUpdate model =
+    let
+        options =
+            model.options
+    in
+    if not (List.member OpenOptionsModal options.seenModals) then
+        { model | modal = OpenOptionsModal, options = { options | seenModals = OpenOptionsModal :: options.seenModals } } |> modalInTransition
+
+    else
+        model
 
 
 habitToFields : Habit -> FormFields
@@ -333,6 +391,9 @@ update msg model =
                         HabitList _ ->
                             model.screen
 
+                        NoScreen ->
+                            model.screen
+
                         EditHabit { parent } ->
                             parent
 
@@ -353,7 +414,9 @@ update msg model =
             )
 
         ( _, ClearTransition ) ->
+            -- TODO CHECK FOR MODAL OPENING
             ( { model | screenTransition = Nothing }
+                |> afterTransitionModalUpdate
             , Cmd.none
             )
 
@@ -365,7 +428,7 @@ update msg model =
                         |> Maybe.map (applyDeltas model.habits)
                         |> Maybe.withDefault model.habits
             in
-            ( { model | habits = newStore }, Cmd.none ) |> storeModel
+            ( { model | habits = newStore } |> afterDoHabitModalUpdate, Cmd.none ) |> storeModel
 
         ( _, OpenHabitEdit habitId ) ->
             let
@@ -424,11 +487,53 @@ update msg model =
             , Cmd.none
             )
 
+        ( NoScreen, NewPageElement (Ok el) ) ->
+            let
+                options =
+                    model.options
+
+                showModal =
+                    not (List.member IntroModal model.options.seenModals)
+            in
+            if showModal then
+                ( { model
+                    | pageElement = Just el
+                    , modal = IntroModal
+                    , options = { options | seenModals = IntroModal :: options.seenModals }
+                  }
+                    |> modalInTransition
+                , Cmd.none
+                )
+
+            else
+                ( { model
+                    | screen = HabitList { page = 0 }
+                    , pageElement = Just el
+                  }
+                    |> slideFromTopTransition NoScreen
+                , Cmd.none
+                )
+
         ( _, NewPageElement (Ok el) ) ->
             ( { model | pageElement = Just el }, Cmd.none )
 
         ( _, NewPageElement _ ) ->
             ( { model | pageElement = Nothing }, Cmd.none )
+
+        ( _, CloseModal ) ->
+            ( model
+                |> modalOutTransition
+            , Cmd.none
+            )
+
+        ( _, ClearModal ) ->
+            ( { model
+                | modal = NoModal
+                , animations = Dict.remove "modal-fg" model.animations |> Dict.remove "modal-bg"
+              }
+                |> afterModalModelUpdate model.modal
+            , Cmd.none
+            )
 
         ( EditHabit screen, DoDeleteHabit ) ->
             let
@@ -597,13 +702,6 @@ update msg model =
             ( model, Cmd.none )
 
 
-animationAttribs : Model -> String -> List (Html.Attribute Msg)
-animationAttribs model key =
-    Dict.get key model.animations
-        |> Maybe.map Animation.render
-        |> Maybe.withDefault []
-
-
 updateHabitFormFields : HabitForm a -> String -> String -> HabitForm a
 updateHabitFormFields page field val =
     case field of
@@ -657,14 +755,78 @@ visibleHabits model =
 -- VIEW
 
 
+animationAttribs : Model -> String -> List (Html.Attribute Msg)
+animationAttribs model key =
+    Dict.get key model.animations
+        |> Maybe.map Animation.render
+        |> Maybe.withDefault []
+
+
 view : Model -> Html Msg
 view model =
     div
-        [ class "page-container", id "habits-view" ]
+        []
         [ div
-            []
-            [ maybeViewTransition model ]
+            [ class "page-container", id "habits-view" ]
+            [ div
+                (animationAttribs model "modal-bg")
+                [ maybeViewTransition model ]
+            ]
+        , if model.modal /= NoModal then
+            div
+                (onClick CloseModal
+                    :: class "modal"
+                    :: animationAttribs model
+                        "modal-fg"
+                )
+                [ viewModal model ]
+
+          else
+            div [] []
         ]
+
+
+viewModal : Model -> Html Msg
+viewModal model =
+    case model.modal of
+        NoModal ->
+            div [] []
+
+        IntroModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "habits is a way to keep track of repeating tasks." ]
+                , p [] [ text "It's like a todo list where things show up again a certain amount of time after you do them." ]
+                ]
+
+        FirstHabitModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "This is your due list, it's looking a little bare." ]
+                , p [] [ text "Add a habit with the + button." ]
+                ]
+
+        AddingHabitModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "A habit needs a name and a repeat period." ]
+                , p [] [ text "You can make the habit due after the last time you did it or after doing a different habit." ]
+                ]
+
+        DoHabitModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "That's looking better!" ]
+                , p [] [ text "Clicking a habit marks it as done, you can also edit habits by clicking the ..." ]
+                ]
+
+        OpenOptionsModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "🎉🎉🎉" ]
+                , p [] [ text "By defualt your list shows habits due within the next 12 hours or done within the last 12 hours." ]
+                , p [] [ text "You can access the view options by clicking the - button to change this." ]
+                ]
 
 
 maybeViewTransition : Model -> Html Msg
@@ -721,9 +883,37 @@ viewScreen model page =
         SelectHabit habitSelect ->
             viewHabitSelectPage model habitSelect
 
+        NoScreen ->
+            div [ class "notvisible" ] [ viewEmptyPage model ]
+
 
 
 -- HABITS VIEW
+
+
+viewEmptyPage : Model -> Html Msg
+viewEmptyPage model =
+    let
+        pageConfig =
+            { showOptions = False
+            , title = ""
+            , footer =
+                ( emptyDiv
+                , emptyDiv
+                )
+            , nLines = pageLines
+            }
+
+        pageState =
+            { pageNumber = 0 }
+
+        { time, options, habits } =
+            model
+
+        lines =
+            []
+    in
+    viewPage pageConfig pageState lines
 
 
 viewHabitsListPage : Model -> HabitListScreen -> Html Msg
@@ -1139,9 +1329,10 @@ storageEncoder model =
 
 optionsDecoder : JD.Decoder Options
 optionsDecoder =
-    JD.map2 Options
+    JD.map3 Options
         (JD.field "recent" Period.decoder)
         (JD.field "upcoming" Period.decoder)
+        (JD.succeed [])
 
 
 optionsEncoder : Options -> JE.Value
@@ -1322,6 +1513,51 @@ slideEase =
         { duration = 400
         , ease = Ease.inOutCubic
         }
+
+
+slideEase2 =
+    Animation.easing
+        { duration = 700
+        , ease = Ease.inOutCubic
+        }
+
+
+modalInTransition : Model -> Model
+modalInTransition model =
+    { model
+        | animations =
+            model.animations
+                |> Dict.insert "modal-fg"
+                    (Animation.interrupt
+                        [ Animation.toWith slideEase2
+                            [ Animation.opacity 1
+                            , Animation.backgroundColor { red = 3, green = 3, blue = 3, alpha = 0.85 }
+                            ]
+                        ]
+                        (Animation.style
+                            [ Animation.opacity 0
+                            , Animation.backgroundColor { red = 3, green = 3, blue = 3, alpha = 0.85 }
+                            ]
+                        )
+                    )
+    }
+
+
+modalOutTransition : Model -> Model
+modalOutTransition model =
+    -- TODO we should really coordinate both animations and only
+    -- Clear once they're both done.
+    { model
+        | animations =
+            model.animations
+                |> Dict.insert "modal-fg"
+                    (Animation.interrupt
+                        [ Animation.toWith slideEase2 [ Animation.opacity 0, Animation.backgroundColor { red = 0, green = 0, blue = 0, alpha = 0.85 } ]
+                        , Animation.Messenger.send ClearModal
+                        ]
+                        (Animation.style [ Animation.opacity 1, Animation.backgroundColor { red = 0, green = 0, blue = 0, alpha = 0.85 } ])
+                    )
+    }
 
 
 slideFromTopTransition : Screen -> Model -> Model

@@ -9,3 +9,9 @@ clean:
 .PHONY: live
 live:
 	elm-live -h 0.0.0.0 src/Main.elm -- --output=elm.js --debug
+
+.PHONY: serve
+serve:
+	make clean
+	make elm.js
+	python3 -m http.server

@@ -10668,9 +10668,8 @@ var $elm$core$Basics$never = function (_v0) {
 	}
 };
 var $elm$browser$Browser$document = _Browser_document;
-var $author$project$Main$HabitList = function (a) {
-	return {$: 'HabitList', a: a};
-};
+var $author$project$Main$NoModal = {$: 'NoModal'};
+var $author$project$Main$NoScreen = {$: 'NoScreen'};
 var $author$project$HabitStore$applyFieldChange = F2(
 	function (change, maybeHabit) {
 		var _v0 = _Utils_Tuple2(maybeHabit, change);
@@ -10818,6 +10817,7 @@ var $author$project$Main$StorageModel = F3(
 	});
 var $author$project$Main$defaultOptions = {
 	recent: $author$project$Period$Hours(12),
+	seenModals: _List_Nil,
 	upcoming: $author$project$Period$Hours(12)
 };
 var $author$project$Main$defaultStorageModel = A3($author$project$Main$StorageModel, $author$project$Main$defaultOptions, _List_Nil, 0);
@@ -11544,15 +11544,16 @@ var $author$project$HabitStore$decoder = A2(
 		}
 	},
 	A2($elm$json$Json$Decode$field, 'type', $elm$json$Json$Decode$int));
-var $author$project$Main$Options = F2(
-	function (recent, upcoming) {
-		return {recent: recent, upcoming: upcoming};
+var $author$project$Main$Options = F3(
+	function (recent, upcoming, seenModals) {
+		return {recent: recent, seenModals: seenModals, upcoming: upcoming};
 	});
-var $author$project$Main$optionsDecoder = A3(
-	$elm$json$Json$Decode$map2,
+var $author$project$Main$optionsDecoder = A4(
+	$elm$json$Json$Decode$map3,
 	$author$project$Main$Options,
 	A2($elm$json$Json$Decode$field, 'recent', $author$project$Period$decoder),
-	A2($elm$json$Json$Decode$field, 'upcoming', $author$project$Period$decoder));
+	A2($elm$json$Json$Decode$field, 'upcoming', $author$project$Period$decoder),
+	$elm$json$Json$Decode$succeed(_List_Nil));
 var $author$project$Main$storageDecoder = A4(
 	$elm$json$Json$Decode$map3,
 	$author$project$Main$StorageModel,
@@ -11578,10 +11579,10 @@ var $author$project$Main$init = function (flags) {
 		{
 			animations: $elm$core$Dict$empty,
 			habits: A2($author$project$HabitStore$applyDeltas, $elm$core$Dict$empty, storage2.habits),
+			modal: $author$project$Main$NoModal,
 			options: storage2.options,
 			pageElement: $elm$core$Maybe$Nothing,
-			screen: $author$project$Main$HabitList(
-				{page: 0}),
+			screen: $author$project$Main$NoScreen,
 			screenTransition: $elm$core$Maybe$Nothing,
 			time: time
 		},
@@ -11959,6 +11960,10 @@ var $author$project$Main$EditHabit = function (a) {
 var $author$project$Main$EditOptions = function (a) {
 	return {$: 'EditOptions', a: a};
 };
+var $author$project$Main$HabitList = function (a) {
+	return {$: 'HabitList', a: a};
+};
+var $author$project$Main$IntroModal = {$: 'IntroModal'};
 var $author$project$Main$SelectHabit = function (a) {
 	return {$: 'SelectHabit', a: a};
 };
@@ -11974,409 +11979,61 @@ var $author$project$HabitStore$addHabitDeltas = F4(
 					_List_fromArray(
 					[
 						A2($author$project$HabitStore$Group, time, 'add ' + habitId),
-						$author$project$HabitStore$AddHabit(habitId)
+						$author$project$HabitStore$AddHabit(habitId),
+						A2(
+						$author$project$HabitStore$ChangeHabit,
+						habitId,
+						$author$project$HabitStore$NextDueChange(time))
 					]),
 					changeDeltas
 				]));
 	});
-var $elm$core$Char$fromCode = _Char_fromCode;
-var $elm$random$Random$Generator = function (a) {
-	return {$: 'Generator', a: a};
-};
-var $elm$random$Random$Seed = F2(
-	function (a, b) {
-		return {$: 'Seed', a: a, b: b};
-	});
-var $elm$random$Random$next = function (_v0) {
-	var state0 = _v0.a;
-	var incr = _v0.b;
-	return A2($elm$random$Random$Seed, ((state0 * 1664525) + incr) >>> 0, incr);
-};
-var $elm$core$Bitwise$xor = _Bitwise_xor;
-var $elm$random$Random$peel = function (_v0) {
-	var state = _v0.a;
-	var word = (state ^ (state >>> ((state >>> 28) + 4))) * 277803737;
-	return ((word >>> 22) ^ word) >>> 0;
-};
-var $elm$random$Random$int = F2(
-	function (a, b) {
-		return $elm$random$Random$Generator(
-			function (seed0) {
-				var _v0 = (_Utils_cmp(a, b) < 0) ? _Utils_Tuple2(a, b) : _Utils_Tuple2(b, a);
-				var lo = _v0.a;
-				var hi = _v0.b;
-				var range = (hi - lo) + 1;
-				if (!((range - 1) & range)) {
-					return _Utils_Tuple2(
-						(((range - 1) & $elm$random$Random$peel(seed0)) >>> 0) + lo,
-						$elm$random$Random$next(seed0));
-				} else {
-					var threshhold = (((-range) >>> 0) % range) >>> 0;
-					var accountForBias = function (seed) {
-						accountForBias:
-						while (true) {
-							var x = $elm$random$Random$peel(seed);
-							var seedN = $elm$random$Random$next(seed);
-							if (_Utils_cmp(x, threshhold) < 0) {
-								var $temp$seed = seedN;
-								seed = $temp$seed;
-								continue accountForBias;
-							} else {
-								return _Utils_Tuple2((x % range) + lo, seedN);
-							}
-						}
-					};
-					return accountForBias(seed0);
-				}
-			});
-	});
-var $elm$random$Random$map = F2(
-	function (func, _v0) {
-		var genA = _v0.a;
-		return $elm$random$Random$Generator(
-			function (seed0) {
-				var _v1 = genA(seed0);
-				var a = _v1.a;
-				var seed1 = _v1.b;
-				return _Utils_Tuple2(
-					func(a),
-					seed1);
-			});
-	});
-var $elm_community$random_extra$Random$Char$char = F2(
-	function (start, end) {
+var $author$project$Main$OpenOptionsModal = {$: 'OpenOptionsModal'};
+var $elm$core$List$member = F2(
+	function (x, xs) {
 		return A2(
-			$elm$random$Random$map,
-			$elm$core$Char$fromCode,
-			A2($elm$random$Random$int, start, end));
-	});
-var $elm_community$random_extra$Random$Char$alchemicalSymbol = A2($elm_community$random_extra$Random$Char$char, 128768, 128895);
-var $author$project$HabitStore$buildFieldChanges = F2(
-	function (deltas, delta) {
-		var _v0 = _Utils_Tuple2(deltas, delta);
-		_v0$7:
-		while (true) {
-			if (!_v0.a.b) {
-				return _List_fromArray(
-					[delta]);
-			} else {
-				switch (_v0.a.a.$) {
-					case 'DescriptionChange':
-						if (_v0.b.$ === 'DescriptionChange') {
-							var _v1 = _v0.a;
-							var xs = _v1.b;
-							return A2($elm$core$List$cons, delta, xs);
-						} else {
-							break _v0$7;
-						}
-					case 'TagChange':
-						if (_v0.b.$ === 'TagChange') {
-							var _v2 = _v0.a;
-							var xs = _v2.b;
-							return A2($elm$core$List$cons, delta, xs);
-						} else {
-							break _v0$7;
-						}
-					case 'LastDoneChange':
-						if (_v0.b.$ === 'LastDoneChange') {
-							var _v3 = _v0.a;
-							var xs = _v3.b;
-							return A2($elm$core$List$cons, delta, xs);
-						} else {
-							break _v0$7;
-						}
-					case 'NextDueChange':
-						if (_v0.b.$ === 'NextDueChange') {
-							var _v4 = _v0.a;
-							var xs = _v4.b;
-							return A2($elm$core$List$cons, delta, xs);
-						} else {
-							break _v0$7;
-						}
-					case 'DoneCountChange':
-						if (_v0.b.$ === 'DoneCountChange') {
-							var _v5 = _v0.a;
-							var xs = _v5.b;
-							return A2($elm$core$List$cons, delta, xs);
-						} else {
-							break _v0$7;
-						}
-					case 'BlockChange':
-						if (_v0.b.$ === 'BlockChange') {
-							var _v6 = _v0.a;
-							var xs = _v6.b;
-							return A2($elm$core$List$cons, delta, xs);
-						} else {
-							break _v0$7;
-						}
-					default:
-						break _v0$7;
-				}
-			}
-		}
-		var _v7 = _v0.a;
-		var d = _v7.a;
-		var xs = _v7.b;
-		return A2(
-			$elm$core$List$cons,
-			d,
-			A2($author$project$HabitStore$buildFieldChanges, xs, delta));
-	});
-var $elm$core$Dict$filter = F2(
-	function (isGood, dict) {
-		return A3(
-			$elm$core$Dict$foldl,
-			F3(
-				function (k, v, d) {
-					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
-				}),
-			$elm$core$Dict$empty,
-			dict);
-	});
-var $author$project$Habit$blockerId = function (habit) {
-	var _v0 = habit.block;
-	if (_v0.$ === 'Blocker') {
-		var otherId = _v0.a;
-		return $elm$core$Maybe$Just(otherId);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
-var $author$project$Habit$isBlocker = F2(
-	function (habitId, habit) {
-		return A2(
-			$elm$core$Maybe$withDefault,
-			false,
-			A2(
-				$elm$core$Maybe$map,
-				$elm$core$Basics$eq(habitId),
-				$author$project$Habit$blockerId(habit)));
-	});
-var $author$project$HabitStore$deleteHabitDeltas = F3(
-	function (store, time, habitId) {
-		var blockedHabits = $elm$core$Dict$keys(
-			A2(
-				$elm$core$Dict$filter,
-				F2(
-					function (k, h) {
-						return A2($author$project$Habit$isBlocker, habitId, h);
-					}),
-				store));
-		return _Utils_ap(
-			_List_fromArray(
-				[
-					A2($author$project$HabitStore$Group, time, 'delete ' + habitId),
-					$author$project$HabitStore$DeleteHabit(habitId)
-				]),
-			A2(
-				$elm$core$List$map,
-				function (hid) {
-					return A2(
-						$author$project$HabitStore$ChangeHabit,
-						hid,
-						$author$project$HabitStore$BlockChange($author$project$Habit$Unblocked));
-				},
-				blockedHabits));
-	});
-var $elm$time$Time$posixToMillis = function (_v0) {
-	var millis = _v0.a;
-	return millis;
-};
-var $author$project$Period$toMillis = function (period) {
-	switch (period.$) {
-		case 'Minutes':
-			var i = period.a;
-			return (i * 60) * 1000;
-		case 'Hours':
-			var i = period.a;
-			return ((i * 60) * 60) * 1000;
-		case 'Days':
-			var i = period.a;
-			return (((i * 24) * 60) * 60) * 1000;
-		case 'Weeks':
-			var i = period.a;
-			return ((((i * 7) * 24) * 60) * 60) * 1000;
-		default:
-			var i = period.a;
-			return ((((i * 28) * 24) * 60) * 60) * 1000;
-	}
-};
-var $author$project$Period$addToPosix = F2(
-	function (period, time) {
-		return $elm$time$Time$millisToPosix(
-			$elm$time$Time$posixToMillis(time) + $author$project$Period$toMillis(period));
-	});
-var $author$project$Habit$doBlock = function (block) {
-	if (block.$ === 'Blocker') {
-		var otherId = block.a;
-		return A2($author$project$Habit$Blocker, otherId, true);
-	} else {
-		return $author$project$Habit$Unblocked;
-	}
-};
-var $author$project$Habit$isBlocked = function (habit) {
-	var _v0 = habit.block;
-	if ((_v0.$ === 'Blocker') && _v0.b) {
-		return true;
-	} else {
-		return false;
-	}
-};
-var $author$project$HabitStore$doHabitDeltas = F3(
-	function (store, time, habit) {
-		var blockedHabits = $elm$core$Dict$toList(
-			A2(
-				$elm$core$Dict$filter,
-				F2(
-					function (_v1, h) {
-						return A2($author$project$Habit$isBlocker, habit.id, h) && $author$project$Habit$isBlocked(h);
-					}),
-				store));
-		return _Utils_ap(
-			_List_fromArray(
-				[
-					A2($author$project$HabitStore$Group, time, 'do ' + habit.id),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					habit.id,
-					$author$project$HabitStore$LastDoneChange(time)),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					habit.id,
-					$author$project$HabitStore$NextDueChange(
-						A2($author$project$Period$addToPosix, habit.period, time))),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					habit.id,
-					$author$project$HabitStore$DoneCountChange(habit.doneCount + 1)),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					habit.id,
-					$author$project$HabitStore$BlockChange(
-						$author$project$Habit$doBlock(habit.block)))
-				]),
-			A2(
-				$elm$core$List$concatMap,
-				function (_v0) {
-					var hid = _v0.a;
-					var h = _v0.b;
-					return _List_fromArray(
-						[
-							A2(
-							$author$project$HabitStore$ChangeHabit,
-							hid,
-							$author$project$HabitStore$BlockChange(
-								A2($author$project$Habit$Blocker, habit.id, false))),
-							A2(
-							$author$project$HabitStore$ChangeHabit,
-							hid,
-							$author$project$HabitStore$NextDueChange(
-								A2($author$project$Period$addToPosix, h.period, time)))
-						]);
-				},
-				blockedHabits));
-	});
-var $author$project$HabitStore$editHabitDeltas = F4(
-	function (store, time, habitId, changes) {
-		var changeDeltas = A2(
-			$elm$core$List$map,
-			$author$project$HabitStore$ChangeHabit(habitId),
-			changes);
-		return A2(
-			$elm$core$List$cons,
-			A2($author$project$HabitStore$Group, time, 'edit ' + habitId),
-			changeDeltas);
-	});
-var $elm$core$List$singleton = function (value) {
-	return _List_fromArray(
-		[value]);
-};
-var $author$project$Period$addS = F2(
-	function (unit, str) {
-		return $elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
-	});
-var $author$project$Period$toString = function (period) {
-	switch (period.$) {
-		case 'Minutes':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Minute');
-		case 'Hours':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Hour');
-		case 'Days':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Day');
-		case 'Weeks':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Week');
-		default:
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Month');
-	}
-};
-var $author$project$Main$habitToFields = function (habit) {
-	var blocker = A2(
-		$elm$core$Maybe$withDefault,
-		_List_Nil,
-		A2(
-			$elm$core$Maybe$map,
-			$elm$core$List$singleton,
-			A2(
-				$elm$core$Maybe$map,
-				function (id) {
-					return _Utils_Tuple2('block', id);
-				},
-				$author$project$Habit$blockerId(habit))));
-	return $elm$core$Dict$fromList(
-		_Utils_ap(
-			_List_fromArray(
-				[
-					_Utils_Tuple2('description', habit.description),
-					_Utils_Tuple2('tag', habit.tag),
-					_Utils_Tuple2(
-					'period',
-					$author$project$Period$toString(habit.period))
-				]),
-			blocker));
-};
-var $author$project$Main$editHabitScreen = F2(
-	function (model, habitId) {
-		return A2(
-			$elm$core$Maybe$map,
-			function (habit) {
-				return $author$project$Main$EditHabit(
-					{
-						deltas: _List_Nil,
-						fields: $author$project$Main$habitToFields(habit),
-						habitId: habitId,
-						parent: model.screen
-					});
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
 			},
-			A2($elm$core$Dict$get, habitId, model.habits));
+			xs);
 	});
-var $author$project$Main$ClearTransition = {$: 'ClearTransition'};
-var $author$project$Main$ScreenTransition = function (a) {
-	return {$: 'ScreenTransition', a: a};
+var $mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
+	function (a, b, c, d, e) {
+		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
+	});
+var $mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
+	return {$: 'Spring', a: a};
 };
-var $author$project$Main$TransitionOut = {$: 'TransitionOut'};
-var $mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
-	function (a, b) {
-		return {$: 'ExactProperty', a: a, b: b};
+var $mdgriffith$elm_style_animation$Animation$initMotion = F2(
+	function (position, unit) {
+		return {
+			interpolation: $mdgriffith$elm_style_animation$Animation$Model$Spring(
+				{damping: 26, stiffness: 170}),
+			interpolationOverride: $elm$core$Maybe$Nothing,
+			position: position,
+			target: position,
+			unit: unit,
+			velocity: 0
+		};
 	});
-var $mdgriffith$elm_style_animation$Animation$exactly = F2(
-	function (name, value) {
-		return A2($mdgriffith$elm_style_animation$Animation$Model$ExactProperty, name, value);
+var $mdgriffith$elm_style_animation$Animation$customColor = F2(
+	function (name, _v0) {
+		var red = _v0.red;
+		var green = _v0.green;
+		var blue = _v0.blue;
+		var alpha = _v0.alpha;
+		return A5(
+			$mdgriffith$elm_style_animation$Animation$Model$ColorProperty,
+			name,
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, red, ''),
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, green, ''),
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, blue, ''),
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, alpha, ''));
 	});
+var $mdgriffith$elm_style_animation$Animation$backgroundColor = function (c) {
+	return A2($mdgriffith$elm_style_animation$Animation$customColor, 'background-color', c);
+};
 var $mdgriffith$elm_style_animation$Animation$Model$Animation = function (a) {
 	return {$: 'Animation', a: a};
 };
@@ -12388,6 +12045,10 @@ var $elm$core$List$head = function (list) {
 	} else {
 		return $elm$core$Maybe$Nothing;
 	}
+};
+var $elm$time$Time$posixToMillis = function (_v0) {
+	var millis = _v0.a;
+	return millis;
 };
 var $mdgriffith$elm_style_animation$Animation$extractInitialWait = function (steps) {
 	var _v0 = $elm$core$List$head(steps);
@@ -12432,92 +12093,15 @@ var $mdgriffith$elm_style_animation$Animation$Model$Property = F2(
 	function (a, b) {
 		return {$: 'Property', a: a, b: b};
 	});
-var $mdgriffith$elm_style_animation$Animation$Model$Spring = function (a) {
-	return {$: 'Spring', a: a};
-};
-var $mdgriffith$elm_style_animation$Animation$initMotion = F2(
-	function (position, unit) {
-		return {
-			interpolation: $mdgriffith$elm_style_animation$Animation$Model$Spring(
-				{damping: 26, stiffness: 170}),
-			interpolationOverride: $elm$core$Maybe$Nothing,
-			position: position,
-			target: position,
-			unit: unit,
-			velocity: 0
-		};
-	});
-var $mdgriffith$elm_style_animation$Animation$length = F3(
-	function (name, val, unit) {
+var $mdgriffith$elm_style_animation$Animation$custom = F3(
+	function (name, value, unit) {
 		return A2(
 			$mdgriffith$elm_style_animation$Animation$Model$Property,
 			name,
-			A2($mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, value, unit));
 	});
-var $mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
-	switch (unit.$) {
-		case 'NoUnit':
-			return '';
-		case 'Px':
-			return 'px';
-		case 'Percent':
-			return '%';
-		case 'Rem':
-			return 'rem';
-		case 'Em':
-			return 'em';
-		case 'Ex':
-			return 'ex';
-		case 'Ch':
-			return 'ch';
-		case 'Vh':
-			return 'vh';
-		case 'Vw':
-			return 'vw';
-		case 'Vmin':
-			return 'vmin';
-		case 'Vmax':
-			return 'vmax';
-		case 'Mm':
-			return 'mm';
-		case 'Cm':
-			return 'cm';
-		case 'In':
-			return 'in';
-		case 'Pt':
-			return 'pt';
-		default:
-			return 'pc';
-	}
-};
-var $mdgriffith$elm_style_animation$Animation$left = function (_v0) {
-	var val = _v0.a;
-	var len = _v0.b;
-	return A3(
-		$mdgriffith$elm_style_animation$Animation$length,
-		'left',
-		val,
-		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
-};
-var $mdgriffith$elm_style_animation$Animation$Length = F2(
-	function (a, b) {
-		return {$: 'Length', a: a, b: b};
-	});
-var $mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
-var $mdgriffith$elm_style_animation$Animation$px = function (myPx) {
-	return A2($mdgriffith$elm_style_animation$Animation$Length, myPx, $mdgriffith$elm_style_animation$Animation$Px);
-};
-var $mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
-	return {$: 'Send', a: a};
-};
-var $mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
-	return $mdgriffith$elm_style_animation$Animation$Model$Send(msg);
-};
-var $mdgriffith$elm_style_animation$Animation$Model$Set = function (a) {
-	return {$: 'Set', a: a};
-};
-var $mdgriffith$elm_style_animation$Animation$set = function (props) {
-	return $mdgriffith$elm_style_animation$Animation$Model$Set(props);
+var $mdgriffith$elm_style_animation$Animation$opacity = function (val) {
+	return A3($mdgriffith$elm_style_animation$Animation$custom, 'opacity', val, '');
 };
 var $mdgriffith$elm_style_animation$Animation$Model$Easing = function (a) {
 	return {$: 'Easing', a: a};
@@ -12549,8 +12133,8 @@ var $elm_community$easing_functions$Ease$flip = F2(
 	});
 var $elm_community$easing_functions$Ease$outCubic = $elm_community$easing_functions$Ease$flip($elm_community$easing_functions$Ease$inCubic);
 var $elm_community$easing_functions$Ease$inOutCubic = A2($elm_community$easing_functions$Ease$inOut, $elm_community$easing_functions$Ease$inCubic, $elm_community$easing_functions$Ease$outCubic);
-var $author$project$Main$slideEase = $mdgriffith$elm_style_animation$Animation$easing(
-	{duration: 400, ease: $elm_community$easing_functions$Ease$inOutCubic});
+var $author$project$Main$slideEase2 = $mdgriffith$elm_style_animation$Animation$easing(
+	{duration: 700, ease: $elm_community$easing_functions$Ease$inOutCubic});
 var $mdgriffith$elm_style_animation$Animation$initialState = function (current) {
 	return $mdgriffith$elm_style_animation$Animation$Model$Animation(
 		{
@@ -12609,9 +12193,9 @@ var $mdgriffith$elm_style_animation$Animation$Model$AngleProperty = F2(
 	function (a, b) {
 		return {$: 'AngleProperty', a: a, b: b};
 	});
-var $mdgriffith$elm_style_animation$Animation$Model$ColorProperty = F5(
-	function (a, b, c, d, e) {
-		return {$: 'ColorProperty', a: a, b: b, c: c, d: d, e: e};
+var $mdgriffith$elm_style_animation$Animation$Model$ExactProperty = F2(
+	function (a, b) {
+		return {$: 'ExactProperty', a: a, b: b};
 	});
 var $mdgriffith$elm_style_animation$Animation$Model$Path = function (a) {
 	return {$: 'Path', a: a};
@@ -13074,15 +12658,6 @@ var $mdgriffith$elm_style_animation$Animation$Render$groupWhile = F2(
 				A2($mdgriffith$elm_style_animation$Animation$Render$groupWhile, eq, zs));
 		}
 	});
-var $elm$core$List$member = F2(
-	function (x, xs) {
-		return A2(
-			$elm$core$List$any,
-			function (a) {
-				return _Utils_eq(a, x);
-			},
-			xs);
-	});
 var $mdgriffith$elm_style_animation$Animation$Model$propertyName = function (prop) {
 	switch (prop.$) {
 		case 'ExactProperty':
@@ -13176,6 +12751,115 @@ var $mdgriffith$elm_style_animation$Animation$toWith = F2(
 					}),
 				props));
 	});
+var $author$project$Main$modalInTransition = function (model) {
+	return _Utils_update(
+		model,
+		{
+			animations: A3(
+				$elm$core$Dict$insert,
+				'modal-fg',
+				A2(
+					$mdgriffith$elm_style_animation$Animation$interrupt,
+					_List_fromArray(
+						[
+							A2(
+							$mdgriffith$elm_style_animation$Animation$toWith,
+							$author$project$Main$slideEase2,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_style_animation$Animation$opacity(1),
+									$mdgriffith$elm_style_animation$Animation$backgroundColor(
+									{alpha: 0.85, blue: 3, green: 3, red: 3})
+								]))
+						]),
+					$mdgriffith$elm_style_animation$Animation$style(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$opacity(0),
+								$mdgriffith$elm_style_animation$Animation$backgroundColor(
+								{alpha: 0.85, blue: 3, green: 3, red: 3})
+							]))),
+				model.animations)
+		});
+};
+var $author$project$Main$afterDoHabitModalUpdate = function (model) {
+	var options = model.options;
+	return (!A2($elm$core$List$member, $author$project$Main$OpenOptionsModal, options.seenModals)) ? $author$project$Main$modalInTransition(
+		_Utils_update(
+			model,
+			{
+				modal: $author$project$Main$OpenOptionsModal,
+				options: _Utils_update(
+					options,
+					{
+						seenModals: A2($elm$core$List$cons, $author$project$Main$OpenOptionsModal, options.seenModals)
+					})
+			})) : model;
+};
+var $author$project$Main$ClearTransition = {$: 'ClearTransition'};
+var $author$project$Main$ScreenTransition = function (a) {
+	return {$: 'ScreenTransition', a: a};
+};
+var $author$project$Main$TransitionIn = {$: 'TransitionIn'};
+var $mdgriffith$elm_style_animation$Animation$Length = F2(
+	function (a, b) {
+		return {$: 'Length', a: a, b: b};
+	});
+var $mdgriffith$elm_style_animation$Animation$Px = {$: 'Px'};
+var $mdgriffith$elm_style_animation$Animation$px = function (myPx) {
+	return A2($mdgriffith$elm_style_animation$Animation$Length, myPx, $mdgriffith$elm_style_animation$Animation$Px);
+};
+var $mdgriffith$elm_style_animation$Animation$Model$Send = function (a) {
+	return {$: 'Send', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$Messenger$send = function (msg) {
+	return $mdgriffith$elm_style_animation$Animation$Model$Send(msg);
+};
+var $author$project$Main$slideEase = $mdgriffith$elm_style_animation$Animation$easing(
+	{duration: 400, ease: $elm_community$easing_functions$Ease$inOutCubic});
+var $mdgriffith$elm_style_animation$Animation$length = F3(
+	function (name, val, unit) {
+		return A2(
+			$mdgriffith$elm_style_animation$Animation$Model$Property,
+			name,
+			A2($mdgriffith$elm_style_animation$Animation$initMotion, val, unit));
+	});
+var $mdgriffith$elm_style_animation$Animation$lengthUnitName = function (unit) {
+	switch (unit.$) {
+		case 'NoUnit':
+			return '';
+		case 'Px':
+			return 'px';
+		case 'Percent':
+			return '%';
+		case 'Rem':
+			return 'rem';
+		case 'Em':
+			return 'em';
+		case 'Ex':
+			return 'ex';
+		case 'Ch':
+			return 'ch';
+		case 'Vh':
+			return 'vh';
+		case 'Vw':
+			return 'vw';
+		case 'Vmin':
+			return 'vmin';
+		case 'Vmax':
+			return 'vmax';
+		case 'Mm':
+			return 'mm';
+		case 'Cm':
+			return 'cm';
+		case 'In':
+			return 'in';
+		case 'Pt':
+			return 'pt';
+		default:
+			return 'pc';
+	}
+};
 var $mdgriffith$elm_style_animation$Animation$top = function (_v0) {
 	var val = _v0.a;
 	var len = _v0.b;
@@ -13184,6 +12868,512 @@ var $mdgriffith$elm_style_animation$Animation$top = function (_v0) {
 		'top',
 		val,
 		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $author$project$Main$slideFromTopTransition = F2(
+	function (previous, model) {
+		var _v0 = model.pageElement;
+		if (_v0.$ === 'Nothing') {
+			return model;
+		} else {
+			var el = _v0.a;
+			var top = (-1) * (el.element.y + el.element.height);
+			return _Utils_update(
+				model,
+				{
+					animations: A3(
+						$elm$core$Dict$insert,
+						'page-transition',
+						A2(
+							$mdgriffith$elm_style_animation$Animation$interrupt,
+							_List_fromArray(
+								[
+									A2(
+									$mdgriffith$elm_style_animation$Animation$toWith,
+									$author$project$Main$slideEase,
+									_List_fromArray(
+										[
+											$mdgriffith$elm_style_animation$Animation$top(
+											$mdgriffith$elm_style_animation$Animation$px(0))
+										])),
+									$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+								]),
+							$mdgriffith$elm_style_animation$Animation$style(
+								_List_fromArray(
+									[
+										$mdgriffith$elm_style_animation$Animation$top(
+										$mdgriffith$elm_style_animation$Animation$px(top))
+									]))),
+						model.animations),
+					screenTransition: $elm$core$Maybe$Just(
+						$author$project$Main$ScreenTransition(
+							{direction: $author$project$Main$TransitionIn, previous: previous}))
+				});
+		}
+	});
+var $author$project$Main$afterModalModelUpdate = F2(
+	function (modal, model) {
+		var _v0 = _Utils_Tuple2(model.screen, modal);
+		if ((_v0.a.$ === 'NoScreen') && (_v0.b.$ === 'IntroModal')) {
+			var _v1 = _v0.a;
+			var _v2 = _v0.b;
+			return A2(
+				$author$project$Main$slideFromTopTransition,
+				$author$project$Main$NoScreen,
+				_Utils_update(
+					model,
+					{
+						screen: $author$project$Main$HabitList(
+							{page: 0})
+					}));
+		} else {
+			return model;
+		}
+	});
+var $author$project$Main$AddingHabitModal = {$: 'AddingHabitModal'};
+var $author$project$Main$DoHabitModal = {$: 'DoHabitModal'};
+var $author$project$Main$FirstHabitModal = {$: 'FirstHabitModal'};
+var $author$project$Main$afterTransitionModalUpdate = function (model) {
+	var options = model.options;
+	var _v0 = model.screen;
+	switch (_v0.$) {
+		case 'HabitList':
+			return (!A2($elm$core$List$member, $author$project$Main$FirstHabitModal, options.seenModals)) ? $author$project$Main$modalInTransition(
+				_Utils_update(
+					model,
+					{
+						modal: $author$project$Main$FirstHabitModal,
+						options: _Utils_update(
+							options,
+							{
+								seenModals: A2($elm$core$List$cons, $author$project$Main$FirstHabitModal, options.seenModals)
+							})
+					})) : (((!A2($elm$core$List$member, $author$project$Main$DoHabitModal, options.seenModals)) && (!$elm$core$Dict$isEmpty(model.habits))) ? $author$project$Main$modalInTransition(
+				_Utils_update(
+					model,
+					{
+						modal: $author$project$Main$DoHabitModal,
+						options: _Utils_update(
+							options,
+							{
+								seenModals: A2($elm$core$List$cons, $author$project$Main$DoHabitModal, options.seenModals)
+							})
+					})) : model);
+		case 'CreateHabit':
+			return (!A2($elm$core$List$member, $author$project$Main$AddingHabitModal, options.seenModals)) ? $author$project$Main$modalInTransition(
+				_Utils_update(
+					model,
+					{
+						modal: $author$project$Main$AddingHabitModal,
+						options: _Utils_update(
+							options,
+							{
+								seenModals: A2($elm$core$List$cons, $author$project$Main$AddingHabitModal, options.seenModals)
+							})
+					})) : model;
+		default:
+			return model;
+	}
+};
+var $elm$core$Char$fromCode = _Char_fromCode;
+var $elm$random$Random$Generator = function (a) {
+	return {$: 'Generator', a: a};
+};
+var $elm$random$Random$Seed = F2(
+	function (a, b) {
+		return {$: 'Seed', a: a, b: b};
+	});
+var $elm$random$Random$next = function (_v0) {
+	var state0 = _v0.a;
+	var incr = _v0.b;
+	return A2($elm$random$Random$Seed, ((state0 * 1664525) + incr) >>> 0, incr);
+};
+var $elm$core$Bitwise$xor = _Bitwise_xor;
+var $elm$random$Random$peel = function (_v0) {
+	var state = _v0.a;
+	var word = (state ^ (state >>> ((state >>> 28) + 4))) * 277803737;
+	return ((word >>> 22) ^ word) >>> 0;
+};
+var $elm$random$Random$int = F2(
+	function (a, b) {
+		return $elm$random$Random$Generator(
+			function (seed0) {
+				var _v0 = (_Utils_cmp(a, b) < 0) ? _Utils_Tuple2(a, b) : _Utils_Tuple2(b, a);
+				var lo = _v0.a;
+				var hi = _v0.b;
+				var range = (hi - lo) + 1;
+				if (!((range - 1) & range)) {
+					return _Utils_Tuple2(
+						(((range - 1) & $elm$random$Random$peel(seed0)) >>> 0) + lo,
+						$elm$random$Random$next(seed0));
+				} else {
+					var threshhold = (((-range) >>> 0) % range) >>> 0;
+					var accountForBias = function (seed) {
+						accountForBias:
+						while (true) {
+							var x = $elm$random$Random$peel(seed);
+							var seedN = $elm$random$Random$next(seed);
+							if (_Utils_cmp(x, threshhold) < 0) {
+								var $temp$seed = seedN;
+								seed = $temp$seed;
+								continue accountForBias;
+							} else {
+								return _Utils_Tuple2((x % range) + lo, seedN);
+							}
+						}
+					};
+					return accountForBias(seed0);
+				}
+			});
+	});
+var $elm$random$Random$map = F2(
+	function (func, _v0) {
+		var genA = _v0.a;
+		return $elm$random$Random$Generator(
+			function (seed0) {
+				var _v1 = genA(seed0);
+				var a = _v1.a;
+				var seed1 = _v1.b;
+				return _Utils_Tuple2(
+					func(a),
+					seed1);
+			});
+	});
+var $elm_community$random_extra$Random$Char$char = F2(
+	function (start, end) {
+		return A2(
+			$elm$random$Random$map,
+			$elm$core$Char$fromCode,
+			A2($elm$random$Random$int, start, end));
+	});
+var $elm_community$random_extra$Random$Char$alchemicalSymbol = A2($elm_community$random_extra$Random$Char$char, 128768, 128895);
+var $author$project$HabitStore$buildFieldChanges = F2(
+	function (deltas, delta) {
+		var _v0 = _Utils_Tuple2(deltas, delta);
+		_v0$7:
+		while (true) {
+			if (!_v0.a.b) {
+				return _List_fromArray(
+					[delta]);
+			} else {
+				switch (_v0.a.a.$) {
+					case 'DescriptionChange':
+						if (_v0.b.$ === 'DescriptionChange') {
+							var _v1 = _v0.a;
+							var xs = _v1.b;
+							return A2($elm$core$List$cons, delta, xs);
+						} else {
+							break _v0$7;
+						}
+					case 'TagChange':
+						if (_v0.b.$ === 'TagChange') {
+							var _v2 = _v0.a;
+							var xs = _v2.b;
+							return A2($elm$core$List$cons, delta, xs);
+						} else {
+							break _v0$7;
+						}
+					case 'LastDoneChange':
+						if (_v0.b.$ === 'LastDoneChange') {
+							var _v3 = _v0.a;
+							var xs = _v3.b;
+							return A2($elm$core$List$cons, delta, xs);
+						} else {
+							break _v0$7;
+						}
+					case 'NextDueChange':
+						if (_v0.b.$ === 'NextDueChange') {
+							var _v4 = _v0.a;
+							var xs = _v4.b;
+							return A2($elm$core$List$cons, delta, xs);
+						} else {
+							break _v0$7;
+						}
+					case 'DoneCountChange':
+						if (_v0.b.$ === 'DoneCountChange') {
+							var _v5 = _v0.a;
+							var xs = _v5.b;
+							return A2($elm$core$List$cons, delta, xs);
+						} else {
+							break _v0$7;
+						}
+					case 'BlockChange':
+						if (_v0.b.$ === 'BlockChange') {
+							var _v6 = _v0.a;
+							var xs = _v6.b;
+							return A2($elm$core$List$cons, delta, xs);
+						} else {
+							break _v0$7;
+						}
+					default:
+						break _v0$7;
+				}
+			}
+		}
+		var _v7 = _v0.a;
+		var d = _v7.a;
+		var xs = _v7.b;
+		return A2(
+			$elm$core$List$cons,
+			d,
+			A2($author$project$HabitStore$buildFieldChanges, xs, delta));
+	});
+var $elm$core$Dict$filter = F2(
+	function (isGood, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (k, v, d) {
+					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
+				}),
+			$elm$core$Dict$empty,
+			dict);
+	});
+var $author$project$Habit$blockerId = function (habit) {
+	var _v0 = habit.block;
+	if (_v0.$ === 'Blocker') {
+		var otherId = _v0.a;
+		return $elm$core$Maybe$Just(otherId);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$Habit$isBlocker = F2(
+	function (habitId, habit) {
+		return A2(
+			$elm$core$Maybe$withDefault,
+			false,
+			A2(
+				$elm$core$Maybe$map,
+				$elm$core$Basics$eq(habitId),
+				$author$project$Habit$blockerId(habit)));
+	});
+var $author$project$HabitStore$deleteHabitDeltas = F3(
+	function (store, time, habitId) {
+		var blockedHabits = $elm$core$Dict$keys(
+			A2(
+				$elm$core$Dict$filter,
+				F2(
+					function (k, h) {
+						return A2($author$project$Habit$isBlocker, habitId, h);
+					}),
+				store));
+		return _Utils_ap(
+			_List_fromArray(
+				[
+					A2($author$project$HabitStore$Group, time, 'delete ' + habitId),
+					$author$project$HabitStore$DeleteHabit(habitId)
+				]),
+			A2(
+				$elm$core$List$map,
+				function (hid) {
+					return A2(
+						$author$project$HabitStore$ChangeHabit,
+						hid,
+						$author$project$HabitStore$BlockChange($author$project$Habit$Unblocked));
+				},
+				blockedHabits));
+	});
+var $author$project$Period$toMillis = function (period) {
+	switch (period.$) {
+		case 'Minutes':
+			var i = period.a;
+			return (i * 60) * 1000;
+		case 'Hours':
+			var i = period.a;
+			return ((i * 60) * 60) * 1000;
+		case 'Days':
+			var i = period.a;
+			return (((i * 24) * 60) * 60) * 1000;
+		case 'Weeks':
+			var i = period.a;
+			return ((((i * 7) * 24) * 60) * 60) * 1000;
+		default:
+			var i = period.a;
+			return ((((i * 28) * 24) * 60) * 60) * 1000;
+	}
+};
+var $author$project$Period$addToPosix = F2(
+	function (period, time) {
+		return $elm$time$Time$millisToPosix(
+			$elm$time$Time$posixToMillis(time) + $author$project$Period$toMillis(period));
+	});
+var $author$project$Habit$doBlock = function (block) {
+	if (block.$ === 'Blocker') {
+		var otherId = block.a;
+		return A2($author$project$Habit$Blocker, otherId, true);
+	} else {
+		return $author$project$Habit$Unblocked;
+	}
+};
+var $author$project$Habit$isBlocked = function (habit) {
+	var _v0 = habit.block;
+	if ((_v0.$ === 'Blocker') && _v0.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $author$project$HabitStore$doHabitDeltas = F3(
+	function (store, time, habit) {
+		var blockedHabits = $elm$core$Dict$toList(
+			A2(
+				$elm$core$Dict$filter,
+				F2(
+					function (_v1, h) {
+						return A2($author$project$Habit$isBlocker, habit.id, h) && $author$project$Habit$isBlocked(h);
+					}),
+				store));
+		return _Utils_ap(
+			_List_fromArray(
+				[
+					A2($author$project$HabitStore$Group, time, 'do ' + habit.id),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					habit.id,
+					$author$project$HabitStore$LastDoneChange(time)),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					habit.id,
+					$author$project$HabitStore$NextDueChange(
+						A2($author$project$Period$addToPosix, habit.period, time))),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					habit.id,
+					$author$project$HabitStore$DoneCountChange(habit.doneCount + 1)),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					habit.id,
+					$author$project$HabitStore$BlockChange(
+						$author$project$Habit$doBlock(habit.block)))
+				]),
+			A2(
+				$elm$core$List$concatMap,
+				function (_v0) {
+					var hid = _v0.a;
+					var h = _v0.b;
+					return _List_fromArray(
+						[
+							A2(
+							$author$project$HabitStore$ChangeHabit,
+							hid,
+							$author$project$HabitStore$BlockChange(
+								A2($author$project$Habit$Blocker, habit.id, false))),
+							A2(
+							$author$project$HabitStore$ChangeHabit,
+							hid,
+							$author$project$HabitStore$NextDueChange(
+								A2($author$project$Period$addToPosix, h.period, time)))
+						]);
+				},
+				blockedHabits));
+	});
+var $author$project$HabitStore$editHabitDeltas = F4(
+	function (store, time, habitId, changes) {
+		var changeDeltas = A2(
+			$elm$core$List$map,
+			$author$project$HabitStore$ChangeHabit(habitId),
+			changes);
+		return A2(
+			$elm$core$List$cons,
+			A2($author$project$HabitStore$Group, time, 'edit ' + habitId),
+			changeDeltas);
+	});
+var $elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
+var $author$project$Period$addS = F2(
+	function (unit, str) {
+		return $elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
+	});
+var $author$project$Period$toString = function (period) {
+	switch (period.$) {
+		case 'Minutes':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Minute');
+		case 'Hours':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Hour');
+		case 'Days':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Day');
+		case 'Weeks':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Week');
+		default:
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Month');
+	}
+};
+var $author$project$Main$habitToFields = function (habit) {
+	var blocker = A2(
+		$elm$core$Maybe$withDefault,
+		_List_Nil,
+		A2(
+			$elm$core$Maybe$map,
+			$elm$core$List$singleton,
+			A2(
+				$elm$core$Maybe$map,
+				function (id) {
+					return _Utils_Tuple2('block', id);
+				},
+				$author$project$Habit$blockerId(habit))));
+	return $elm$core$Dict$fromList(
+		_Utils_ap(
+			_List_fromArray(
+				[
+					_Utils_Tuple2('description', habit.description),
+					_Utils_Tuple2('tag', habit.tag),
+					_Utils_Tuple2(
+					'period',
+					$author$project$Period$toString(habit.period))
+				]),
+			blocker));
+};
+var $author$project$Main$editHabitScreen = F2(
+	function (model, habitId) {
+		return A2(
+			$elm$core$Maybe$map,
+			function (habit) {
+				return $author$project$Main$EditHabit(
+					{
+						deltas: _List_Nil,
+						fields: $author$project$Main$habitToFields(habit),
+						habitId: habitId,
+						parent: model.screen
+					});
+			},
+			A2($elm$core$Dict$get, habitId, model.habits));
+	});
+var $author$project$Main$TransitionOut = {$: 'TransitionOut'};
+var $mdgriffith$elm_style_animation$Animation$exactly = F2(
+	function (name, value) {
+		return A2($mdgriffith$elm_style_animation$Animation$Model$ExactProperty, name, value);
+	});
+var $mdgriffith$elm_style_animation$Animation$left = function (_v0) {
+	var val = _v0.a;
+	var len = _v0.b;
+	return A3(
+		$mdgriffith$elm_style_animation$Animation$length,
+		'left',
+		val,
+		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
+};
+var $mdgriffith$elm_style_animation$Animation$Model$Set = function (a) {
+	return {$: 'Set', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$set = function (props) {
+	return $mdgriffith$elm_style_animation$Animation$Model$Set(props);
 };
 var $author$project$Main$flipOffRight = F2(
 	function (previous, model) {
@@ -13242,7 +13432,6 @@ var $author$project$Main$flipOffRight = F2(
 				});
 		}
 	});
-var $author$project$Main$TransitionIn = {$: 'TransitionIn'};
 var $mdgriffith$elm_style_animation$Animation$right = function (_v0) {
 	var val = _v0.a;
 	var len = _v0.b;
@@ -13370,47 +13559,39 @@ var $elm$random$Random$generate = F2(
 			$elm$random$Random$Generate(
 				A2($elm$random$Random$map, tagger, generator)));
 	});
-var $author$project$Main$slideFromTopTransition = F2(
-	function (previous, model) {
-		var _v0 = model.pageElement;
-		if (_v0.$ === 'Nothing') {
-			return model;
-		} else {
-			var el = _v0.a;
-			var top = (-1) * (el.element.y + el.element.height);
-			return _Utils_update(
-				model,
-				{
-					animations: A3(
-						$elm$core$Dict$insert,
-						'page-transition',
-						A2(
-							$mdgriffith$elm_style_animation$Animation$interrupt,
+var $author$project$Main$ClearModal = {$: 'ClearModal'};
+var $author$project$Main$modalOutTransition = function (model) {
+	return _Utils_update(
+		model,
+		{
+			animations: A3(
+				$elm$core$Dict$insert,
+				'modal-fg',
+				A2(
+					$mdgriffith$elm_style_animation$Animation$interrupt,
+					_List_fromArray(
+						[
+							A2(
+							$mdgriffith$elm_style_animation$Animation$toWith,
+							$author$project$Main$slideEase2,
 							_List_fromArray(
 								[
-									A2(
-									$mdgriffith$elm_style_animation$Animation$toWith,
-									$author$project$Main$slideEase,
-									_List_fromArray(
-										[
-											$mdgriffith$elm_style_animation$Animation$top(
-											$mdgriffith$elm_style_animation$Animation$px(0))
-										])),
-									$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
-								]),
-							$mdgriffith$elm_style_animation$Animation$style(
-								_List_fromArray(
-									[
-										$mdgriffith$elm_style_animation$Animation$top(
-										$mdgriffith$elm_style_animation$Animation$px(top))
-									]))),
-						model.animations),
-					screenTransition: $elm$core$Maybe$Just(
-						$author$project$Main$ScreenTransition(
-							{direction: $author$project$Main$TransitionIn, previous: previous}))
-				});
-		}
-	});
+									$mdgriffith$elm_style_animation$Animation$opacity(0),
+									$mdgriffith$elm_style_animation$Animation$backgroundColor(
+									{alpha: 0.85, blue: 0, green: 0, red: 0})
+								])),
+							$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearModal)
+						]),
+					$mdgriffith$elm_style_animation$Animation$style(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$opacity(1),
+								$mdgriffith$elm_style_animation$Animation$backgroundColor(
+								{alpha: 0.85, blue: 0, green: 0, red: 0})
+							]))),
+				model.animations)
+		});
+};
 var $author$project$Main$slideOffbottom = F2(
 	function (previous, model) {
 		var _v0 = model.pageElement;
@@ -15321,7 +15502,7 @@ var $author$project$Main$updateHabitFormFields = F3(
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		var _v0 = _Utils_Tuple2(model.screen, msg);
-		_v0$22:
+		_v0$25:
 		while (true) {
 			switch (_v0.b.$) {
 				case 'NoOp':
@@ -15366,6 +15547,8 @@ var $author$project$Main$update = F2(
 						switch (_v5.$) {
 							case 'HabitList':
 								return model.screen;
+							case 'NoScreen':
+								return model.screen;
 							case 'EditHabit':
 								var parent = _v5.a.parent;
 								return parent;
@@ -15391,9 +15574,10 @@ var $author$project$Main$update = F2(
 				case 'ClearTransition':
 					var _v6 = _v0.b;
 					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{screenTransition: $elm$core$Maybe$Nothing}),
+						$author$project$Main$afterTransitionModalUpdate(
+							_Utils_update(
+								model,
+								{screenTransition: $elm$core$Maybe$Nothing})),
 						$elm$core$Platform$Cmd$none);
 				case 'DoHabit':
 					var habitId = _v0.b.a;
@@ -15409,9 +15593,10 @@ var $author$project$Main$update = F2(
 								A2($elm$core$Dict$get, habitId, model.habits))));
 					return $author$project$Main$storeModel(
 						_Utils_Tuple2(
-							_Utils_update(
-								model,
-								{habits: newStore}),
+							$author$project$Main$afterDoHabitModalUpdate(
+								_Utils_update(
+									model,
+									{habits: newStore})),
 							$elm$core$Platform$Cmd$none));
 				case 'OpenHabitEdit':
 					var habitId = _v0.b.a;
@@ -15481,14 +15666,46 @@ var $author$project$Main$update = F2(
 						$elm$core$Platform$Cmd$none);
 				case 'NewPageElement':
 					if (_v0.b.a.$ === 'Ok') {
-						var el = _v0.b.a.a;
-						return _Utils_Tuple2(
-							_Utils_update(
-								model,
-								{
-									pageElement: $elm$core$Maybe$Just(el)
-								}),
-							$elm$core$Platform$Cmd$none);
+						if (_v0.a.$ === 'NoScreen') {
+							var _v11 = _v0.a;
+							var el = _v0.b.a.a;
+							var showModal = !A2($elm$core$List$member, $author$project$Main$IntroModal, model.options.seenModals);
+							var options = model.options;
+							return showModal ? _Utils_Tuple2(
+								$author$project$Main$modalInTransition(
+									_Utils_update(
+										model,
+										{
+											modal: $author$project$Main$IntroModal,
+											options: _Utils_update(
+												options,
+												{
+													seenModals: A2($elm$core$List$cons, $author$project$Main$IntroModal, options.seenModals)
+												}),
+											pageElement: $elm$core$Maybe$Just(el)
+										})),
+								$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+								A2(
+									$author$project$Main$slideFromTopTransition,
+									$author$project$Main$NoScreen,
+									_Utils_update(
+										model,
+										{
+											pageElement: $elm$core$Maybe$Just(el),
+											screen: $author$project$Main$HabitList(
+												{page: 0})
+										})),
+								$elm$core$Platform$Cmd$none);
+						} else {
+							var el = _v0.b.a.a;
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										pageElement: $elm$core$Maybe$Just(el)
+									}),
+								$elm$core$Platform$Cmd$none);
+						}
 					} else {
 						return _Utils_Tuple2(
 							_Utils_update(
@@ -15496,10 +15713,31 @@ var $author$project$Main$update = F2(
 								{pageElement: $elm$core$Maybe$Nothing}),
 							$elm$core$Platform$Cmd$none);
 					}
+				case 'CloseModal':
+					var _v12 = _v0.b;
+					return _Utils_Tuple2(
+						$author$project$Main$modalOutTransition(model),
+						$elm$core$Platform$Cmd$none);
+				case 'ClearModal':
+					var _v13 = _v0.b;
+					return _Utils_Tuple2(
+						A2(
+							$author$project$Main$afterModalModelUpdate,
+							model.modal,
+							_Utils_update(
+								model,
+								{
+									animations: A2(
+										$elm$core$Dict$remove,
+										'modal-bg',
+										A2($elm$core$Dict$remove, 'modal-fg', model.animations)),
+									modal: $author$project$Main$NoModal
+								})),
+						$elm$core$Platform$Cmd$none);
 				case 'DoDeleteHabit':
 					if (_v0.a.$ === 'EditHabit') {
 						var screen = _v0.a.a;
-						var _v11 = _v0.b;
+						var _v14 = _v0.b;
 						var newStore = A2(
 							$author$project$HabitStore$applyDeltas,
 							model.habits,
@@ -15514,12 +15752,12 @@ var $author$project$Main$update = F2(
 										{habits: newStore, screen: screen.parent})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$22;
+						break _v0$25;
 					}
 				case 'DoEditHabit':
 					if (_v0.a.$ === 'EditHabit') {
 						var screen = _v0.a.a;
-						var _v12 = _v0.b;
+						var _v15 = _v0.b;
 						var newStore = A2(
 							$author$project$HabitStore$applyDeltas,
 							model.habits,
@@ -15534,7 +15772,7 @@ var $author$project$Main$update = F2(
 										{habits: newStore, screen: screen.parent})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$22;
+						break _v0$25;
 					}
 				case 'DoSelectHabit':
 					if (_v0.a.$ === 'SelectHabit') {
@@ -15589,7 +15827,7 @@ var $author$project$Main$update = F2(
 									})),
 							$elm$core$Platform$Cmd$none);
 					} else {
-						break _v0$22;
+						break _v0$25;
 					}
 				case 'DoCreateHabit':
 					if (_v0.a.$ === 'CreateHabit') {
@@ -15620,12 +15858,12 @@ var $author$project$Main$update = F2(
 									$elm$core$Platform$Cmd$none));
 						}
 					} else {
-						break _v0$22;
+						break _v0$25;
 					}
 				case 'DoSaveOptions':
 					if (_v0.a.$ === 'EditOptions') {
 						var screen = _v0.a.a;
-						var _v16 = _v0.b;
+						var _v19 = _v0.b;
 						var options = model.options;
 						var updatedOptions = _Utils_update(
 							options,
@@ -15643,15 +15881,15 @@ var $author$project$Main$update = F2(
 										{options: updatedOptions, screen: screen.parent})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$22;
+						break _v0$25;
 					}
 				case 'ChangeFormField':
 					switch (_v0.a.$) {
 						case 'EditHabit':
 							var page = _v0.a.a;
-							var _v17 = _v0.b;
-							var field = _v17.a;
-							var val = _v17.b;
+							var _v20 = _v0.b;
+							var field = _v20.a;
+							var val = _v20.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -15662,9 +15900,9 @@ var $author$project$Main$update = F2(
 								$elm$core$Platform$Cmd$none);
 						case 'CreateHabit':
 							var page = _v0.a.a;
-							var _v18 = _v0.b;
-							var field = _v18.a;
-							var val = _v18.b;
+							var _v21 = _v0.b;
+							var field = _v21.a;
+							var val = _v21.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -15675,9 +15913,9 @@ var $author$project$Main$update = F2(
 								$elm$core$Platform$Cmd$none);
 						case 'EditOptions':
 							var page = _v0.a.a;
-							var _v19 = _v0.b;
-							var field = _v19.a;
-							var val = _v19.b;
+							var _v22 = _v0.b;
+							var field = _v22.a;
+							var val = _v22.b;
 							switch (field) {
 								case 'recent':
 									return _Utils_Tuple2(
@@ -15705,7 +15943,7 @@ var $author$project$Main$update = F2(
 									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							}
 						default:
-							break _v0$22;
+							break _v0$25;
 					}
 				case 'ChangePage':
 					switch (_v0.a.$) {
@@ -15738,13 +15976,545 @@ var $author$project$Main$update = F2(
 										})),
 								$elm$core$Platform$Cmd$none);
 						default:
-							break _v0$22;
+							break _v0$25;
 					}
 				default:
-					break _v0$22;
+					break _v0$25;
 			}
 		}
 		return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+	});
+var $author$project$Main$CloseModal = {$: 'CloseModal'};
+var $mdgriffith$elm_style_animation$Animation$Render$iePrefix = '-ms-';
+var $mdgriffith$elm_style_animation$Animation$Render$webkitPrefix = '-webkit-';
+var $mdgriffith$elm_style_animation$Animation$Render$prefix = function (stylePair) {
+	var propValue = stylePair.b;
+	var propName = stylePair.a;
+	switch (propName) {
+		case 'transform':
+			return _List_fromArray(
+				[
+					stylePair,
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
+					propValue),
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
+					propValue)
+				]);
+		case 'transform-origin':
+			return _List_fromArray(
+				[
+					stylePair,
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
+					propValue),
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
+					propValue)
+				]);
+		case 'filter':
+			return _List_fromArray(
+				[
+					stylePair,
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
+					propValue),
+					_Utils_Tuple2(
+					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
+					propValue)
+				]);
+		default:
+			return _List_fromArray(
+				[stylePair]);
+	}
+};
+var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
+var $elm$svg$Svg$Attributes$cx = _VirtualDom_attribute('cx');
+var $elm$svg$Svg$Attributes$cy = _VirtualDom_attribute('cy');
+var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
+var $elm$svg$Svg$Attributes$offset = _VirtualDom_attribute('offset');
+var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
+var $elm$core$Basics$cos = _Basics_cos;
+var $elm$core$Basics$degrees = function (angleInDegrees) {
+	return (angleInDegrees * $elm$core$Basics$pi) / 180;
+};
+var $elm$core$Basics$sin = _Basics_sin;
+var $mdgriffith$elm_style_animation$Animation$Render$pathCmdValue = function (cmd) {
+	var renderPoints = function (coords) {
+		return A2(
+			$elm$core$String$join,
+			' ',
+			A2(
+				$elm$core$List$map,
+				function (_v11) {
+					var x = _v11.a;
+					var y = _v11.b;
+					return $elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position));
+				},
+				coords));
+	};
+	switch (cmd.$) {
+		case 'Move':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'm ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'MoveTo':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'M ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'Line':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'l ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'LineTo':
+			var x = cmd.a;
+			var y = cmd.b;
+			return 'L ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
+		case 'Horizontal':
+			var a = cmd.a;
+			return 'h ' + $elm$core$String$fromFloat(a.position);
+		case 'HorizontalTo':
+			var a = cmd.a;
+			return 'H ' + $elm$core$String$fromFloat(a.position);
+		case 'Vertical':
+			var a = cmd.a;
+			return 'v ' + $elm$core$String$fromFloat(a.position);
+		case 'VerticalTo':
+			var a = cmd.a;
+			return 'V ' + $elm$core$String$fromFloat(a.position);
+		case 'Curve':
+			var control1 = cmd.a.control1;
+			var control2 = cmd.a.control2;
+			var point = cmd.a.point;
+			var _v1 = point;
+			var p1x = _v1.a;
+			var p1y = _v1.b;
+			var _v2 = control2;
+			var c2x = _v2.a;
+			var c2y = _v2.b;
+			var _v3 = control1;
+			var c1x = _v3.a;
+			var c1y = _v3.b;
+			return 'c ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(c2x.position) + (' ' + ($elm$core$String$fromFloat(c2y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))))))));
+		case 'CurveTo':
+			var control1 = cmd.a.control1;
+			var control2 = cmd.a.control2;
+			var point = cmd.a.point;
+			var _v4 = point;
+			var p1x = _v4.a;
+			var p1y = _v4.b;
+			var _v5 = control2;
+			var c2x = _v5.a;
+			var c2y = _v5.b;
+			var _v6 = control1;
+			var c1x = _v6.a;
+			var c1y = _v6.b;
+			return 'C ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(c2x.position) + (' ' + ($elm$core$String$fromFloat(c2y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))))))));
+		case 'Quadratic':
+			var control = cmd.a.control;
+			var point = cmd.a.point;
+			var _v7 = point;
+			var p1x = _v7.a;
+			var p1y = _v7.b;
+			var _v8 = control;
+			var c1x = _v8.a;
+			var c1y = _v8.b;
+			return 'q ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))));
+		case 'QuadraticTo':
+			var control = cmd.a.control;
+			var point = cmd.a.point;
+			var _v9 = point;
+			var p1x = _v9.a;
+			var p1y = _v9.b;
+			var _v10 = control;
+			var c1x = _v10.a;
+			var c1y = _v10.b;
+			return 'Q ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))));
+		case 'SmoothQuadratic':
+			var points = cmd.a;
+			return 't ' + renderPoints(points);
+		case 'SmoothQuadraticTo':
+			var points = cmd.a;
+			return 'T ' + renderPoints(points);
+		case 'Smooth':
+			var points = cmd.a;
+			return 's ' + renderPoints(points);
+		case 'SmoothTo':
+			var points = cmd.a;
+			return 'S ' + renderPoints(points);
+		case 'ClockwiseArc':
+			var arc = cmd.a;
+			var deltaAngle = arc.endAngle.position - arc.startAngle.position;
+			if (_Utils_cmp(deltaAngle, 360 - 1.0e-6) > 0) {
+				var dy = arc.radius.position * $elm$core$Basics$sin(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				var dx = arc.radius.position * $elm$core$Basics$cos(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position - dx) + (',' + ($elm$core$String$fromFloat(arc.y.position - dy) + (' A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position + dx) + (',' + $elm$core$String$fromFloat(arc.y.position + dy)))))))))))))));
+			} else {
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (' 0 ' + (((deltaAngle >= 180) ? '1' : '0') + (' ' + ('1' + (' ' + ($elm$core$String$fromFloat(
+					arc.x.position + (arc.radius.position * $elm$core$Basics$cos(
+						$elm$core$Basics$degrees(arc.endAngle.position)))) + (',' + $elm$core$String$fromFloat(
+					arc.y.position + (arc.radius.position * $elm$core$Basics$sin(
+						$elm$core$Basics$degrees(arc.endAngle.position))))))))))))));
+			}
+		case 'AntiClockwiseArc':
+			var arc = cmd.a;
+			var deltaAngle = arc.endAngle.position - arc.startAngle.position;
+			if (_Utils_cmp(deltaAngle, 360 - 1.0e-6) > 0) {
+				var dy = arc.radius.position * $elm$core$Basics$sin(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				var dx = arc.radius.position * $elm$core$Basics$cos(
+					$elm$core$Basics$degrees(arc.startAngle.position));
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,0,' + ($elm$core$String$fromFloat(arc.x.position - dx) + (',' + ($elm$core$String$fromFloat(arc.y.position - dy) + (' A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position + dx) + (',' + $elm$core$String$fromFloat(arc.y.position + dy)))))))))))))));
+			} else {
+				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (' 0 ' + ((((arc.startAngle.position - arc.endAngle.position) >= 180) ? '1' : '0') + (' ' + ('0' + (' ' + ($elm$core$String$fromFloat(
+					arc.x.position + (arc.radius.position * $elm$core$Basics$cos(arc.endAngle.position))) + (',' + $elm$core$String$fromFloat(
+					arc.y.position + (arc.radius.position * $elm$core$Basics$sin(arc.endAngle.position)))))))))))));
+			}
+		default:
+			return 'z';
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$propertyValue = F2(
+	function (prop, delim) {
+		switch (prop.$) {
+			case 'ExactProperty':
+				var value = prop.b;
+				return value;
+			case 'ColorProperty':
+				var r = prop.b;
+				var g = prop.c;
+				var b = prop.d;
+				var a = prop.e;
+				return 'rgba(' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(r.position)) + (',' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(g.position)) + (',' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(b.position)) + (',' + ($elm$core$String$fromFloat(a.position) + ')')))))));
+			case 'ShadowProperty':
+				var name = prop.a;
+				var inset = prop.b;
+				var shadow = prop.c;
+				return (inset ? 'inset ' : '') + ($elm$core$String$fromFloat(shadow.offsetX.position) + ('px' + (' ' + ($elm$core$String$fromFloat(shadow.offsetY.position) + ('px' + (' ' + ($elm$core$String$fromFloat(shadow.blur.position) + ('px' + (' ' + ((((name === 'text-shadow') || (name === 'drop-shadow')) ? '' : ($elm$core$String$fromFloat(shadow.size.position) + ('px' + ' '))) + ('rgba(' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(shadow.red.position)) + (', ' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(shadow.green.position)) + (', ' + ($elm$core$String$fromInt(
+					$elm$core$Basics$round(shadow.blue.position)) + (', ' + ($elm$core$String$fromFloat(shadow.alpha.position) + ')'))))))))))))))))));
+			case 'Property':
+				var x = prop.b;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					x.unit);
+			case 'Property2':
+				var x = prop.b;
+				var y = prop.c;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					_Utils_ap(
+						x.unit,
+						_Utils_ap(
+							delim,
+							_Utils_ap(
+								$elm$core$String$fromFloat(y.position),
+								y.unit))));
+			case 'Property3':
+				var x = prop.b;
+				var y = prop.c;
+				var z = prop.d;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					_Utils_ap(
+						x.unit,
+						_Utils_ap(
+							delim,
+							_Utils_ap(
+								$elm$core$String$fromFloat(y.position),
+								_Utils_ap(
+									y.unit,
+									_Utils_ap(
+										delim,
+										_Utils_ap(
+											$elm$core$String$fromFloat(z.position),
+											z.unit)))))));
+			case 'Property4':
+				var w = prop.b;
+				var x = prop.c;
+				var y = prop.d;
+				var z = prop.e;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(w.position),
+					_Utils_ap(
+						w.unit,
+						_Utils_ap(
+							delim,
+							_Utils_ap(
+								$elm$core$String$fromFloat(x.position),
+								_Utils_ap(
+									x.unit,
+									_Utils_ap(
+										delim,
+										_Utils_ap(
+											$elm$core$String$fromFloat(y.position),
+											_Utils_ap(
+												y.unit,
+												_Utils_ap(
+													delim,
+													_Utils_ap(
+														$elm$core$String$fromFloat(z.position),
+														z.unit))))))))));
+			case 'AngleProperty':
+				var x = prop.b;
+				return _Utils_ap(
+					$elm$core$String$fromFloat(x.position),
+					x.unit);
+			case 'Points':
+				var coords = prop.a;
+				return A2(
+					$elm$core$String$join,
+					' ',
+					A2(
+						$elm$core$List$map,
+						function (_v1) {
+							var x = _v1.a;
+							var y = _v1.b;
+							return $elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position));
+						},
+						coords));
+			default:
+				var cmds = prop.a;
+				return A2(
+					$elm$core$String$join,
+					' ',
+					A2($elm$core$List$map, $mdgriffith$elm_style_animation$Animation$Render$pathCmdValue, cmds));
+		}
+	});
+var $elm$svg$Svg$Attributes$r = _VirtualDom_attribute('r');
+var $elm$svg$Svg$Attributes$rx = _VirtualDom_attribute('rx');
+var $elm$svg$Svg$Attributes$ry = _VirtualDom_attribute('ry');
+var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
+var $elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
+var $elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
+var $mdgriffith$elm_style_animation$Animation$Render$renderAttrs = function (prop) {
+	if (A2(
+		$elm$core$String$startsWith,
+		'attr:',
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop))) {
+		return $elm$core$Maybe$Just(
+			A2(
+				$elm$html$Html$Attributes$attribute,
+				A2(
+					$elm$core$String$dropLeft,
+					5,
+					$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop)),
+				A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+	} else {
+		switch (prop.$) {
+			case 'Points':
+				var pts = prop.a;
+				return $elm$core$Maybe$Just(
+					$elm$svg$Svg$Attributes$points(
+						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+			case 'Path':
+				var cmds = prop.a;
+				return $elm$core$Maybe$Just(
+					$elm$svg$Svg$Attributes$d(
+						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+			case 'Property':
+				var name = prop.a;
+				var m1 = prop.b;
+				switch (name) {
+					case 'x':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$x(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'y':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$y(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'cx':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$cx(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'cy':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$cy(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'rx':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$rx(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'ry':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$ry(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'r':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$r(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					case 'offset':
+						return $elm$core$Maybe$Just(
+							$elm$svg$Svg$Attributes$offset(
+								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
+					default:
+						return $elm$core$Maybe$Nothing;
+				}
+			case 'Property4':
+				var name = prop.a;
+				var m1 = prop.b;
+				var m2 = prop.c;
+				var m3 = prop.d;
+				var m4 = prop.e;
+				return (name === 'viewBox') ? $elm$core$Maybe$Just(
+					$elm$svg$Svg$Attributes$viewBox(
+						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' '))) : $elm$core$Maybe$Nothing;
+			default:
+				return $elm$core$Maybe$Nothing;
+		}
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$isAttr = function (prop) {
+	return A2(
+		$elm$core$String$startsWith,
+		'attr:',
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop)) || function () {
+		switch (prop.$) {
+			case 'Points':
+				return true;
+			case 'Path':
+				return true;
+			case 'Property':
+				var name = prop.a;
+				return (name === 'cx') || ((name === 'cy') || ((name === 'x') || ((name === 'y') || ((name === 'rx') || ((name === 'ry') || ((name === 'r') || (name === 'offset')))))));
+			case 'Property4':
+				var name = prop.a;
+				return name === 'viewBox';
+			default:
+				return false;
+		}
+	}();
+};
+var $mdgriffith$elm_style_animation$Animation$Render$isFilter = function (prop) {
+	return A2(
+		$elm$core$List$member,
+		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
+		_List_fromArray(
+			['filter-url', 'blur', 'brightness', 'contrast', 'grayscale', 'hue-rotate', 'invert', 'saturate', 'sepia', 'drop-shadow']));
+};
+var $mdgriffith$elm_style_animation$Animation$Render$render3dRotation = function (prop) {
+	if (prop.$ === 'Property3') {
+		var x = prop.b;
+		var y = prop.c;
+		var z = prop.d;
+		return 'rotateX(' + ($elm$core$String$fromFloat(x.position) + (x.unit + (') rotateY(' + ($elm$core$String$fromFloat(y.position) + (y.unit + (') rotateZ(' + ($elm$core$String$fromFloat(z.position) + (z.unit + ')'))))))));
+	} else {
+		return '';
+	}
+};
+var $mdgriffith$elm_style_animation$Animation$Render$renderValues = function (_v0) {
+	var model = _v0.a;
+	var _v1 = A2($elm$core$List$partition, $mdgriffith$elm_style_animation$Animation$Render$isAttr, model.style);
+	var attrProps = _v1.a;
+	var styleProps = _v1.b;
+	var _v2 = A3(
+		$elm$core$List$foldl,
+		F2(
+			function (prop, _v3) {
+				var myStyle = _v3.a;
+				var myTransforms = _v3.b;
+				var myFilters = _v3.c;
+				return $mdgriffith$elm_style_animation$Animation$Render$isTransformation(prop) ? _Utils_Tuple3(
+					myStyle,
+					_Utils_ap(
+						myTransforms,
+						_List_fromArray(
+							[prop])),
+					myFilters) : ($mdgriffith$elm_style_animation$Animation$Render$isFilter(prop) ? _Utils_Tuple3(
+					myStyle,
+					myTransforms,
+					_Utils_ap(
+						myFilters,
+						_List_fromArray(
+							[prop]))) : _Utils_Tuple3(
+					_Utils_ap(
+						myStyle,
+						_List_fromArray(
+							[prop])),
+					myTransforms,
+					myFilters));
+			}),
+		_Utils_Tuple3(_List_Nil, _List_Nil, _List_Nil),
+		styleProps);
+	var style = _v2.a;
+	var transforms = _v2.b;
+	var filters = _v2.c;
+	var renderedFilters = $elm$core$List$isEmpty(filters) ? _List_Nil : _List_fromArray(
+		[
+			_Utils_Tuple2(
+			'filter',
+			A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					function (prop) {
+						var name = $mdgriffith$elm_style_animation$Animation$Model$propertyName(prop);
+						return (name === 'filter-url') ? ('url(\"' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + '\")')) : ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) + ('(' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + ')')));
+					},
+					filters)))
+		]);
+	var renderedStyle = A2(
+		$elm$core$List$map,
+		function (prop) {
+			return _Utils_Tuple2(
+				$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
+				A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' '));
+		},
+		style);
+	var renderedTransforms = $elm$core$List$isEmpty(transforms) ? _List_Nil : _List_fromArray(
+		[
+			_Utils_Tuple2(
+			'transform',
+			A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					function (prop) {
+						return ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) === 'rotate3d') ? $mdgriffith$elm_style_animation$Animation$Render$render3dRotation(prop) : ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) + ('(' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + ')')));
+					},
+					transforms)))
+		]);
+	return _Utils_Tuple2(
+		_Utils_ap(
+			renderedTransforms,
+			_Utils_ap(renderedFilters, renderedStyle)),
+		attrProps);
+};
+var $mdgriffith$elm_style_animation$Animation$Render$render = function (animation) {
+	var _v0 = $mdgriffith$elm_style_animation$Animation$Render$renderValues(animation);
+	var style = _v0.a;
+	var attrProps = _v0.b;
+	var otherAttrs = A2($elm$core$List$filterMap, $mdgriffith$elm_style_animation$Animation$Render$renderAttrs, attrProps);
+	var styleAttr = A2(
+		$elm$core$List$map,
+		function (_v1) {
+			var prop = _v1.a;
+			var val = _v1.b;
+			return A2($elm$html$Html$Attributes$style, prop, val);
+		},
+		A2($elm$core$List$concatMap, $mdgriffith$elm_style_animation$Animation$Render$prefix, style));
+	return _Utils_ap(styleAttr, otherAttrs);
+};
+var $mdgriffith$elm_style_animation$Animation$render = $mdgriffith$elm_style_animation$Animation$Render$render;
+var $author$project$Main$animationAttribs = F2(
+	function (model, key) {
+		return A2(
+			$elm$core$Maybe$withDefault,
+			_List_Nil,
+			A2(
+				$elm$core$Maybe$map,
+				$mdgriffith$elm_style_animation$Animation$render,
+				A2($elm$core$Dict$get, key, model.animations)));
 	});
 var $author$project$Main$Cancel = {$: 'Cancel'};
 var $author$project$Main$DoDeleteHabit = {$: 'DoDeleteHabit'};
@@ -16386,6 +17156,21 @@ var $author$project$Main$viewEditingPage = F2(
 		var lines = A2($author$project$Main$editPagelines, model, screen);
 		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
 	});
+var $author$project$Main$viewEmptyPage = function (model) {
+	var pageState = {pageNumber: 0};
+	var pageConfig = {
+		footer: _Utils_Tuple2($author$project$Main$emptyDiv, $author$project$Main$emptyDiv),
+		nLines: $author$project$Main$pageLines,
+		showOptions: false,
+		title: ''
+	};
+	var lines = _List_Nil;
+	var _v0 = model;
+	var time = _v0.time;
+	var options = _v0.options;
+	var habits = _v0.habits;
+	return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+};
 var $author$project$Main$DoSelectHabit = function (a) {
 	return {$: 'DoSelectHabit', a: a};
 };
@@ -16784,541 +17569,21 @@ var $author$project$Main$viewScreen = F2(
 			case 'EditOptions':
 				var optionsPage = page.a;
 				return A2($author$project$Main$viewOptionsPage, model, optionsPage);
-			default:
+			case 'SelectHabit':
 				var habitSelect = page.a;
 				return A2($author$project$Main$viewHabitSelectPage, model, habitSelect);
-		}
-	});
-var $mdgriffith$elm_style_animation$Animation$Render$iePrefix = '-ms-';
-var $mdgriffith$elm_style_animation$Animation$Render$webkitPrefix = '-webkit-';
-var $mdgriffith$elm_style_animation$Animation$Render$prefix = function (stylePair) {
-	var propValue = stylePair.b;
-	var propName = stylePair.a;
-	switch (propName) {
-		case 'transform':
-			return _List_fromArray(
-				[
-					stylePair,
-					_Utils_Tuple2(
-					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
-					propValue),
-					_Utils_Tuple2(
-					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
-					propValue)
-				]);
-		case 'transform-origin':
-			return _List_fromArray(
-				[
-					stylePair,
-					_Utils_Tuple2(
-					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
-					propValue),
-					_Utils_Tuple2(
-					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
-					propValue)
-				]);
-		case 'filter':
-			return _List_fromArray(
-				[
-					stylePair,
-					_Utils_Tuple2(
-					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$iePrefix, propName),
-					propValue),
-					_Utils_Tuple2(
-					_Utils_ap($mdgriffith$elm_style_animation$Animation$Render$webkitPrefix, propName),
-					propValue)
-				]);
-		default:
-			return _List_fromArray(
-				[stylePair]);
-	}
-};
-var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
-var $elm$svg$Svg$Attributes$cx = _VirtualDom_attribute('cx');
-var $elm$svg$Svg$Attributes$cy = _VirtualDom_attribute('cy');
-var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
-var $elm$svg$Svg$Attributes$offset = _VirtualDom_attribute('offset');
-var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
-var $elm$core$Basics$cos = _Basics_cos;
-var $elm$core$Basics$degrees = function (angleInDegrees) {
-	return (angleInDegrees * $elm$core$Basics$pi) / 180;
-};
-var $elm$core$Basics$sin = _Basics_sin;
-var $mdgriffith$elm_style_animation$Animation$Render$pathCmdValue = function (cmd) {
-	var renderPoints = function (coords) {
-		return A2(
-			$elm$core$String$join,
-			' ',
-			A2(
-				$elm$core$List$map,
-				function (_v11) {
-					var x = _v11.a;
-					var y = _v11.b;
-					return $elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position));
-				},
-				coords));
-	};
-	switch (cmd.$) {
-		case 'Move':
-			var x = cmd.a;
-			var y = cmd.b;
-			return 'm ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
-		case 'MoveTo':
-			var x = cmd.a;
-			var y = cmd.b;
-			return 'M ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
-		case 'Line':
-			var x = cmd.a;
-			var y = cmd.b;
-			return 'l ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
-		case 'LineTo':
-			var x = cmd.a;
-			var y = cmd.b;
-			return 'L ' + ($elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position)));
-		case 'Horizontal':
-			var a = cmd.a;
-			return 'h ' + $elm$core$String$fromFloat(a.position);
-		case 'HorizontalTo':
-			var a = cmd.a;
-			return 'H ' + $elm$core$String$fromFloat(a.position);
-		case 'Vertical':
-			var a = cmd.a;
-			return 'v ' + $elm$core$String$fromFloat(a.position);
-		case 'VerticalTo':
-			var a = cmd.a;
-			return 'V ' + $elm$core$String$fromFloat(a.position);
-		case 'Curve':
-			var control1 = cmd.a.control1;
-			var control2 = cmd.a.control2;
-			var point = cmd.a.point;
-			var _v1 = point;
-			var p1x = _v1.a;
-			var p1y = _v1.b;
-			var _v2 = control2;
-			var c2x = _v2.a;
-			var c2y = _v2.b;
-			var _v3 = control1;
-			var c1x = _v3.a;
-			var c1y = _v3.b;
-			return 'c ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(c2x.position) + (' ' + ($elm$core$String$fromFloat(c2y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))))))));
-		case 'CurveTo':
-			var control1 = cmd.a.control1;
-			var control2 = cmd.a.control2;
-			var point = cmd.a.point;
-			var _v4 = point;
-			var p1x = _v4.a;
-			var p1y = _v4.b;
-			var _v5 = control2;
-			var c2x = _v5.a;
-			var c2y = _v5.b;
-			var _v6 = control1;
-			var c1x = _v6.a;
-			var c1y = _v6.b;
-			return 'C ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(c2x.position) + (' ' + ($elm$core$String$fromFloat(c2y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))))))));
-		case 'Quadratic':
-			var control = cmd.a.control;
-			var point = cmd.a.point;
-			var _v7 = point;
-			var p1x = _v7.a;
-			var p1y = _v7.b;
-			var _v8 = control;
-			var c1x = _v8.a;
-			var c1y = _v8.b;
-			return 'q ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))));
-		case 'QuadraticTo':
-			var control = cmd.a.control;
-			var point = cmd.a.point;
-			var _v9 = point;
-			var p1x = _v9.a;
-			var p1y = _v9.b;
-			var _v10 = control;
-			var c1x = _v10.a;
-			var c1y = _v10.b;
-			return 'Q ' + ($elm$core$String$fromFloat(c1x.position) + (' ' + ($elm$core$String$fromFloat(c1y.position) + (', ' + ($elm$core$String$fromFloat(p1x.position) + (' ' + $elm$core$String$fromFloat(p1y.position)))))));
-		case 'SmoothQuadratic':
-			var points = cmd.a;
-			return 't ' + renderPoints(points);
-		case 'SmoothQuadraticTo':
-			var points = cmd.a;
-			return 'T ' + renderPoints(points);
-		case 'Smooth':
-			var points = cmd.a;
-			return 's ' + renderPoints(points);
-		case 'SmoothTo':
-			var points = cmd.a;
-			return 'S ' + renderPoints(points);
-		case 'ClockwiseArc':
-			var arc = cmd.a;
-			var deltaAngle = arc.endAngle.position - arc.startAngle.position;
-			if (_Utils_cmp(deltaAngle, 360 - 1.0e-6) > 0) {
-				var dy = arc.radius.position * $elm$core$Basics$sin(
-					$elm$core$Basics$degrees(arc.startAngle.position));
-				var dx = arc.radius.position * $elm$core$Basics$cos(
-					$elm$core$Basics$degrees(arc.startAngle.position));
-				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position - dx) + (',' + ($elm$core$String$fromFloat(arc.y.position - dy) + (' A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position + dx) + (',' + $elm$core$String$fromFloat(arc.y.position + dy)))))))))))))));
-			} else {
-				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (' 0 ' + (((deltaAngle >= 180) ? '1' : '0') + (' ' + ('1' + (' ' + ($elm$core$String$fromFloat(
-					arc.x.position + (arc.radius.position * $elm$core$Basics$cos(
-						$elm$core$Basics$degrees(arc.endAngle.position)))) + (',' + $elm$core$String$fromFloat(
-					arc.y.position + (arc.radius.position * $elm$core$Basics$sin(
-						$elm$core$Basics$degrees(arc.endAngle.position))))))))))))));
-			}
-		case 'AntiClockwiseArc':
-			var arc = cmd.a;
-			var deltaAngle = arc.endAngle.position - arc.startAngle.position;
-			if (_Utils_cmp(deltaAngle, 360 - 1.0e-6) > 0) {
-				var dy = arc.radius.position * $elm$core$Basics$sin(
-					$elm$core$Basics$degrees(arc.startAngle.position));
-				var dx = arc.radius.position * $elm$core$Basics$cos(
-					$elm$core$Basics$degrees(arc.startAngle.position));
-				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,0,' + ($elm$core$String$fromFloat(arc.x.position - dx) + (',' + ($elm$core$String$fromFloat(arc.y.position - dy) + (' A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (',0,1,1,' + ($elm$core$String$fromFloat(arc.x.position + dx) + (',' + $elm$core$String$fromFloat(arc.y.position + dy)))))))))))))));
-			} else {
-				return 'A ' + ($elm$core$String$fromFloat(arc.radius.position) + (',' + ($elm$core$String$fromFloat(arc.radius.position) + (' 0 ' + ((((arc.startAngle.position - arc.endAngle.position) >= 180) ? '1' : '0') + (' ' + ('0' + (' ' + ($elm$core$String$fromFloat(
-					arc.x.position + (arc.radius.position * $elm$core$Basics$cos(arc.endAngle.position))) + (',' + $elm$core$String$fromFloat(
-					arc.y.position + (arc.radius.position * $elm$core$Basics$sin(arc.endAngle.position)))))))))))));
-			}
-		default:
-			return 'z';
-	}
-};
-var $mdgriffith$elm_style_animation$Animation$Render$propertyValue = F2(
-	function (prop, delim) {
-		switch (prop.$) {
-			case 'ExactProperty':
-				var value = prop.b;
-				return value;
-			case 'ColorProperty':
-				var r = prop.b;
-				var g = prop.c;
-				var b = prop.d;
-				var a = prop.e;
-				return 'rgba(' + ($elm$core$String$fromInt(
-					$elm$core$Basics$round(r.position)) + (',' + ($elm$core$String$fromInt(
-					$elm$core$Basics$round(g.position)) + (',' + ($elm$core$String$fromInt(
-					$elm$core$Basics$round(b.position)) + (',' + ($elm$core$String$fromFloat(a.position) + ')')))))));
-			case 'ShadowProperty':
-				var name = prop.a;
-				var inset = prop.b;
-				var shadow = prop.c;
-				return (inset ? 'inset ' : '') + ($elm$core$String$fromFloat(shadow.offsetX.position) + ('px' + (' ' + ($elm$core$String$fromFloat(shadow.offsetY.position) + ('px' + (' ' + ($elm$core$String$fromFloat(shadow.blur.position) + ('px' + (' ' + ((((name === 'text-shadow') || (name === 'drop-shadow')) ? '' : ($elm$core$String$fromFloat(shadow.size.position) + ('px' + ' '))) + ('rgba(' + ($elm$core$String$fromInt(
-					$elm$core$Basics$round(shadow.red.position)) + (', ' + ($elm$core$String$fromInt(
-					$elm$core$Basics$round(shadow.green.position)) + (', ' + ($elm$core$String$fromInt(
-					$elm$core$Basics$round(shadow.blue.position)) + (', ' + ($elm$core$String$fromFloat(shadow.alpha.position) + ')'))))))))))))))))));
-			case 'Property':
-				var x = prop.b;
-				return _Utils_ap(
-					$elm$core$String$fromFloat(x.position),
-					x.unit);
-			case 'Property2':
-				var x = prop.b;
-				var y = prop.c;
-				return _Utils_ap(
-					$elm$core$String$fromFloat(x.position),
-					_Utils_ap(
-						x.unit,
-						_Utils_ap(
-							delim,
-							_Utils_ap(
-								$elm$core$String$fromFloat(y.position),
-								y.unit))));
-			case 'Property3':
-				var x = prop.b;
-				var y = prop.c;
-				var z = prop.d;
-				return _Utils_ap(
-					$elm$core$String$fromFloat(x.position),
-					_Utils_ap(
-						x.unit,
-						_Utils_ap(
-							delim,
-							_Utils_ap(
-								$elm$core$String$fromFloat(y.position),
-								_Utils_ap(
-									y.unit,
-									_Utils_ap(
-										delim,
-										_Utils_ap(
-											$elm$core$String$fromFloat(z.position),
-											z.unit)))))));
-			case 'Property4':
-				var w = prop.b;
-				var x = prop.c;
-				var y = prop.d;
-				var z = prop.e;
-				return _Utils_ap(
-					$elm$core$String$fromFloat(w.position),
-					_Utils_ap(
-						w.unit,
-						_Utils_ap(
-							delim,
-							_Utils_ap(
-								$elm$core$String$fromFloat(x.position),
-								_Utils_ap(
-									x.unit,
-									_Utils_ap(
-										delim,
-										_Utils_ap(
-											$elm$core$String$fromFloat(y.position),
-											_Utils_ap(
-												y.unit,
-												_Utils_ap(
-													delim,
-													_Utils_ap(
-														$elm$core$String$fromFloat(z.position),
-														z.unit))))))))));
-			case 'AngleProperty':
-				var x = prop.b;
-				return _Utils_ap(
-					$elm$core$String$fromFloat(x.position),
-					x.unit);
-			case 'Points':
-				var coords = prop.a;
+			default:
 				return A2(
-					$elm$core$String$join,
-					' ',
-					A2(
-						$elm$core$List$map,
-						function (_v1) {
-							var x = _v1.a;
-							var y = _v1.b;
-							return $elm$core$String$fromFloat(x.position) + (',' + $elm$core$String$fromFloat(y.position));
-						},
-						coords));
-			default:
-				var cmds = prop.a;
-				return A2(
-					$elm$core$String$join,
-					' ',
-					A2($elm$core$List$map, $mdgriffith$elm_style_animation$Animation$Render$pathCmdValue, cmds));
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('notvisible')
+						]),
+					_List_fromArray(
+						[
+							$author$project$Main$viewEmptyPage(model)
+						]));
 		}
-	});
-var $elm$svg$Svg$Attributes$r = _VirtualDom_attribute('r');
-var $elm$svg$Svg$Attributes$rx = _VirtualDom_attribute('rx');
-var $elm$svg$Svg$Attributes$ry = _VirtualDom_attribute('ry');
-var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
-var $elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
-var $elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
-var $mdgriffith$elm_style_animation$Animation$Render$renderAttrs = function (prop) {
-	if (A2(
-		$elm$core$String$startsWith,
-		'attr:',
-		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop))) {
-		return $elm$core$Maybe$Just(
-			A2(
-				$elm$html$Html$Attributes$attribute,
-				A2(
-					$elm$core$String$dropLeft,
-					5,
-					$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop)),
-				A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-	} else {
-		switch (prop.$) {
-			case 'Points':
-				var pts = prop.a;
-				return $elm$core$Maybe$Just(
-					$elm$svg$Svg$Attributes$points(
-						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-			case 'Path':
-				var cmds = prop.a;
-				return $elm$core$Maybe$Just(
-					$elm$svg$Svg$Attributes$d(
-						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-			case 'Property':
-				var name = prop.a;
-				var m1 = prop.b;
-				switch (name) {
-					case 'x':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$x(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'y':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$y(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'cx':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$cx(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'cy':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$cy(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'rx':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$rx(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'ry':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$ry(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'r':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$r(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					case 'offset':
-						return $elm$core$Maybe$Just(
-							$elm$svg$Svg$Attributes$offset(
-								A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' ')));
-					default:
-						return $elm$core$Maybe$Nothing;
-				}
-			case 'Property4':
-				var name = prop.a;
-				var m1 = prop.b;
-				var m2 = prop.c;
-				var m3 = prop.d;
-				var m4 = prop.e;
-				return (name === 'viewBox') ? $elm$core$Maybe$Just(
-					$elm$svg$Svg$Attributes$viewBox(
-						A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' '))) : $elm$core$Maybe$Nothing;
-			default:
-				return $elm$core$Maybe$Nothing;
-		}
-	}
-};
-var $mdgriffith$elm_style_animation$Animation$Render$isAttr = function (prop) {
-	return A2(
-		$elm$core$String$startsWith,
-		'attr:',
-		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop)) || function () {
-		switch (prop.$) {
-			case 'Points':
-				return true;
-			case 'Path':
-				return true;
-			case 'Property':
-				var name = prop.a;
-				return (name === 'cx') || ((name === 'cy') || ((name === 'x') || ((name === 'y') || ((name === 'rx') || ((name === 'ry') || ((name === 'r') || (name === 'offset')))))));
-			case 'Property4':
-				var name = prop.a;
-				return name === 'viewBox';
-			default:
-				return false;
-		}
-	}();
-};
-var $mdgriffith$elm_style_animation$Animation$Render$isFilter = function (prop) {
-	return A2(
-		$elm$core$List$member,
-		$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
-		_List_fromArray(
-			['filter-url', 'blur', 'brightness', 'contrast', 'grayscale', 'hue-rotate', 'invert', 'saturate', 'sepia', 'drop-shadow']));
-};
-var $mdgriffith$elm_style_animation$Animation$Render$render3dRotation = function (prop) {
-	if (prop.$ === 'Property3') {
-		var x = prop.b;
-		var y = prop.c;
-		var z = prop.d;
-		return 'rotateX(' + ($elm$core$String$fromFloat(x.position) + (x.unit + (') rotateY(' + ($elm$core$String$fromFloat(y.position) + (y.unit + (') rotateZ(' + ($elm$core$String$fromFloat(z.position) + (z.unit + ')'))))))));
-	} else {
-		return '';
-	}
-};
-var $mdgriffith$elm_style_animation$Animation$Render$renderValues = function (_v0) {
-	var model = _v0.a;
-	var _v1 = A2($elm$core$List$partition, $mdgriffith$elm_style_animation$Animation$Render$isAttr, model.style);
-	var attrProps = _v1.a;
-	var styleProps = _v1.b;
-	var _v2 = A3(
-		$elm$core$List$foldl,
-		F2(
-			function (prop, _v3) {
-				var myStyle = _v3.a;
-				var myTransforms = _v3.b;
-				var myFilters = _v3.c;
-				return $mdgriffith$elm_style_animation$Animation$Render$isTransformation(prop) ? _Utils_Tuple3(
-					myStyle,
-					_Utils_ap(
-						myTransforms,
-						_List_fromArray(
-							[prop])),
-					myFilters) : ($mdgriffith$elm_style_animation$Animation$Render$isFilter(prop) ? _Utils_Tuple3(
-					myStyle,
-					myTransforms,
-					_Utils_ap(
-						myFilters,
-						_List_fromArray(
-							[prop]))) : _Utils_Tuple3(
-					_Utils_ap(
-						myStyle,
-						_List_fromArray(
-							[prop])),
-					myTransforms,
-					myFilters));
-			}),
-		_Utils_Tuple3(_List_Nil, _List_Nil, _List_Nil),
-		styleProps);
-	var style = _v2.a;
-	var transforms = _v2.b;
-	var filters = _v2.c;
-	var renderedFilters = $elm$core$List$isEmpty(filters) ? _List_Nil : _List_fromArray(
-		[
-			_Utils_Tuple2(
-			'filter',
-			A2(
-				$elm$core$String$join,
-				' ',
-				A2(
-					$elm$core$List$map,
-					function (prop) {
-						var name = $mdgriffith$elm_style_animation$Animation$Model$propertyName(prop);
-						return (name === 'filter-url') ? ('url(\"' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + '\")')) : ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) + ('(' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + ')')));
-					},
-					filters)))
-		]);
-	var renderedStyle = A2(
-		$elm$core$List$map,
-		function (prop) {
-			return _Utils_Tuple2(
-				$mdgriffith$elm_style_animation$Animation$Model$propertyName(prop),
-				A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ' '));
-		},
-		style);
-	var renderedTransforms = $elm$core$List$isEmpty(transforms) ? _List_Nil : _List_fromArray(
-		[
-			_Utils_Tuple2(
-			'transform',
-			A2(
-				$elm$core$String$join,
-				' ',
-				A2(
-					$elm$core$List$map,
-					function (prop) {
-						return ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) === 'rotate3d') ? $mdgriffith$elm_style_animation$Animation$Render$render3dRotation(prop) : ($mdgriffith$elm_style_animation$Animation$Model$propertyName(prop) + ('(' + (A2($mdgriffith$elm_style_animation$Animation$Render$propertyValue, prop, ', ') + ')')));
-					},
-					transforms)))
-		]);
-	return _Utils_Tuple2(
-		_Utils_ap(
-			renderedTransforms,
-			_Utils_ap(renderedFilters, renderedStyle)),
-		attrProps);
-};
-var $mdgriffith$elm_style_animation$Animation$Render$render = function (animation) {
-	var _v0 = $mdgriffith$elm_style_animation$Animation$Render$renderValues(animation);
-	var style = _v0.a;
-	var attrProps = _v0.b;
-	var otherAttrs = A2($elm$core$List$filterMap, $mdgriffith$elm_style_animation$Animation$Render$renderAttrs, attrProps);
-	var styleAttr = A2(
-		$elm$core$List$map,
-		function (_v1) {
-			var prop = _v1.a;
-			var val = _v1.b;
-			return A2($elm$html$Html$Attributes$style, prop, val);
-		},
-		A2($elm$core$List$concatMap, $mdgriffith$elm_style_animation$Animation$Render$prefix, style));
-	return _Utils_ap(styleAttr, otherAttrs);
-};
-var $mdgriffith$elm_style_animation$Animation$render = $mdgriffith$elm_style_animation$Animation$Render$render;
-var $author$project$Main$animationAttribs = F2(
-	function (model, key) {
-		return A2(
-			$elm$core$Maybe$withDefault,
-			_List_Nil,
-			A2(
-				$elm$core$Maybe$map,
-				$mdgriffith$elm_style_animation$Animation$render,
-				A2($elm$core$Dict$get, key, model.animations)));
 	});
 var $author$project$Main$viewScreenTransition = F2(
 	function (model, _v0) {
@@ -17378,23 +17643,176 @@ var $author$project$Main$maybeViewTransition = function (model) {
 		return A2($author$project$Main$viewScreenTransition, model, transition);
 	}
 };
+var $author$project$Main$viewModal = function (model) {
+	var _v0 = model.modal;
+	switch (_v0.$) {
+		case 'NoModal':
+			return A2($elm$html$Html$div, _List_Nil, _List_Nil);
+		case 'IntroModal':
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('intro-modal')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('habits is a way to keep track of repeating tasks.')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('It\'s like a todo list where things show up again a certain amount of time after you do them.')
+							]))
+					]));
+		case 'FirstHabitModal':
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('intro-modal')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('This is your due list, it\'s looking a little bare.')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Add a habit with the + button.')
+							]))
+					]));
+		case 'AddingHabitModal':
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('intro-modal')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('A habit needs a name and a repeat period.')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('You can make the habit due after the last time you did it or after doing a different habit.')
+							]))
+					]));
+		case 'DoHabitModal':
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('intro-modal')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('That\'s looking better!')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Clicking a habit marks it as done, you can also edit habits by clicking the ...')
+							]))
+					]));
+		default:
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('intro-modal')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('🎉🎉🎉')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('By defualt your list shows habits due within the next 12 hours or done within the last 12 hours.')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('You can access the view options by clicking the - button to change this.')
+							]))
+					]));
+	}
+};
 var $author$project$Main$view = function (model) {
 	return A2(
 		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('page-container'),
-				$elm$html$Html$Attributes$id('habits-view')
-			]),
+		_List_Nil,
 		_List_fromArray(
 			[
 				A2(
 				$elm$html$Html$div,
-				_List_Nil,
 				_List_fromArray(
 					[
-						$author$project$Main$maybeViewTransition(model)
-					]))
+						$elm$html$Html$Attributes$class('page-container'),
+						$elm$html$Html$Attributes$id('habits-view')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$div,
+						A2($author$project$Main$animationAttribs, model, 'modal-bg'),
+						_List_fromArray(
+							[
+								$author$project$Main$maybeViewTransition(model)
+							]))
+					])),
+				(!_Utils_eq(model.modal, $author$project$Main$NoModal)) ? A2(
+				$elm$html$Html$div,
+				A2(
+					$elm$core$List$cons,
+					$elm$html$Html$Events$onClick($author$project$Main$CloseModal),
+					A2(
+						$elm$core$List$cons,
+						$elm$html$Html$Attributes$class('modal'),
+						A2($author$project$Main$animationAttribs, model, 'modal-fg'))),
+				_List_fromArray(
+					[
+						$author$project$Main$viewModal(model)
+					])) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
 			]));
 };
 var $author$project$Main$main = $elm$browser$Browser$document(
@@ -17424,4 +17842,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.PartialHabit":{"args":[],"type":"{ id : Maybe.Maybe Habit.HabitId, description : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["Main.PartialHabit","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":["Maybe.Maybe Habit.HabitId"],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["String.String","String.String"],"BlurFormField":["String.String"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"ChangePage":["Basics.Int"]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.PartialHabit":{"args":[],"type":"{ id : Maybe.Maybe Habit.HabitId, description : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["Main.PartialHabit","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":["Maybe.Maybe Habit.HabitId"],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["String.String","String.String"],"BlurFormField":["String.String"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"ChangePage":["Basics.Int"],"CloseModal":[],"ClearModal":[]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));

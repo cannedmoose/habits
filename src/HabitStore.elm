@@ -108,6 +108,7 @@ addHabitDeltas store time habitId changes =
     List.concat
         [ [ Group time ("add " ++ habitId)
           , AddHabit habitId
+          , ChangeHabit habitId (NextDueChange time)
           ]
         , changeDeltas
         ]

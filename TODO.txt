@@ -1,15 +1,18 @@
-P1 Add error modal
-  P2 Expose decode failure as an error
-  P2 don't let them not enter description
-  P2 Expose invalid period as error/change to valid on blur
 P1 add sliding for lines
 
 P2 page animation finishing, inputs lose focus (should refocus on top input?)
+
+P2 Add error modal
+  P2 Expose decode failure as an error
+  P2 don't let them not enter description
+  P2 Expose invalid period as error/change to valid on blur
 
 P2 Online sync
 
 P2 Pause
 
 P2 More styling - need to come up with style guide...
+
+P2 Favicon
 
 P3 Change options icon
