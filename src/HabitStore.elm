@@ -106,7 +106,9 @@ addHabitDeltas store time habitId changes =
             List.map (ChangeHabit habitId) changes
     in
     List.concat
-        [ [ Group time ("add " ++ habitId), AddHabit habitId ]
+        [ [ Group time ("add " ++ habitId)
+          , AddHabit habitId
+          ]
         , changeDeltas
         ]
 

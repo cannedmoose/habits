@@ -64,6 +64,7 @@ init flags =
       , options = storage2.options
       , screen = HabitList { page = 0 }
       , screenTransition = Nothing
+      , animations = Dict.empty
       , pageElement = Nothing
       }
     , getPageElement
@@ -93,6 +94,9 @@ type alias Model =
     , options : Options
     , screen : Screen
     , screenTransition : Maybe ScreenTransition
+    , animations : Dict String Anim
+
+    -- TODO maybe move pageElement into screen?
     , pageElement : Maybe Dom.Element
     }
 
@@ -177,7 +181,6 @@ type TransitionDirection
 type ScreenTransition
     = ScreenTransition
         { previous : Screen
-        , style : Anim
         , direction : TransitionDirection
         }
 
@@ -188,14 +191,11 @@ type ScreenTransition
 
 animationSubscription : Model -> Sub Msg
 animationSubscription model =
-    case model.screenTransition of
-        Nothing ->
-            Sub.none
-
-        Just (ScreenTransition { style }) ->
-            Animation.subscription
-                AnimateScreen
-                [ style ]
+    Animation.subscription
+        AnimateScreen
+        (Dict.values
+            model.animations
+        )
 
 
 timeSubscription : Model -> Sub Msg
@@ -314,16 +314,17 @@ update msg model =
             )
 
         ( _, AnimateScreen animMsg ) ->
-            case model.screenTransition of
-                Nothing ->
-                    ( model, Cmd.none )
+            let
+                updated =
+                    Dict.map (\_ v -> Animation.Messenger.update animMsg v) model.animations
 
-                Just (ScreenTransition transition) ->
-                    let
-                        ( style, cmd ) =
-                            Animation.Messenger.update animMsg transition.style
-                    in
-                    ( { model | screenTransition = Just (ScreenTransition { transition | style = style }) }, cmd )
+                cmds =
+                    Dict.values updated |> List.map Tuple.second
+
+                newAnimations =
+                    Dict.map (\_ v -> Tuple.first v) updated
+            in
+            ( { model | animations = newAnimations }, Cmd.batch cmds )
 
         ( _, Cancel ) ->
             let
@@ -346,8 +347,8 @@ update msg model =
             in
             ( { model
                 | screen = prev
-                , screenTransition = Just (flipOffRight model)
               }
+                |> flipOffRight model.screen
             , Cmd.none
             )
 
@@ -378,8 +379,8 @@ update msg model =
                 Just newScreen ->
                     ( { model
                         | screen = newScreen
-                        , screenTransition = Just (flipOn model)
                       }
+                        |> flipOn model.screen
                     , Cmd.none
                     )
 
@@ -392,8 +393,8 @@ update msg model =
                         , forHabit = forHabit
                         , parent = model.screen
                         }
-                , screenTransition = Just (flipOn model)
               }
+                |> flipOn model.screen
             , Cmd.none
             )
 
@@ -405,9 +406,8 @@ update msg model =
                         , deltas = []
                         , parent = model.screen
                         }
-                , screenTransition =
-                    Just (slideFromTopTransition model)
               }
+                |> slideFromTopTransition model.screen
             , Cmd.none
             )
 
@@ -419,8 +419,8 @@ update msg model =
                         , recent = Period.toString model.options.recent
                         , parent = model.screen
                         }
-                , screenTransition = Just (slideFromTopTransition model)
               }
+                |> slideFromTopTransition model.screen
             , Cmd.none
             )
 
@@ -439,9 +439,8 @@ update msg model =
             ( { model
                 | habits = newStore
                 , screen = screen.parent
-                , screenTransition =
-                    Just (slideOffbottom model)
               }
+                |> slideOffbottom model.screen
             , Cmd.none
             )
                 |> storeModel
@@ -455,9 +454,8 @@ update msg model =
             ( { model
                 | habits = newStore
                 , screen = screen.parent
-                , screenTransition =
-                    Just (flipOffRight model)
               }
+                |> flipOffRight model.screen
             , Cmd.none
             )
                 |> storeModel
@@ -495,8 +493,8 @@ update msg model =
 
                         _ ->
                             parent
-                , screenTransition = Just (flipOffRight model)
               }
+                |> flipOffRight model.screen
             , Cmd.none
             )
 
@@ -518,9 +516,8 @@ update msg model =
                     ( { model
                         | habits = newStore
                         , screen = screen.parent
-                        , screenTransition =
-                            Just (flipOffRight model)
                       }
+                        |> flipOffRight model.screen
                     , Cmd.none
                     )
                         |> storeModel
@@ -539,8 +536,8 @@ update msg model =
             ( { model
                 | options = updatedOptions
                 , screen = screen.parent
-                , screenTransition = Just (flipOffRight model)
               }
+                |> flipOffRight model.screen
             , Cmd.none
             )
                 |> storeModel
@@ -573,35 +570,38 @@ update msg model =
         ( HabitList screen, ChangePage page ) ->
             ( { model
                 | screen = HabitList { screen | page = page }
-                , screenTransition =
-                    Just
-                        (if page < screen.page then
-                            flipOffRight model
-
-                         else
-                            flipOn model
-                        )
               }
+                |> (if page < screen.page then
+                        flipOffRight model.screen
+
+                    else
+                        flipOn model.screen
+                   )
             , Cmd.none
             )
 
         ( SelectHabit screen, ChangePage page ) ->
             ( { model
                 | screen = SelectHabit { screen | page = page }
-                , screenTransition =
-                    Just
-                        (if page < screen.page then
-                            flipOffRight model
-
-                         else
-                            flipOn model
-                        )
               }
+                |> (if page < screen.page then
+                        flipOffRight model.screen
+
+                    else
+                        flipOn model.screen
+                   )
             , Cmd.none
             )
 
         ( _, _ ) ->
             ( model, Cmd.none )
+
+
+animationAttribs : Model -> String -> List (Html.Attribute Msg)
+animationAttribs model key =
+    Dict.get key model.animations
+        |> Maybe.map Animation.render
+        |> Maybe.withDefault []
 
 
 updateHabitFormFields : HabitForm a -> String -> String -> HabitForm a
@@ -697,7 +697,7 @@ viewScreenTransition model (ScreenTransition transition) =
             [ viewScreen model bottom ]
         , div
             (class "transition-page"
-                :: Animation.render transition.style
+                :: animationAttribs model "page-transition"
             )
             [ viewScreen model top ]
         ]
@@ -1297,7 +1297,7 @@ viewPage config state lines =
 
 
 
--- Transition helpers
+-- Transition appliers
 {-
     TODO
     - fix overflow for bottom/right transitions
@@ -1317,58 +1317,6 @@ viewPage config state lines =
 -}
 
 
-slideFromTopTransition : Model -> ScreenTransition
-slideFromTopTransition { screen, pageElement } =
-    let
-        top =
-            case pageElement of
-                Nothing ->
-                    0
-
-                Just el ->
-                    -1 * (el.element.y + el.element.height)
-    in
-    ScreenTransition
-        { previous = screen
-        , direction = TransitionIn
-        , style =
-            Animation.interrupt
-                [ Animation.toWith slideEase [ Animation.top (Animation.px 0) ]
-                , Animation.Messenger.send ClearTransition
-                ]
-                (Animation.style
-                    [ Animation.top (Animation.px top)
-                    ]
-                )
-        }
-
-
-slideOffbottom : Model -> ScreenTransition
-slideOffbottom { screen, pageElement } =
-    let
-        top =
-            case pageElement of
-                Nothing ->
-                    0
-
-                Just el ->
-                    el.viewport.height + (el.element.y * 2)
-    in
-    ScreenTransition
-        { previous = screen
-        , direction = TransitionOut
-        , style =
-            Animation.interrupt
-                [ Animation.toWith slideEase [ Animation.top (Animation.px top) ]
-                , Animation.Messenger.send ClearTransition
-                ]
-                (Animation.style
-                    [ Animation.top (Animation.px 0)
-                    ]
-                )
-        }
-
-
 slideEase =
     Animation.easing
         { duration = 400
@@ -1376,95 +1324,149 @@ slideEase =
         }
 
 
-flipOffRight : Model -> ScreenTransition
-flipOffRight { screen, pageElement } =
-    let
-        left =
-            case pageElement of
-                Nothing ->
-                    0
+slideFromTopTransition : Screen -> Model -> Model
+slideFromTopTransition previous model =
+    case model.pageElement of
+        Nothing ->
+            model
 
-                Just el ->
+        Just el ->
+            let
+                top =
+                    -1 * (el.element.y + el.element.height)
+            in
+            { model
+                | screenTransition =
+                    Just
+                        (ScreenTransition
+                            { previous = previous
+                            , direction = TransitionIn
+                            }
+                        )
+                , animations =
+                    Dict.insert "page-transition"
+                        (Animation.interrupt
+                            [ Animation.toWith slideEase [ Animation.top (Animation.px 0) ]
+                            , Animation.Messenger.send ClearTransition
+                            ]
+                            (Animation.style
+                                [ Animation.top (Animation.px top)
+                                ]
+                            )
+                        )
+                        model.animations
+            }
+
+
+slideOffbottom : Screen -> Model -> Model
+slideOffbottom previous model =
+    case model.pageElement of
+        Nothing ->
+            model
+
+        Just el ->
+            let
+                top =
+                    el.viewport.height + (el.element.y * 2)
+            in
+            { model
+                | screenTransition =
+                    Just
+                        (ScreenTransition
+                            { previous = previous
+                            , direction = TransitionOut
+                            }
+                        )
+                , animations =
+                    Dict.insert "page-transition"
+                        (Animation.interrupt
+                            [ Animation.toWith slideEase [ Animation.top (Animation.px top) ]
+                            , Animation.Messenger.send ClearTransition
+                            ]
+                            (Animation.style
+                                [ Animation.top (Animation.px 0)
+                                ]
+                            )
+                        )
+                        model.animations
+            }
+
+
+flipOffRight : Screen -> Model -> Model
+flipOffRight previous model =
+    case model.pageElement of
+        Nothing ->
+            model
+
+        Just el ->
+            let
+                left =
                     el.element.width
-    in
-    ScreenTransition
-        { previous = screen
-        , direction = TransitionOut
-        , style =
-            Animation.interrupt
-                [ Animation.toWith
-                    slideEase
-                    [ Animation.left (Animation.px left) ]
-                , Animation.set [ Animation.exactly "z-index" "1" ]
-                , Animation.toWith
-                    slideEase
-                    [ Animation.left (Animation.px 0) ]
-                , Animation.Messenger.send ClearTransition
-                ]
-                (Animation.style
-                    [ Animation.top (Animation.px 0)
-                    , Animation.left (Animation.px 0)
-                    , Animation.exactly "z-index" "2"
-                    ]
-                )
-        }
+            in
+            { model
+                | screenTransition =
+                    Just
+                        (ScreenTransition
+                            { previous = previous
+                            , direction = TransitionOut
+                            }
+                        )
+                , animations =
+                    Dict.insert "page-transition"
+                        (Animation.interrupt
+                            [ Animation.toWith
+                                slideEase
+                                [ Animation.left (Animation.px left) ]
+                            , Animation.set [ Animation.exactly "z-index" "1" ]
+                            , Animation.toWith
+                                slideEase
+                                [ Animation.left (Animation.px 0) ]
+                            , Animation.Messenger.send ClearTransition
+                            ]
+                            (Animation.style
+                                [ Animation.top (Animation.px 0)
+                                , Animation.left (Animation.px 0)
+                                , Animation.exactly "z-index" "2"
+                                ]
+                            )
+                        )
+                        model.animations
+            }
 
 
-flipOffLeft : Model -> ScreenTransition
-flipOffLeft { screen, pageElement } =
-    let
-        right =
-            case pageElement of
-                Nothing ->
-                    0
+flipOn : Screen -> Model -> Model
+flipOn previous model =
+    case model.pageElement of
+        Nothing ->
+            model
 
-                Just el ->
+        Just el ->
+            let
+                right =
                     el.element.width
-    in
-    ScreenTransition
-        { previous = screen
-        , direction = TransitionOut
-        , style =
-            Animation.interrupt
-                [ Animation.toWith slideEase [ Animation.right (Animation.px right) ]
-                , Animation.set [ Animation.exactly "z-index" "1" ]
-                , Animation.toWith slideEase [ Animation.right (Animation.px 0) ]
-                , Animation.Messenger.send ClearTransition
-                ]
-                (Animation.style
-                    [ Animation.top (Animation.px 0)
-                    , Animation.right (Animation.px 0)
-                    , Animation.exactly "z-index" "2"
-                    ]
-                )
-        }
-
-
-flipOn : Model -> ScreenTransition
-flipOn { screen, pageElement } =
-    let
-        right =
-            case pageElement of
-                Nothing ->
-                    0
-
-                Just el ->
-                    el.element.width
-    in
-    ScreenTransition
-        { previous = screen
-        , direction = TransitionIn
-        , style =
-            Animation.interrupt
-                [ Animation.toWith slideEase [ Animation.right (Animation.px right) ]
-                , Animation.set [ Animation.exactly "z-index" "2" ]
-                , Animation.toWith slideEase [ Animation.right (Animation.px 0) ]
-                , Animation.Messenger.send ClearTransition
-                ]
-                (Animation.style
-                    [ Animation.top (Animation.px 0)
-                    , Animation.right (Animation.px 0)
-                    , Animation.exactly "z-index" "1"
-                    ]
-                )
-        }
+            in
+            { model
+                | screenTransition =
+                    Just
+                        (ScreenTransition
+                            { previous = previous
+                            , direction = TransitionIn
+                            }
+                        )
+                , animations =
+                    Dict.insert "page-transition"
+                        (Animation.interrupt
+                            [ Animation.toWith slideEase [ Animation.right (Animation.px right) ]
+                            , Animation.set [ Animation.exactly "z-index" "2" ]
+                            , Animation.toWith slideEase [ Animation.right (Animation.px 0) ]
+                            , Animation.Messenger.send ClearTransition
+                            ]
+                            (Animation.style
+                                [ Animation.top (Animation.px 0)
+                                , Animation.right (Animation.px 0)
+                                , Animation.exactly "z-index" "1"
+                                ]
+                            )
+                        )
+                        model.animations
+            }
