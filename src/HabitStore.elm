@@ -85,7 +85,7 @@ deleteHabitDeltas store time habitId =
     -- Update Blocked habits
     ]
         ++ List.map
-            (\hid -> ChangeHabit habitId (BlockChange Habit.Unblocked))
+            (\hid -> ChangeHabit hid (BlockChange Habit.Unblocked))
             blockedHabits
 
 

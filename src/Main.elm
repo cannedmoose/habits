@@ -75,7 +75,9 @@ init flags =
 
 
 type alias Flags =
-    { time : Int, model : JD.Value }
+    { time : Int
+    , model : JD.Value
+    }
 
 
 type alias StorageModel =
@@ -101,6 +103,7 @@ type alias Options =
     }
 
 
+defaultOptions : Options
 defaultOptions =
     { recent = Hours 12
     , upcoming = Hours 12
@@ -145,10 +148,16 @@ type alias HabitForm a =
     }
 
 
+type alias PartialHabit =
+    { id : Maybe HabitId
+    , description : String
+    }
+
+
 type alias SelectHabitScreen =
     { page : Int
     , selected : Maybe HabitId
-    , forHabit : String
+    , forHabit : PartialHabit
     , parent : Screen
     }
 
@@ -235,7 +244,7 @@ type Msg
     | DoDeleteHabit
     | DoEditHabit
       -- Habit Selection
-    | OpenHabitSelect String (Maybe HabitId)
+    | OpenHabitSelect PartialHabit (Maybe HabitId)
     | DoSelectHabit (Maybe HabitId)
       -- Habit Creation
     | OpenHabitCreate
@@ -374,13 +383,13 @@ update msg model =
                     , Cmd.none
                     )
 
-        ( _, OpenHabitSelect for habitId ) ->
+        ( _, OpenHabitSelect forHabit selected ) ->
             ( { model
                 | screen =
                     SelectHabit
                         { page = 0
-                        , selected = habitId
-                        , forHabit = "\"" ++ for ++ "\""
+                        , selected = selected
+                        , forHabit = forHabit
                         , parent = model.screen
                         }
                 , screenTransition = Just (flipOn model)
@@ -890,20 +899,32 @@ habitFieldsView fields habits maybeHabit =
     [ ( emptyDiv, label [] [ text "I want to" ] )
     , ( emptyDiv
       , input
-            [ placeholder "Do Something", value (fieldGetter "description"), onInput (ChangeFormField "description") ]
+            [ placeholder "Do Something"
+            , value (fieldGetter "description")
+            , onInput (ChangeFormField "description")
+            ]
             []
       )
     , ( emptyDiv, label [] [ text "every" ] )
     , ( periodOptionsView (fieldGetter "period") "period-list"
       , input
             -- TODO Select entire description when clicked
-            [ placeholder "Day", value (fieldGetter "period"), list "period-list", onInput (ChangeFormField "period") ]
+            [ placeholder "Day"
+            , value (fieldGetter "period")
+            , list "period-list"
+            , onInput (ChangeFormField "period")
+            ]
             []
       )
     , ( emptyDiv, label [] [ text "after" ] )
     , ( emptyDiv
       , button
-            [ class "habit-button-select", onClick (OpenHabitSelect (fieldGetter "description") (Dict.get "block" fields)) ]
+            [ class "habit-button-select"
+            , onClick
+                (OpenHabitSelect { id = maybeHabit, description = fieldGetter "description" }
+                    (Dict.get "block" fields)
+                )
+            ]
             [ text blockText ]
       )
     , ( emptyDiv, label [] [ text "category" ] )
@@ -911,7 +932,11 @@ habitFieldsView fields habits maybeHabit =
             [ id "tag-list" ]
             tagOptions
       , input
-            [ placeholder "Todo", value (fieldGetter "tag"), list "tag-list", onInput (ChangeFormField "tag") ]
+            [ placeholder "Todo"
+            , value (fieldGetter "tag")
+            , list "tag-list"
+            , onInput (ChangeFormField "tag")
+            ]
             []
       )
     ]
@@ -994,7 +1019,7 @@ viewHabitSelectPage model screen =
     let
         pageConfig =
             { showOptions = False
-            , title = screen.forHabit ++ " after"
+            , title = "\"" ++ screen.forHabit.description ++ "\" after"
             , footer =
                 ( emptyDiv
                 , div
@@ -1008,30 +1033,37 @@ viewHabitSelectPage model screen =
         pageState =
             { pageNumber = screen.page }
 
-        { time, options, habits } =
+        { habits } =
             model
 
         lines =
-            Dict.values model.habits
-                |> List.sortBy .description
-                |> List.map (habitSelectLine model)
+            habitSelectLine screen.selected { id = Nothing, description = "last time" }
+                :: (Dict.filter (\k _ -> Maybe.map ((/=) k) screen.forHabit.id |> Maybe.withDefault True) habits
+                        |> Dict.values
+                        |> List.sortBy .description
+                        |> List.map (\h -> { id = Just h.id, description = h.description })
+                        |> List.map (habitSelectLine screen.selected)
+                   )
     in
     viewPage pageConfig pageState lines
 
 
-habitSelectLine : Model -> Habit -> PageLine
-habitSelectLine model habit =
+habitSelectLine : Maybe HabitId -> PartialHabit -> PageLine
+habitSelectLine selected habit =
     ( emptyDiv
     , button
         [ class "habit-button"
-        , onClick (DoSelectHabit (Just habit.id))
+        , onClick (DoSelectHabit habit.id)
         ]
         [ span
-            [ class "habit-description" ]
+            [ class "habit-description"
+            , if habit.id == selected then
+                class "selected"
+
+              else
+                class "not-selected"
+            ]
             [ text habit.description ]
-        , span
-            [ class "habit-tag" ]
-            [ text habit.tag ]
         ]
     )
 
@@ -1269,7 +1301,6 @@ viewPage config state lines =
 {-
     TODO
     - fix overflow for bottom/right transitions
-    - Make them faster
 
    Type of transitions
 
@@ -1302,7 +1333,7 @@ slideFromTopTransition { screen, pageElement } =
         , direction = TransitionIn
         , style =
             Animation.interrupt
-                [ Animation.to [ Animation.top (Animation.px 0) ]
+                [ Animation.toWith slideEase [ Animation.top (Animation.px 0) ]
                 , Animation.Messenger.send ClearTransition
                 ]
                 (Animation.style
@@ -1328,7 +1359,7 @@ slideOffbottom { screen, pageElement } =
         , direction = TransitionOut
         , style =
             Animation.interrupt
-                [ Animation.to [ Animation.top (Animation.px top) ]
+                [ Animation.toWith slideEase [ Animation.top (Animation.px top) ]
                 , Animation.Messenger.send ClearTransition
                 ]
                 (Animation.style

@@ -188,7 +188,7 @@ html {
 .button-line button,
 .add-habit,
 .habit-edit {
-  color: #cc0000;
+  color: #e24242;
 }
 
 .button-line button {
@@ -301,4 +301,9 @@ body {
 
 .transition-page {
   z-index: 2;
+}
+
+.selected {
+  color: green;
+  font-weight: bold;
 }

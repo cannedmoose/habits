@@ -12192,7 +12192,7 @@ var $author$project$HabitStore$deleteHabitDeltas = F3(
 				function (hid) {
 					return A2(
 						$author$project$HabitStore$ChangeHabit,
-						habitId,
+						hid,
 						$author$project$HabitStore$BlockChange($author$project$Habit$Unblocked));
 				},
 				blockedHabits));
@@ -13368,12 +13368,6 @@ var $elm$random$Random$generate = F2(
 			$elm$random$Random$Generate(
 				A2($elm$random$Random$map, tagger, generator)));
 	});
-var $mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
-	return {$: 'To', a: a};
-};
-var $mdgriffith$elm_style_animation$Animation$to = function (props) {
-	return $mdgriffith$elm_style_animation$Animation$Model$To(props);
-};
 var $author$project$Main$slideFromTopTransition = function (_v0) {
 	var screen = _v0.screen;
 	var pageElement = _v0.pageElement;
@@ -13393,7 +13387,9 @@ var $author$project$Main$slideFromTopTransition = function (_v0) {
 				$mdgriffith$elm_style_animation$Animation$interrupt,
 				_List_fromArray(
 					[
-						$mdgriffith$elm_style_animation$Animation$to(
+						A2(
+						$mdgriffith$elm_style_animation$Animation$toWith,
+						$author$project$Main$slideEase,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_style_animation$Animation$top(
@@ -13428,7 +13424,9 @@ var $author$project$Main$slideOffbottom = function (_v0) {
 				$mdgriffith$elm_style_animation$Animation$interrupt,
 				_List_fromArray(
 					[
-						$mdgriffith$elm_style_animation$Animation$to(
+						A2(
+						$mdgriffith$elm_style_animation$Animation$toWith,
+						$author$project$Main$slideEase,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_style_animation$Animation$top(
@@ -15422,14 +15420,14 @@ var $author$project$Main$update = F2(
 					}
 				case 'OpenHabitSelect':
 					var _v8 = _v0.b;
-					var _for = _v8.a;
-					var habitId = _v8.b;
+					var forHabit = _v8.a;
+					var selected = _v8.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
 							{
 								screen: $author$project$Main$SelectHabit(
-									{forHabit: '\"' + (_for + '\"'), page: 0, parent: model.screen, selected: habitId}),
+									{forHabit: forHabit, page: 0, parent: model.screen, selected: selected}),
 								screenTransition: $elm$core$Maybe$Just(
 									$author$project$Main$flipOn(model))
 							}),
@@ -15943,7 +15941,10 @@ var $author$project$Main$habitFieldsView = F3(
 							$elm$html$Html$Events$onClick(
 							A2(
 								$author$project$Main$OpenHabitSelect,
-								fieldGetter('description'),
+								{
+									description: fieldGetter('description'),
+									id: maybeHabit
+								},
 								A2($elm$core$Dict$get, 'block', fields)))
 						]),
 					_List_fromArray(
@@ -16384,7 +16385,7 @@ var $author$project$Main$DoSelectHabit = function (a) {
 	return {$: 'DoSelectHabit', a: a};
 };
 var $author$project$Main$habitSelectLine = F2(
-	function (model, habit) {
+	function (selected, habit) {
 		return _Utils_Tuple2(
 			$author$project$Main$emptyDiv,
 			A2(
@@ -16393,8 +16394,7 @@ var $author$project$Main$habitSelectLine = F2(
 					[
 						$elm$html$Html$Attributes$class('habit-button'),
 						$elm$html$Html$Events$onClick(
-						$author$project$Main$DoSelectHabit(
-							$elm$core$Maybe$Just(habit.id)))
+						$author$project$Main$DoSelectHabit(habit.id))
 					]),
 				_List_fromArray(
 					[
@@ -16402,21 +16402,12 @@ var $author$project$Main$habitSelectLine = F2(
 						$elm$html$Html$span,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$class('habit-description')
+								$elm$html$Html$Attributes$class('habit-description'),
+								_Utils_eq(habit.id, selected) ? $elm$html$Html$Attributes$class('selected') : $elm$html$Html$Attributes$class('not-selected')
 							]),
 						_List_fromArray(
 							[
 								$elm$html$Html$text(habit.description)
-							])),
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('habit-tag')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(habit.tag)
 							]))
 					])));
 	});
@@ -16447,21 +16438,46 @@ var $author$project$Main$viewHabitSelectPage = F2(
 						]))),
 			nLines: $author$project$Main$pageLines,
 			showOptions: false,
-			title: screen.forHabit + ' after'
+			title: '\"' + (screen.forHabit.description + '\" after')
 		};
-		var lines = A2(
-			$elm$core$List$map,
-			$author$project$Main$habitSelectLine(model),
-			A2(
-				$elm$core$List$sortBy,
-				function ($) {
-					return $.description;
-				},
-				$elm$core$Dict$values(model.habits)));
 		var _v0 = model;
-		var time = _v0.time;
-		var options = _v0.options;
 		var habits = _v0.habits;
+		var lines = A2(
+			$elm$core$List$cons,
+			A2(
+				$author$project$Main$habitSelectLine,
+				screen.selected,
+				{description: 'last time', id: $elm$core$Maybe$Nothing}),
+			A2(
+				$elm$core$List$map,
+				$author$project$Main$habitSelectLine(screen.selected),
+				A2(
+					$elm$core$List$map,
+					function (h) {
+						return {
+							description: h.description,
+							id: $elm$core$Maybe$Just(h.id)
+						};
+					},
+					A2(
+						$elm$core$List$sortBy,
+						function ($) {
+							return $.description;
+						},
+						$elm$core$Dict$values(
+							A2(
+								$elm$core$Dict$filter,
+								F2(
+									function (k, _v1) {
+										return A2(
+											$elm$core$Maybe$withDefault,
+											true,
+											A2(
+												$elm$core$Maybe$map,
+												$elm$core$Basics$neq(k),
+												screen.forHabit.id));
+									}),
+								habits))))));
 		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$OpenHabitCreate = {$: 'OpenHabitCreate'};
@@ -17393,4 +17409,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["String.String","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":["Maybe.Maybe Habit.HabitId"],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["String.String","String.String"],"BlurFormField":["String.String"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"ChangePage":["Basics.Int"]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.PartialHabit":{"args":[],"type":"{ id : Maybe.Maybe Habit.HabitId, description : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["Main.PartialHabit","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":["Maybe.Maybe Habit.HabitId"],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["String.String","String.String"],"BlurFormField":["String.String"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"ChangePage":["Basics.Int"]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
