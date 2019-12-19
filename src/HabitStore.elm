@@ -48,8 +48,8 @@ doHabitDeltas : Dict HabitId Habit -> Posix -> Habit -> List HabitDelta
 doHabitDeltas store time habit =
     let
         blockedHabits =
-            Dict.filter (\k h -> Habit.isBlocker habit.id h && Habit.isBlocked h) store
-                |> Dict.keys
+            Dict.filter (\_ h -> Habit.isBlocker habit.id h && Habit.isBlocked h) store
+                |> Dict.toList
     in
     [ Group time ("do " ++ habit.id)
 
@@ -57,12 +57,16 @@ doHabitDeltas store time habit =
     , ChangeHabit habit.id (LastDoneChange time)
     , ChangeHabit habit.id (NextDueChange (Period.addToPosix habit.period time))
     , ChangeHabit habit.id (DoneCountChange (habit.doneCount + 1))
-    , ChangeHabit habit.id (BlockChange (Habit.doUnblock habit.block))
+    , ChangeHabit habit.id (BlockChange (Habit.doBlock habit.block))
 
     -- Update Blocked habits
     ]
-        ++ List.map
-            (\habitId -> ChangeHabit habitId (BlockChange (Habit.Blocker habit.id False)))
+        ++ List.concatMap
+            (\( hid, h ) ->
+                [ ChangeHabit hid (BlockChange (Habit.Blocker habit.id False))
+                , ChangeHabit hid (NextDueChange (Period.addToPosix h.period time))
+                ]
+            )
             blockedHabits
 
 

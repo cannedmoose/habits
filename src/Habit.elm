@@ -59,6 +59,16 @@ doUnblock block =
             Unblocked
 
 
+doBlock : Block -> Block
+doBlock block =
+    case block of
+        Blocker otherId _ ->
+            Blocker otherId True
+
+        Unblocked ->
+            Unblocked
+
+
 blockerId : Habit -> Maybe HabitId
 blockerId habit =
     case habit.block of
