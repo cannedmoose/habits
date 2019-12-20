@@ -157,6 +157,7 @@ deltasFromHabit id habit =
     , ChangeHabit id (NextDueChange habit.nextDue)
     , ChangeHabit id (DoneCountChange habit.doneCount)
     , ChangeHabit id (BlockChange habit.block)
+    , ChangeHabit id (PeriodChange habit.period)
     ]
         ++ (case habit.lastDone of
                 Just c ->
