@@ -1,13 +1,9 @@
-P1 Clicking modal while it exits makes it pop in again (should disable animations)
+P1 Version number in options menu (to see what release we're at)
 
 P1 add fade for lines (maybe)
   Should fade when done clicked even if not changing location so there's some visual feedback
 
 P1 page animation finishing, inputs lose focus (should refocus on top input?)
-
-P1 More options
-  - help toggle
-  - Clear data
 
 P1 add help button to menu 
 

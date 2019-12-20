@@ -274,6 +274,8 @@ type Msg
     | CloseModal
     | ClearModal
     | PageAction PageMessage
+    | DoClearData
+    | DoToggleHelp
 
 
 afterModalModelUpdate : Modal -> Model -> Model
@@ -696,6 +698,37 @@ update msg model =
                    )
             , Cmd.none
             )
+
+        ( EditOptions screen, DoClearData ) ->
+            ( { model | habits = Dict.empty, screen = screen.parent } |> flipOffRight model.screen, Cmd.none ) |> storeModel
+
+        ( _, DoToggleHelp ) ->
+            let
+                options =
+                    model.options
+
+                seenAllHelp =
+                    List.length options.seenModals == 5
+            in
+            if seenAllHelp then
+                ( { model | options = { options | seenModals = [ IntroModal ] } }, Cmd.none ) |> storeModel
+
+            else
+                ( { model
+                    | options =
+                        { options
+                            | seenModals =
+                                [ IntroModal
+                                , FirstHabitModal
+                                , AddingHabitModal
+                                , DoHabitModal
+                                , OpenOptionsModal
+                                ]
+                        }
+                  }
+                , Cmd.none
+                )
+                    |> storeModel
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -1157,11 +1190,7 @@ viewOptionsPage model screen =
             , title = "View Options"
             , footer =
                 ( emptyDiv
-                , div
-                    [ class "button-line" ]
-                    [ button [ onClick DoSaveOptions ] [ text "Save" ]
-                    , button [ onClick Cancel ] [ text "Cancel" ]
-                    ]
+                , emptyDiv
                 )
             , nLines = pageLines
             , pageMsg = PageAction
@@ -1169,6 +1198,9 @@ viewOptionsPage model screen =
 
         pageState =
             { pageNumber = 0 }
+
+        seenAllHelp =
+            List.length model.options.seenModals == 5
 
         lines =
             [ ( emptyDiv, label [] [ text "Show upcoming" ] )
@@ -1182,6 +1214,37 @@ viewOptionsPage model screen =
               , input
                     [ value screen.recent, list "recent-list", onInput (ChangeFormField "recent") ]
                     []
+              )
+            , ( emptyDiv
+              , div
+                    [ class "button-line" ]
+                    [ button [ onClick DoSaveOptions ] [ text "Save" ]
+                    , button [ onClick Cancel ] [ text "Cancel" ]
+                    ]
+              )
+            , ( emptyDiv, emptyDiv )
+            , ( emptyDiv, emptyDiv )
+            , ( emptyDiv
+              , div
+                    [ class "button-line" ]
+                    [ button [ onClick DoToggleHelp ]
+                        [ text
+                            (if seenAllHelp then
+                                "Show Help"
+
+                             else
+                                "Hide Help"
+                            )
+                        ]
+                    ]
+              )
+            , ( emptyDiv, emptyDiv )
+            , ( emptyDiv, emptyDiv )
+            , ( emptyDiv
+              , div
+                    [ class "button-line" ]
+                    [ button [ onClick DoClearData ] [ text "Clear Habits" ]
+                    ]
               )
             ]
     in
@@ -1418,9 +1481,6 @@ modalDecoder =
 
 -- Transition appliers
 {-
-    TODO
-    - fix overflow for bottom/right transitions
-
    Type of transitions
 
          slideFromTop (old one static, new one slide in)
@@ -1454,20 +1514,19 @@ modalInTransition : Model -> Model
 modalInTransition model =
     { model
         | animations =
-            model.animations
-                |> Dict.insert "modal-fg"
-                    (Animation.interrupt
-                        [ Animation.toWith slideEase2
-                            [ Animation.opacity 1
-                            , Animation.backgroundColor { red = 3, green = 3, blue = 3, alpha = 0.85 }
+            Dict.update "modal-fg"
+                (\m ->
+                    Just
+                        (Animation.interrupt
+                            [ Animation.toWith slideEase2 [ Animation.opacity 1 ]
                             ]
-                        ]
-                        (Animation.style
-                            [ Animation.opacity 0
-                            , Animation.backgroundColor { red = 3, green = 3, blue = 3, alpha = 0.85 }
-                            ]
+                            (Maybe.withDefault
+                                (Animation.style [ Animation.opacity 0 ])
+                                m
+                            )
                         )
-                    )
+                )
+                model.animations
     }
 
 
@@ -1477,14 +1536,20 @@ modalOutTransition model =
     -- Clear once they're both done.
     { model
         | animations =
-            model.animations
-                |> Dict.insert "modal-fg"
-                    (Animation.interrupt
-                        [ Animation.toWith slideEase2 [ Animation.opacity 0, Animation.backgroundColor { red = 0, green = 0, blue = 0, alpha = 0.85 } ]
-                        , Animation.Messenger.send ClearModal
-                        ]
-                        (Animation.style [ Animation.opacity 1, Animation.backgroundColor { red = 0, green = 0, blue = 0, alpha = 0.85 } ])
-                    )
+            Dict.update "modal-fg"
+                (\m ->
+                    Just
+                        (Animation.interrupt
+                            [ Animation.toWith slideEase2 [ Animation.opacity 0 ]
+                            , Animation.Messenger.send ClearModal
+                            ]
+                            (Maybe.withDefault
+                                (Animation.style [ Animation.opacity 1 ])
+                                m
+                            )
+                        )
+                )
+                model.animations
     }
 
 

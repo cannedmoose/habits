@@ -1,9 +1,8 @@
-module Habit exposing (..)
+module Habit exposing (Block(..), Habit, HabitId, blockDecoder, blockJE, blockerId, doBlock, doUnblock, isBlocked, isBlocker)
 
-import Dict exposing (Dict)
-import Json.Decode as JD exposing (Decoder, field, int, string)
+import Json.Decode as JD exposing (Decoder, field, string)
 import Json.Encode as JE
-import Period exposing (Period, addToPosix)
+import Period exposing (Period)
 import Time exposing (Posix)
 
 
@@ -26,10 +25,6 @@ type alias HabitId =
 type Block
     = Blocker HabitId Bool
     | Unblocked
-
-
-
--- TODO CONSOLIDE BLOCK METHODS
 
 
 isBlocker : HabitId -> Habit -> Bool
