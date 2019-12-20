@@ -15,3 +15,13 @@ serve:
 	make clean
 	make elm.js
 	python3 -m http.server
+
+BRANCH := $(git branch)
+
+.PHONY: push
+release:
+	git checkout master
+	git merge $(BRANCH)
+	make clean
+	make elm.js
+	git push
