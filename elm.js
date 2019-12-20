@@ -11548,12 +11548,39 @@ var $author$project$Main$Options = F3(
 	function (recent, upcoming, seenModals) {
 		return {recent: recent, seenModals: seenModals, upcoming: upcoming};
 	});
+var $author$project$Main$AddingHabitModal = {$: 'AddingHabitModal'};
+var $author$project$Main$DoHabitModal = {$: 'DoHabitModal'};
+var $author$project$Main$FirstHabitModal = {$: 'FirstHabitModal'};
+var $author$project$Main$IntroModal = {$: 'IntroModal'};
+var $author$project$Main$OpenOptionsModal = {$: 'OpenOptionsModal'};
+var $author$project$Main$modalDecoder = A2(
+	$elm$json$Json$Decode$andThen,
+	function (field) {
+		switch (field) {
+			case 1:
+				return $elm$json$Json$Decode$succeed($author$project$Main$IntroModal);
+			case 2:
+				return $elm$json$Json$Decode$succeed($author$project$Main$FirstHabitModal);
+			case 3:
+				return $elm$json$Json$Decode$succeed($author$project$Main$AddingHabitModal);
+			case 4:
+				return $elm$json$Json$Decode$succeed($author$project$Main$DoHabitModal);
+			case 5:
+				return $elm$json$Json$Decode$succeed($author$project$Main$OpenOptionsModal);
+			default:
+				return $elm$json$Json$Decode$succeed($author$project$Main$NoModal);
+		}
+	},
+	$elm$json$Json$Decode$int);
 var $author$project$Main$optionsDecoder = A4(
 	$elm$json$Json$Decode$map3,
 	$author$project$Main$Options,
 	A2($elm$json$Json$Decode$field, 'recent', $author$project$Period$decoder),
 	A2($elm$json$Json$Decode$field, 'upcoming', $author$project$Period$decoder),
-	$elm$json$Json$Decode$succeed(_List_Nil));
+	A2(
+		$elm$json$Json$Decode$field,
+		'seenModals',
+		$elm$json$Json$Decode$list($author$project$Main$modalDecoder)));
 var $author$project$Main$storageDecoder = A4(
 	$elm$json$Json$Decode$map3,
 	$author$project$Main$StorageModel,
@@ -11963,7 +11990,6 @@ var $author$project$Main$EditOptions = function (a) {
 var $author$project$Main$HabitList = function (a) {
 	return {$: 'HabitList', a: a};
 };
-var $author$project$Main$IntroModal = {$: 'IntroModal'};
 var $author$project$Main$SelectHabit = function (a) {
 	return {$: 'SelectHabit', a: a};
 };
@@ -11988,7 +12014,6 @@ var $author$project$HabitStore$addHabitDeltas = F4(
 					changeDeltas
 				]));
 	});
-var $author$project$Main$OpenOptionsModal = {$: 'OpenOptionsModal'};
 var $elm$core$List$member = F2(
 	function (x, xs) {
 		return A2(
@@ -12929,49 +12954,390 @@ var $author$project$Main$afterModalModelUpdate = F2(
 			return model;
 		}
 	});
-var $author$project$Main$AddingHabitModal = {$: 'AddingHabitModal'};
-var $author$project$Main$DoHabitModal = {$: 'DoHabitModal'};
-var $author$project$Main$FirstHabitModal = {$: 'FirstHabitModal'};
-var $author$project$Main$afterTransitionModalUpdate = function (model) {
-	var options = model.options;
-	var _v0 = model.screen;
-	switch (_v0.$) {
-		case 'HabitList':
-			return (!A2($elm$core$List$member, $author$project$Main$FirstHabitModal, options.seenModals)) ? $author$project$Main$modalInTransition(
-				_Utils_update(
-					model,
-					{
-						modal: $author$project$Main$FirstHabitModal,
-						options: _Utils_update(
-							options,
-							{
-								seenModals: A2($elm$core$List$cons, $author$project$Main$FirstHabitModal, options.seenModals)
-							})
-					})) : (((!A2($elm$core$List$member, $author$project$Main$DoHabitModal, options.seenModals)) && (!$elm$core$Dict$isEmpty(model.habits))) ? $author$project$Main$modalInTransition(
-				_Utils_update(
-					model,
-					{
-						modal: $author$project$Main$DoHabitModal,
-						options: _Utils_update(
-							options,
-							{
-								seenModals: A2($elm$core$List$cons, $author$project$Main$DoHabitModal, options.seenModals)
-							})
-					})) : model);
-		case 'CreateHabit':
-			return (!A2($elm$core$List$member, $author$project$Main$AddingHabitModal, options.seenModals)) ? $author$project$Main$modalInTransition(
-				_Utils_update(
-					model,
-					{
-						modal: $author$project$Main$AddingHabitModal,
-						options: _Utils_update(
-							options,
-							{
-								seenModals: A2($elm$core$List$cons, $author$project$Main$AddingHabitModal, options.seenModals)
-							})
-					})) : model;
+var $author$project$HabitStore$deltasFromHabit = F2(
+	function (id, habit) {
+		var empty = $author$project$HabitStore$emptyHabit(id);
+		return _Utils_ap(
+			_List_fromArray(
+				[
+					$author$project$HabitStore$AddHabit(id),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					id,
+					$author$project$HabitStore$DescriptionChange(habit.description)),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					id,
+					$author$project$HabitStore$TagChange(habit.tag)),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					id,
+					$author$project$HabitStore$NextDueChange(habit.nextDue)),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					id,
+					$author$project$HabitStore$DoneCountChange(habit.doneCount)),
+					A2(
+					$author$project$HabitStore$ChangeHabit,
+					id,
+					$author$project$HabitStore$BlockChange(habit.block))
+				]),
+			function () {
+				var _v0 = habit.lastDone;
+				if (_v0.$ === 'Just') {
+					var c = _v0.a;
+					return _List_fromArray(
+						[
+							A2(
+							$author$project$HabitStore$ChangeHabit,
+							id,
+							$author$project$HabitStore$LastDoneChange(c))
+						]);
+				} else {
+					return _List_Nil;
+				}
+			}());
+	});
+var $author$project$HabitStore$deltasFromDict = F2(
+	function (time, dict) {
+		return A2(
+			$elm$core$List$cons,
+			A2($author$project$HabitStore$Group, time, 'bot'),
+			$elm$core$List$concat(
+				$elm$core$Dict$values(
+					A2($elm$core$Dict$map, $author$project$HabitStore$deltasFromHabit, dict))));
+	});
+var $author$project$Habit$blockJE = function (block) {
+	return $elm$json$Json$Encode$object(
+		function () {
+			if (block.$ === 'Unblocked') {
+				return _List_fromArray(
+					[
+						_Utils_Tuple2(
+						'status',
+						$elm$json$Json$Encode$string('Unblocked'))
+					]);
+			} else {
+				if (block.b) {
+					var habit = block.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('Blocked')),
+							_Utils_Tuple2(
+							'id',
+							$elm$json$Json$Encode$string(habit))
+						]);
+				} else {
+					var habit = block.a;
+					return _List_fromArray(
+						[
+							_Utils_Tuple2(
+							'status',
+							$elm$json$Json$Encode$string('UnblockedBy')),
+							_Utils_Tuple2(
+							'id',
+							$elm$json$Json$Encode$string(habit))
+						]);
+				}
+			}
+		}());
+};
+var $author$project$Period$addS = F2(
+	function (unit, str) {
+		return $elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
+	});
+var $author$project$Period$toString = function (period) {
+	switch (period.$) {
+		case 'Minutes':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Minute');
+		case 'Hours':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Hour');
+		case 'Days':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Day');
+		case 'Weeks':
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Week');
 		default:
-			return model;
+			var i = period.a;
+			return A2($author$project$Period$addS, i, 'Month');
+	}
+};
+var $author$project$Period$encode = function (period) {
+	return $elm$json$Json$Encode$string(
+		$author$project$Period$toString(period));
+};
+var $elm$json$Json$Encode$int = _Json_wrap;
+var $author$project$HabitStore$posixEncode = function (time) {
+	return $elm$json$Json$Encode$int(
+		$elm$time$Time$posixToMillis(time));
+};
+var $author$project$HabitStore$fieldChangeEncode = function (change) {
+	switch (change.$) {
+		case 'DescriptionChange':
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(0)),
+						_Utils_Tuple2(
+						'val',
+						$elm$json$Json$Encode$string(c))
+					]));
+		case 'TagChange':
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(1)),
+						_Utils_Tuple2(
+						'val',
+						$elm$json$Json$Encode$string(c))
+					]));
+		case 'LastDoneChange':
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(2)),
+						_Utils_Tuple2(
+						'val',
+						$author$project$HabitStore$posixEncode(c))
+					]));
+		case 'NextDueChange':
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(3)),
+						_Utils_Tuple2(
+						'val',
+						$author$project$HabitStore$posixEncode(c))
+					]));
+		case 'DoneCountChange':
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(4)),
+						_Utils_Tuple2(
+						'val',
+						$elm$json$Json$Encode$int(c))
+					]));
+		case 'PeriodChange':
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(5)),
+						_Utils_Tuple2(
+						'val',
+						$author$project$Period$encode(c))
+					]));
+		default:
+			var c = change.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(6)),
+						_Utils_Tuple2(
+						'val',
+						$author$project$Habit$blockJE(c))
+					]));
+	}
+};
+var $author$project$HabitStore$encode = function (delta) {
+	switch (delta.$) {
+		case 'AddHabit':
+			var id = delta.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(0)),
+						_Utils_Tuple2(
+						'id',
+						$elm$json$Json$Encode$string(id))
+					]));
+		case 'DeleteHabit':
+			var id = delta.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(1)),
+						_Utils_Tuple2(
+						'id',
+						$elm$json$Json$Encode$string(id))
+					]));
+		case 'ChangeHabit':
+			var id = delta.a;
+			var change = delta.b;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(2)),
+						_Utils_Tuple2(
+						'id',
+						$elm$json$Json$Encode$string(id)),
+						_Utils_Tuple2(
+						'change',
+						$author$project$HabitStore$fieldChangeEncode(change))
+					]));
+		default:
+			var time = delta.a;
+			var desc = delta.b;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$int(3)),
+						_Utils_Tuple2(
+						'time',
+						$author$project$HabitStore$posixEncode(time)),
+						_Utils_Tuple2(
+						'desc',
+						$elm$json$Json$Encode$string(desc))
+					]));
+	}
+};
+var $author$project$Main$modalEncoder = function (modal) {
+	switch (modal.$) {
+		case 'NoModal':
+			return $elm$json$Json$Encode$int(0);
+		case 'IntroModal':
+			return $elm$json$Json$Encode$int(1);
+		case 'FirstHabitModal':
+			return $elm$json$Json$Encode$int(2);
+		case 'AddingHabitModal':
+			return $elm$json$Json$Encode$int(3);
+		case 'DoHabitModal':
+			return $elm$json$Json$Encode$int(4);
+		default:
+			return $elm$json$Json$Encode$int(5);
+	}
+};
+var $author$project$Main$optionsEncoder = function (options) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'recent',
+				$author$project$Period$encode(options.recent)),
+				_Utils_Tuple2(
+				'upcoming',
+				$author$project$Period$encode(options.upcoming)),
+				_Utils_Tuple2(
+				'seenModals',
+				A2($elm$json$Json$Encode$list, $author$project$Main$modalEncoder, options.seenModals))
+			]));
+};
+var $author$project$Main$storageEncoder = function (model) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'options',
+				$author$project$Main$optionsEncoder(model.options)),
+				_Utils_Tuple2(
+				'habits',
+				A2(
+					$elm$json$Json$Encode$list,
+					$author$project$HabitStore$encode,
+					A2($author$project$HabitStore$deltasFromDict, model.time, model.habits))),
+				_Utils_Tuple2(
+				'version',
+				$elm$json$Json$Encode$int(0))
+			]));
+};
+var $author$project$Main$store = _Platform_outgoingPort('store', $elm$core$Basics$identity);
+var $author$project$Main$storeModel = function (_v0) {
+	var model = _v0.a;
+	var cmd = _v0.b;
+	return _Utils_Tuple2(
+		model,
+		$elm$core$Platform$Cmd$batch(
+			_List_fromArray(
+				[
+					cmd,
+					$author$project$Main$store(
+					$author$project$Main$storageEncoder(model))
+				])));
+};
+var $author$project$Main$afterTransitionModalUpdate = function (_v0) {
+	var model = _v0.a;
+	var cmd = _v0.b;
+	var options = model.options;
+	var _v1 = model.screen;
+	switch (_v1.$) {
+		case 'HabitList':
+			return (!A2($elm$core$List$member, $author$project$Main$FirstHabitModal, options.seenModals)) ? $author$project$Main$storeModel(
+				_Utils_Tuple2(
+					$author$project$Main$modalInTransition(
+						_Utils_update(
+							model,
+							{
+								modal: $author$project$Main$FirstHabitModal,
+								options: _Utils_update(
+									options,
+									{
+										seenModals: A2($elm$core$List$cons, $author$project$Main$FirstHabitModal, options.seenModals)
+									})
+							})),
+					cmd)) : (((!A2($elm$core$List$member, $author$project$Main$DoHabitModal, options.seenModals)) && (!$elm$core$Dict$isEmpty(model.habits))) ? $author$project$Main$storeModel(
+				_Utils_Tuple2(
+					$author$project$Main$modalInTransition(
+						_Utils_update(
+							model,
+							{
+								modal: $author$project$Main$DoHabitModal,
+								options: _Utils_update(
+									options,
+									{
+										seenModals: A2($elm$core$List$cons, $author$project$Main$DoHabitModal, options.seenModals)
+									})
+							})),
+					cmd)) : _Utils_Tuple2(model, cmd));
+		case 'CreateHabit':
+			return (!A2($elm$core$List$member, $author$project$Main$AddingHabitModal, options.seenModals)) ? $author$project$Main$storeModel(
+				_Utils_Tuple2(
+					$author$project$Main$modalInTransition(
+						_Utils_update(
+							model,
+							{
+								modal: $author$project$Main$AddingHabitModal,
+								options: _Utils_update(
+									options,
+									{
+										seenModals: A2($elm$core$List$cons, $author$project$Main$AddingHabitModal, options.seenModals)
+									})
+							})),
+					cmd)) : _Utils_Tuple2(model, cmd);
+		default:
+			return _Utils_Tuple2(model, cmd);
 	}
 };
 var $elm$core$Char$fromCode = _Char_fromCode;
@@ -13292,29 +13658,6 @@ var $elm$core$List$singleton = function (value) {
 	return _List_fromArray(
 		[value]);
 };
-var $author$project$Period$addS = F2(
-	function (unit, str) {
-		return $elm$core$String$fromInt(unit) + (' ' + ((unit > 1) ? (str + 's') : str));
-	});
-var $author$project$Period$toString = function (period) {
-	switch (period.$) {
-		case 'Minutes':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Minute');
-		case 'Hours':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Hour');
-		case 'Days':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Day');
-		case 'Weeks':
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Week');
-		default:
-			var i = period.a;
-			return A2($author$project$Period$addS, i, 'Month');
-	}
-};
 var $author$project$Main$habitToFields = function (habit) {
 	var blocker = A2(
 		$elm$core$Maybe$withDefault,
@@ -13633,297 +13976,6 @@ var $author$project$Main$slideOffbottom = F2(
 				});
 		}
 	});
-var $author$project$HabitStore$deltasFromHabit = F2(
-	function (id, habit) {
-		var empty = $author$project$HabitStore$emptyHabit(id);
-		return _Utils_ap(
-			_List_fromArray(
-				[
-					$author$project$HabitStore$AddHabit(id),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					id,
-					$author$project$HabitStore$DescriptionChange(habit.description)),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					id,
-					$author$project$HabitStore$TagChange(habit.tag)),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					id,
-					$author$project$HabitStore$NextDueChange(habit.nextDue)),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					id,
-					$author$project$HabitStore$DoneCountChange(habit.doneCount)),
-					A2(
-					$author$project$HabitStore$ChangeHabit,
-					id,
-					$author$project$HabitStore$BlockChange(habit.block))
-				]),
-			function () {
-				var _v0 = habit.lastDone;
-				if (_v0.$ === 'Just') {
-					var c = _v0.a;
-					return _List_fromArray(
-						[
-							A2(
-							$author$project$HabitStore$ChangeHabit,
-							id,
-							$author$project$HabitStore$LastDoneChange(c))
-						]);
-				} else {
-					return _List_Nil;
-				}
-			}());
-	});
-var $author$project$HabitStore$deltasFromDict = F2(
-	function (time, dict) {
-		return A2(
-			$elm$core$List$cons,
-			A2($author$project$HabitStore$Group, time, 'bot'),
-			$elm$core$List$concat(
-				$elm$core$Dict$values(
-					A2($elm$core$Dict$map, $author$project$HabitStore$deltasFromHabit, dict))));
-	});
-var $author$project$Habit$blockJE = function (block) {
-	return $elm$json$Json$Encode$object(
-		function () {
-			if (block.$ === 'Unblocked') {
-				return _List_fromArray(
-					[
-						_Utils_Tuple2(
-						'status',
-						$elm$json$Json$Encode$string('Unblocked'))
-					]);
-			} else {
-				if (block.b) {
-					var habit = block.a;
-					return _List_fromArray(
-						[
-							_Utils_Tuple2(
-							'status',
-							$elm$json$Json$Encode$string('Blocked')),
-							_Utils_Tuple2(
-							'id',
-							$elm$json$Json$Encode$string(habit))
-						]);
-				} else {
-					var habit = block.a;
-					return _List_fromArray(
-						[
-							_Utils_Tuple2(
-							'status',
-							$elm$json$Json$Encode$string('UnblockedBy')),
-							_Utils_Tuple2(
-							'id',
-							$elm$json$Json$Encode$string(habit))
-						]);
-				}
-			}
-		}());
-};
-var $author$project$Period$encode = function (period) {
-	return $elm$json$Json$Encode$string(
-		$author$project$Period$toString(period));
-};
-var $elm$json$Json$Encode$int = _Json_wrap;
-var $author$project$HabitStore$posixEncode = function (time) {
-	return $elm$json$Json$Encode$int(
-		$elm$time$Time$posixToMillis(time));
-};
-var $author$project$HabitStore$fieldChangeEncode = function (change) {
-	switch (change.$) {
-		case 'DescriptionChange':
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(0)),
-						_Utils_Tuple2(
-						'val',
-						$elm$json$Json$Encode$string(c))
-					]));
-		case 'TagChange':
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(1)),
-						_Utils_Tuple2(
-						'val',
-						$elm$json$Json$Encode$string(c))
-					]));
-		case 'LastDoneChange':
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(2)),
-						_Utils_Tuple2(
-						'val',
-						$author$project$HabitStore$posixEncode(c))
-					]));
-		case 'NextDueChange':
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(3)),
-						_Utils_Tuple2(
-						'val',
-						$author$project$HabitStore$posixEncode(c))
-					]));
-		case 'DoneCountChange':
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(4)),
-						_Utils_Tuple2(
-						'val',
-						$elm$json$Json$Encode$int(c))
-					]));
-		case 'PeriodChange':
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(5)),
-						_Utils_Tuple2(
-						'val',
-						$author$project$Period$encode(c))
-					]));
-		default:
-			var c = change.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(6)),
-						_Utils_Tuple2(
-						'val',
-						$author$project$Habit$blockJE(c))
-					]));
-	}
-};
-var $author$project$HabitStore$encode = function (delta) {
-	switch (delta.$) {
-		case 'AddHabit':
-			var id = delta.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(0)),
-						_Utils_Tuple2(
-						'id',
-						$elm$json$Json$Encode$string(id))
-					]));
-		case 'DeleteHabit':
-			var id = delta.a;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(1)),
-						_Utils_Tuple2(
-						'id',
-						$elm$json$Json$Encode$string(id))
-					]));
-		case 'ChangeHabit':
-			var id = delta.a;
-			var change = delta.b;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(2)),
-						_Utils_Tuple2(
-						'id',
-						$elm$json$Json$Encode$string(id)),
-						_Utils_Tuple2(
-						'change',
-						$author$project$HabitStore$fieldChangeEncode(change))
-					]));
-		default:
-			var time = delta.a;
-			var desc = delta.b;
-			return $elm$json$Json$Encode$object(
-				_List_fromArray(
-					[
-						_Utils_Tuple2(
-						'type',
-						$elm$json$Json$Encode$int(3)),
-						_Utils_Tuple2(
-						'time',
-						$author$project$HabitStore$posixEncode(time)),
-						_Utils_Tuple2(
-						'desc',
-						$elm$json$Json$Encode$string(desc))
-					]));
-	}
-};
-var $author$project$Main$optionsEncoder = function (options) {
-	return $elm$json$Json$Encode$object(
-		_List_fromArray(
-			[
-				_Utils_Tuple2(
-				'recent',
-				$author$project$Period$encode(options.recent)),
-				_Utils_Tuple2(
-				'upcoming',
-				$author$project$Period$encode(options.upcoming))
-			]));
-};
-var $author$project$Main$storageEncoder = function (model) {
-	return $elm$json$Json$Encode$object(
-		_List_fromArray(
-			[
-				_Utils_Tuple2(
-				'options',
-				$author$project$Main$optionsEncoder(model.options)),
-				_Utils_Tuple2(
-				'habits',
-				A2(
-					$elm$json$Json$Encode$list,
-					$author$project$HabitStore$encode,
-					A2($author$project$HabitStore$deltasFromDict, model.time, model.habits))),
-				_Utils_Tuple2(
-				'version',
-				$elm$json$Json$Encode$int(0))
-			]));
-};
-var $author$project$Main$store = _Platform_outgoingPort('store', $elm$core$Basics$identity);
-var $author$project$Main$storeModel = function (_v0) {
-	var model = _v0.a;
-	var cmd = _v0.b;
-	return _Utils_Tuple2(
-		model,
-		$elm$core$Platform$Cmd$batch(
-			_List_fromArray(
-				[
-					cmd,
-					$author$project$Main$store(
-					$author$project$Main$storageEncoder(model))
-				])));
-};
 var $elm$core$String$fromList = _String_fromList;
 var $elm$random$Random$listHelp = F4(
 	function (revList, n, gen, seed) {
@@ -15573,12 +15625,12 @@ var $author$project$Main$update = F2(
 						$elm$core$Platform$Cmd$none);
 				case 'ClearTransition':
 					var _v6 = _v0.b;
-					return _Utils_Tuple2(
-						$author$project$Main$afterTransitionModalUpdate(
+					return $author$project$Main$afterTransitionModalUpdate(
+						_Utils_Tuple2(
 							_Utils_update(
 								model,
-								{screenTransition: $elm$core$Maybe$Nothing})),
-						$elm$core$Platform$Cmd$none);
+								{screenTransition: $elm$core$Maybe$Nothing}),
+							$elm$core$Platform$Cmd$none));
 				case 'DoHabit':
 					var habitId = _v0.b.a;
 					var newStore = A2(
@@ -15644,23 +15696,6 @@ var $author$project$Main$update = F2(
 											fields: $author$project$Main$habitToFields(
 												$author$project$HabitStore$emptyHabit('')),
 											parent: model.screen
-										})
-								})),
-						$elm$core$Platform$Cmd$none);
-				case 'OpenEditOptions':
-					var _v10 = _v0.b;
-					return _Utils_Tuple2(
-						A2(
-							$author$project$Main$slideFromTopTransition,
-							model.screen,
-							_Utils_update(
-								model,
-								{
-									screen: $author$project$Main$EditOptions(
-										{
-											parent: model.screen,
-											recent: $author$project$Period$toString(model.options.recent),
-											upcoming: $author$project$Period$toString(model.options.upcoming)
 										})
 								})),
 						$elm$core$Platform$Cmd$none);
@@ -15945,38 +15980,57 @@ var $author$project$Main$update = F2(
 						default:
 							break _v0$25;
 					}
-				case 'ChangePage':
-					switch (_v0.a.$) {
-						case 'HabitList':
-							var screen = _v0.a.a;
-							var page = _v0.b.a;
-							return _Utils_Tuple2(
-								((_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model.screen) : $author$project$Main$flipOn(model.screen))(
-									_Utils_update(
-										model,
-										{
-											screen: $author$project$Main$HabitList(
-												_Utils_update(
-													screen,
-													{page: page}))
-										})),
-								$elm$core$Platform$Cmd$none);
-						case 'SelectHabit':
-							var screen = _v0.a.a;
-							var page = _v0.b.a;
-							return _Utils_Tuple2(
-								((_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model.screen) : $author$project$Main$flipOn(model.screen))(
-									_Utils_update(
-										model,
-										{
-											screen: $author$project$Main$SelectHabit(
-												_Utils_update(
-													screen,
-													{page: page}))
-										})),
-								$elm$core$Platform$Cmd$none);
-						default:
-							break _v0$25;
+				case 'PageAction':
+					if (_v0.b.a.$ === 'OpenOptions') {
+						var _v10 = _v0.b.a;
+						return _Utils_Tuple2(
+							A2(
+								$author$project$Main$slideFromTopTransition,
+								model.screen,
+								_Utils_update(
+									model,
+									{
+										screen: $author$project$Main$EditOptions(
+											{
+												parent: model.screen,
+												recent: $author$project$Period$toString(model.options.recent),
+												upcoming: $author$project$Period$toString(model.options.upcoming)
+											})
+									})),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						switch (_v0.a.$) {
+							case 'HabitList':
+								var screen = _v0.a.a;
+								var page = _v0.b.a.a;
+								return _Utils_Tuple2(
+									((_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model.screen) : $author$project$Main$flipOn(model.screen))(
+										_Utils_update(
+											model,
+											{
+												screen: $author$project$Main$HabitList(
+													_Utils_update(
+														screen,
+														{page: page}))
+											})),
+									$elm$core$Platform$Cmd$none);
+							case 'SelectHabit':
+								var screen = _v0.a.a;
+								var page = _v0.b.a.a;
+								return _Utils_Tuple2(
+									((_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model.screen) : $author$project$Main$flipOn(model.screen))(
+										_Utils_update(
+											model,
+											{
+												screen: $author$project$Main$SelectHabit(
+													_Utils_update(
+														screen,
+														{page: page}))
+											})),
+									$elm$core$Platform$Cmd$none);
+							default:
+								break _v0$25;
+						}
 					}
 				default:
 					break _v0$25;
@@ -16519,6 +16573,9 @@ var $author$project$Main$animationAttribs = F2(
 var $author$project$Main$Cancel = {$: 'Cancel'};
 var $author$project$Main$DoDeleteHabit = {$: 'DoDeleteHabit'};
 var $author$project$Main$DoEditHabit = {$: 'DoEditHabit'};
+var $author$project$Main$PageAction = function (a) {
+	return {$: 'PageAction', a: a};
+};
 var $author$project$Main$ChangeFormField = F2(
 	function (a, b) {
 		return {$: 'ChangeFormField', a: a, b: b};
@@ -16766,7 +16823,7 @@ var $author$project$Main$editPagelines = F2(
 			$elm$core$Maybe$Just(screen.habitId));
 	});
 var $author$project$Main$pageLines = 18;
-var $author$project$Main$OpenEditOptions = {$: 'OpenEditOptions'};
+var $author$project$Page$OpenOptions = {$: 'OpenOptions'};
 var $elm$core$List$takeReverse = F3(
 	function (n, list, kept) {
 		takeReverse:
@@ -16893,7 +16950,7 @@ var $elm$core$List$take = F2(
 	function (n, list) {
 		return A3($elm$core$List$takeFast, 0, n, list);
 	});
-var $author$project$Main$cullPageLines = F3(
+var $author$project$Page$cullPageLines = F3(
 	function (_v0, _v1, lines) {
 		var nLines = _v0.nLines;
 		var pageNumber = _v1.pageNumber;
@@ -16902,7 +16959,7 @@ var $author$project$Main$cullPageLines = F3(
 			nLines,
 			A2($elm$core$List$drop, pageNumber * nLines, lines));
 	});
-var $author$project$Main$viewEmptyLine = A2(
+var $author$project$Page$viewEmptyLine = A2(
 	$elm$html$Html$div,
 	_List_fromArray(
 		[
@@ -16916,23 +16973,22 @@ var $author$project$Main$viewEmptyLine = A2(
 				[
 					$elm$html$Html$Attributes$class('margin')
 				]),
-			_List_fromArray(
-				[$author$project$Main$emptyDiv])),
+			_List_Nil),
 			A2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
 					$elm$html$Html$Attributes$class('line-content')
 				]),
-			_List_fromArray(
-				[$author$project$Main$emptyDiv]))
+			_List_Nil)
 		]));
-var $author$project$Main$ChangePage = function (a) {
+var $author$project$Page$ChangePage = function (a) {
 	return {$: 'ChangePage', a: a};
 };
-var $author$project$Main$viewPageFooter = F3(
+var $author$project$Page$viewPageFooter = F3(
 	function (_v0, _v1, lines) {
 		var nLines = _v0.nLines;
+		var pageMsg = _v0.pageMsg;
 		var pageNumber = _v1.pageNumber;
 		return A2(
 			$elm$html$Html$div,
@@ -16956,7 +17012,8 @@ var $author$project$Main$viewPageFooter = F3(
 								[
 									$elm$html$Html$Attributes$class('add-habit'),
 									$elm$html$Html$Events$onClick(
-									$author$project$Main$ChangePage(pageNumber - 1))
+									pageMsg(
+										$author$project$Page$ChangePage(pageNumber - 1)))
 								]),
 							_List_fromArray(
 								[
@@ -16979,7 +17036,8 @@ var $author$project$Main$viewPageFooter = F3(
 								[
 									$elm$html$Html$Attributes$class('add-habit'),
 									$elm$html$Html$Events$onClick(
-									$author$project$Main$ChangePage(pageNumber + 1))
+									pageMsg(
+										$author$project$Page$ChangePage(pageNumber + 1)))
 								]),
 							_List_fromArray(
 								[
@@ -16988,7 +17046,7 @@ var $author$project$Main$viewPageFooter = F3(
 						]) : _List_Nil)
 				]));
 	});
-var $author$project$Main$viewPageLine = function (_v0) {
+var $author$project$Page$viewPageLine = function (_v0) {
 	var margin = _v0.a;
 	var content = _v0.b;
 	return A2(
@@ -17017,7 +17075,7 @@ var $author$project$Main$viewPageLine = function (_v0) {
 					[content]))
 			]));
 };
-var $author$project$Main$viewPageLines = F2(
+var $author$project$Page$viewPageLines = F2(
 	function (lines, footer) {
 		return A2(
 			$elm$html$Html$div,
@@ -17027,15 +17085,15 @@ var $author$project$Main$viewPageLines = F2(
 				]),
 			A2(
 				$elm$core$List$map,
-				$author$project$Main$viewPageLine,
+				$author$project$Page$viewPageLine,
 				_Utils_ap(
 					lines,
 					_List_fromArray(
 						[footer]))));
 	});
-var $author$project$Main$viewPage = F3(
+var $author$project$Page$viewPage = F3(
 	function (config, state, lines) {
-		var culledLines = A3($author$project$Main$cullPageLines, config, state, lines);
+		var culledLines = A3($author$project$Page$cullPageLines, config, state, lines);
 		var nEmptyLines = config.nLines - $elm$core$List$length(culledLines);
 		return A2(
 			$elm$html$Html$div,
@@ -17066,7 +17124,8 @@ var $author$project$Main$viewPage = F3(
 									_List_fromArray(
 										[
 											$elm$html$Html$Attributes$class('add-habit'),
-											$elm$html$Html$Events$onClick($author$project$Main$OpenEditOptions)
+											$elm$html$Html$Events$onClick(
+											config.pageMsg($author$project$Page$OpenOptions))
 										]),
 									_List_fromArray(
 										[
@@ -17085,19 +17144,19 @@ var $author$project$Main$viewPage = F3(
 								]))
 						])),
 					A2(
-					$author$project$Main$viewPageLines,
-					A3($author$project$Main$cullPageLines, config, state, lines),
+					$author$project$Page$viewPageLines,
+					A3($author$project$Page$cullPageLines, config, state, lines),
 					config.footer),
 					A2(
 					$elm$html$Html$div,
 					_List_Nil,
 					A2(
 						$elm$core$List$map,
-						function (i) {
-							return $author$project$Main$viewEmptyLine;
+						function (_v0) {
+							return $author$project$Page$viewEmptyLine;
 						},
 						A2($elm$core$List$range, 1, nEmptyLines))),
-					A3($author$project$Main$viewPageFooter, config, state, lines)
+					A3($author$project$Page$viewPageFooter, config, state, lines)
 				]));
 	});
 var $author$project$Main$viewEditingPage = F2(
@@ -17150,17 +17209,19 @@ var $author$project$Main$viewEditingPage = F2(
 								]))
 						]))),
 			nLines: $author$project$Main$pageLines,
+			pageMsg: $author$project$Main$PageAction,
 			showOptions: false,
 			title: 'edit \"' + (title + '\"')
 		};
 		var lines = A2($author$project$Main$editPagelines, model, screen);
-		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$viewEmptyPage = function (model) {
 	var pageState = {pageNumber: 0};
 	var pageConfig = {
 		footer: _Utils_Tuple2($author$project$Main$emptyDiv, $author$project$Main$emptyDiv),
 		nLines: $author$project$Main$pageLines,
+		pageMsg: $author$project$Main$PageAction,
 		showOptions: false,
 		title: ''
 	};
@@ -17169,7 +17230,7 @@ var $author$project$Main$viewEmptyPage = function (model) {
 	var time = _v0.time;
 	var options = _v0.options;
 	var habits = _v0.habits;
-	return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+	return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 };
 var $author$project$Main$DoSelectHabit = function (a) {
 	return {$: 'DoSelectHabit', a: a};
@@ -17227,6 +17288,7 @@ var $author$project$Main$viewHabitSelectPage = F2(
 								]))
 						]))),
 			nLines: $author$project$Main$pageLines,
+			pageMsg: $author$project$Main$PageAction,
 			showOptions: false,
 			title: '\"' + (screen.forHabit.description + '\" after')
 		};
@@ -17268,7 +17330,7 @@ var $author$project$Main$viewHabitSelectPage = F2(
 												screen.forHabit.id));
 									}),
 								habits))))));
-		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$OpenHabitCreate = {$: 'OpenHabitCreate'};
 var $author$project$Main$isDueSoon = F2(
@@ -17399,6 +17461,7 @@ var $author$project$Main$viewHabitsListPage = F2(
 						])),
 				$author$project$Main$emptyDiv),
 			nLines: $author$project$Main$pageLines,
+			pageMsg: $author$project$Main$PageAction,
 			showOptions: true,
 			title: 'today I will'
 		};
@@ -17414,7 +17477,7 @@ var $author$project$Main$viewHabitsListPage = F2(
 		var time = _v0.time;
 		var options = _v0.options;
 		var habits = _v0.habits;
-		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$createPagelines = F2(
 	function (model, screen) {
@@ -17461,11 +17524,12 @@ var $author$project$Main$viewNewPage = F2(
 								]))
 						]))),
 			nLines: $author$project$Main$pageLines,
+			pageMsg: $author$project$Main$PageAction,
 			showOptions: false,
 			title: 'new habit'
 		};
 		var lines = A2($author$project$Main$createPagelines, model, screen);
-		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$DoSaveOptions = {$: 'DoSaveOptions'};
 var $author$project$Main$viewOptionsPage = F2(
@@ -17504,6 +17568,7 @@ var $author$project$Main$viewOptionsPage = F2(
 								]))
 						]))),
 			nLines: $author$project$Main$pageLines,
+			pageMsg: $author$project$Main$PageAction,
 			showOptions: false,
 			title: 'View Options'
 		};
@@ -17552,7 +17617,7 @@ var $author$project$Main$viewOptionsPage = F2(
 						]),
 					_List_Nil))
 			]);
-		return A3($author$project$Main$viewPage, pageConfig, pageState, lines);
+		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$viewScreen = F2(
 	function (model, page) {
@@ -17842,4 +17907,4 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				},
 				A2($elm$json$Json$Decode$field, 'model', $elm$json$Json$Decode$value));
 		},
-		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.PartialHabit":{"args":[],"type":"{ id : Maybe.Maybe Habit.HabitId, description : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["Main.PartialHabit","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":["Maybe.Maybe Habit.HabitId"],"OpenEditOptions":[],"DoSaveOptions":[],"ChangeFormField":["String.String","String.String"],"BlurFormField":["String.String"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"ChangePage":["Basics.Int"],"CloseModal":[],"ClearModal":[]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'time', $elm$json$Json$Decode$int)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Browser.Dom.Element":{"args":[],"type":"{ scene : { width : Basics.Float, height : Basics.Float }, viewport : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float }, element : { x : Basics.Float, y : Basics.Float, width : Basics.Float, height : Basics.Float } }"},"Habit.HabitId":{"args":[],"type":"String.String"},"Animation.Msg":{"args":[],"type":"Animation.Model.Tick"},"Main.PartialHabit":{"args":[],"type":"{ id : Maybe.Maybe Habit.HabitId, description : String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"NoOp":[],"NoOps":["String.String"],"Tick":["Time.Posix"],"AnimateScreen":["Animation.Msg"],"ClearTransition":[],"DoHabit":["Habit.HabitId"],"OpenHabitEdit":["Habit.HabitId"],"DoDeleteHabit":[],"DoEditHabit":[],"OpenHabitSelect":["Main.PartialHabit","Maybe.Maybe Habit.HabitId"],"DoSelectHabit":["Maybe.Maybe Habit.HabitId"],"OpenHabitCreate":[],"DoCreateHabit":["Maybe.Maybe Habit.HabitId"],"DoSaveOptions":[],"ChangeFormField":["String.String","String.String"],"BlurFormField":["String.String"],"Cancel":[],"NewPageElement":["Result.Result Browser.Dom.Error Browser.Dom.Element"],"CloseModal":[],"ClearModal":[],"PageAction":["Page.PageMessage"]}},"Browser.Dom.Error":{"args":[],"tags":{"NotFound":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Page.PageMessage":{"args":[],"tags":{"ChangePage":["Basics.Int"],"OpenOptions":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Animation.Model.Tick":{"args":[],"tags":{"Tick":["Time.Posix"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}}}}})}});}(this));

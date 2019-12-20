@@ -13,6 +13,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as JD
 import Json.Encode as JE
+import Page exposing (..)
 import Parser
 import Period exposing (Period(..), addToPosix, minusFromPosix)
 import Random
@@ -89,16 +90,6 @@ type alias StorageModel =
     }
 
 
-type Modal
-    = NoModal
-    | IntroModal -- Opened on home screen BEFORE ANYTHING (and haven;t seend before)
-      -- TODO add initial page transition
-    | FirstHabitModal -- Opened on home screen after page transitions in if no habits exist (and haven;t seend before)
-    | AddingHabitModal -- Opened on add screen if no hobits exist (and haven't seen before)
-    | DoHabitModal -- Opened on home screen if habits exist (and haven;t seend before)
-    | OpenOptionsModal -- Opened on home screen after habit is done (and haven't seen before)
-
-
 type alias Model =
     { time : Posix
     , habits : Dict HabitId Habit
@@ -118,6 +109,15 @@ type alias Options =
     , upcoming : Period
     , seenModals : List Modal
     }
+
+
+type Modal
+    = NoModal
+    | IntroModal -- Opened on home screen BEFORE ANYTHING (and haven;t seend before)
+    | FirstHabitModal -- Opened on home screen after page transitions in if no habits exist (and haven;t seend before)
+    | AddingHabitModal -- Opened on add screen if no hobits exist (and haven't seen before)
+    | DoHabitModal -- Opened on home screen if habits exist (and haven;t seend before)
+    | OpenOptionsModal -- Opened on home screen after habit is done (and haven't seen before)
 
 
 defaultOptions : Options
@@ -265,16 +265,15 @@ type Msg
     | OpenHabitCreate
     | DoCreateHabit (Maybe HabitId)
       -- Options
-    | OpenEditOptions
     | DoSaveOptions
       -- Form Editing
     | ChangeFormField String String
     | BlurFormField String
     | Cancel
     | NewPageElement (Result Dom.Error Dom.Element)
-    | ChangePage Int
     | CloseModal
     | ClearModal
+    | PageAction PageMessage
 
 
 afterModalModelUpdate : Modal -> Model -> Model
@@ -287,8 +286,8 @@ afterModalModelUpdate modal model =
             model
 
 
-afterTransitionModalUpdate : Model -> Model
-afterTransitionModalUpdate model =
+afterTransitionModalUpdate : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+afterTransitionModalUpdate ( model, cmd ) =
     let
         options =
             model.options
@@ -296,23 +295,23 @@ afterTransitionModalUpdate model =
     case model.screen of
         HabitList _ ->
             if not (List.member FirstHabitModal options.seenModals) then
-                { model | modal = FirstHabitModal, options = { options | seenModals = FirstHabitModal :: options.seenModals } } |> modalInTransition
+                ( { model | modal = FirstHabitModal, options = { options | seenModals = FirstHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
 
             else if not (List.member DoHabitModal options.seenModals) && not (Dict.isEmpty model.habits) then
-                { model | modal = DoHabitModal, options = { options | seenModals = DoHabitModal :: options.seenModals } } |> modalInTransition
+                ( { model | modal = DoHabitModal, options = { options | seenModals = DoHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
 
             else
-                model
+                ( model, cmd )
 
         CreateHabit _ ->
             if not (List.member AddingHabitModal options.seenModals) then
-                { model | modal = AddingHabitModal, options = { options | seenModals = AddingHabitModal :: options.seenModals } } |> modalInTransition
+                ( { model | modal = AddingHabitModal, options = { options | seenModals = AddingHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
 
             else
-                model
+                ( model, cmd )
 
         _ ->
-            model
+            ( model, cmd )
 
 
 afterDoHabitModalUpdate : Model -> Model
@@ -416,9 +415,9 @@ update msg model =
         ( _, ClearTransition ) ->
             -- TODO CHECK FOR MODAL OPENING
             ( { model | screenTransition = Nothing }
-                |> afterTransitionModalUpdate
             , Cmd.none
             )
+                |> afterTransitionModalUpdate
 
         ( _, DoHabit habitId ) ->
             let
@@ -474,7 +473,7 @@ update msg model =
             , Cmd.none
             )
 
-        ( _, OpenEditOptions ) ->
+        ( _, PageAction OpenOptions ) ->
             ( { model
                 | screen =
                     EditOptions
@@ -672,7 +671,7 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        ( HabitList screen, ChangePage page ) ->
+        ( HabitList screen, PageAction (ChangePage page) ) ->
             ( { model
                 | screen = HabitList { screen | page = page }
               }
@@ -685,7 +684,7 @@ update msg model =
             , Cmd.none
             )
 
-        ( SelectHabit screen, ChangePage page ) ->
+        ( SelectHabit screen, PageAction (ChangePage page) ) ->
             ( { model
                 | screen = SelectHabit { screen | page = page }
               }
@@ -891,6 +890,16 @@ viewScreen model page =
 -- HABITS VIEW
 
 
+emptyDiv : Html msg
+emptyDiv =
+    div [] []
+
+
+pageLines : Int
+pageLines =
+    18
+
+
 viewEmptyPage : Model -> Html Msg
 viewEmptyPage model =
     let
@@ -902,6 +911,7 @@ viewEmptyPage model =
                 , emptyDiv
                 )
             , nLines = pageLines
+            , pageMsg = PageAction
             }
 
         pageState =
@@ -929,6 +939,7 @@ viewHabitsListPage model habitListScreen =
                 , emptyDiv
                 )
             , nLines = pageLines
+            , pageMsg = PageAction
             }
 
         pageState =
@@ -946,7 +957,7 @@ viewHabitsListPage model habitListScreen =
     viewPage pageConfig pageState lines
 
 
-habitViewLine : Model -> Habit -> PageLine
+habitViewLine : Model -> Habit -> PageLine Msg
 habitViewLine model habit =
     ( button
         [ class "habit-edit"
@@ -998,6 +1009,7 @@ viewEditingPage model screen =
                     ]
                 )
             , nLines = pageLines
+            , pageMsg = PageAction
             }
 
         pageState =
@@ -1009,7 +1021,7 @@ viewEditingPage model screen =
     viewPage pageConfig pageState lines
 
 
-editPagelines : Model -> EditHabitScreen -> PageLines
+editPagelines : Model -> EditHabitScreen -> PageLines Msg
 editPagelines model screen =
     habitFieldsView screen.fields (Dict.values model.habits) (Just screen.habitId)
 
@@ -1033,6 +1045,7 @@ viewNewPage model screen =
                     ]
                 )
             , nLines = pageLines
+            , pageMsg = PageAction
             }
 
         pageState =
@@ -1044,7 +1057,7 @@ viewNewPage model screen =
     viewPage pageConfig pageState lines
 
 
-createPagelines : Model -> CreateHabitScreen -> PageLines
+createPagelines : Model -> CreateHabitScreen -> PageLines Msg
 createPagelines model screen =
     habitFieldsView screen.fields (Dict.values model.habits) Nothing
 
@@ -1058,7 +1071,7 @@ habitFieldsView :
     Dict String String
     -> List Habit
     -> Maybe HabitId
-    -> PageLines
+    -> PageLines Msg
 habitFieldsView fields habits maybeHabit =
     let
         tagOption tag =
@@ -1151,6 +1164,7 @@ viewOptionsPage model screen =
                     ]
                 )
             , nLines = pageLines
+            , pageMsg = PageAction
             }
 
         pageState =
@@ -1218,6 +1232,7 @@ viewHabitSelectPage model screen =
                     ]
                 )
             , nLines = pageLines
+            , pageMsg = PageAction
             }
 
         pageState =
@@ -1238,7 +1253,7 @@ viewHabitSelectPage model screen =
     viewPage pageConfig pageState lines
 
 
-habitSelectLine : Maybe HabitId -> PartialHabit -> PageLine
+habitSelectLine : Maybe HabitId -> PartialHabit -> PageLine Msg
 habitSelectLine selected habit =
     ( emptyDiv
     , button
@@ -1332,7 +1347,7 @@ optionsDecoder =
     JD.map3 Options
         (JD.field "recent" Period.decoder)
         (JD.field "upcoming" Period.decoder)
-        (JD.succeed [])
+        (JD.field "seenModals" (JD.list modalDecoder))
 
 
 optionsEncoder : Options -> JE.Value
@@ -1340,151 +1355,56 @@ optionsEncoder options =
     JE.object
         [ ( "recent", Period.encode options.recent )
         , ( "upcoming", Period.encode options.upcoming )
+        , ( "seenModals", JE.list modalEncoder options.seenModals )
         ]
 
 
+modalEncoder : Modal -> JE.Value
+modalEncoder modal =
+    case modal of
+        NoModal ->
+            JE.int 0
 
--- Page view helpers
+        IntroModal ->
+            JE.int 1
 
+        FirstHabitModal ->
+            JE.int 2
 
-emptyDiv : Html Msg
-emptyDiv =
-    div [] []
+        AddingHabitModal ->
+            JE.int 3
 
+        DoHabitModal ->
+            JE.int 4
 
-pageLines : Int
-pageLines =
-    18
-
-
-type alias PageConfig =
-    { showOptions : Bool
-    , title : String
-    , footer : PageLine
-    , nLines : Int
-    }
-
-
-type alias PageState =
-    { pageNumber : Int
-    }
+        OpenOptionsModal ->
+            JE.int 5
 
 
-type alias PageLine =
-    ( Html Msg, Html Msg )
+modalDecoder : JD.Decoder Modal
+modalDecoder =
+    JD.int
+        |> JD.andThen
+            (\field ->
+                case field of
+                    1 ->
+                        JD.succeed IntroModal
 
+                    2 ->
+                        JD.succeed FirstHabitModal
 
-type alias PageLines =
-    List PageLine
+                    3 ->
+                        JD.succeed AddingHabitModal
 
+                    4 ->
+                        JD.succeed DoHabitModal
 
-cullPageLines : PageConfig -> PageState -> PageLines -> PageLines
-cullPageLines { nLines } { pageNumber } lines =
-    lines
-        |> List.drop (pageNumber * nLines)
-        |> List.take nLines
+                    5 ->
+                        JD.succeed OpenOptionsModal
 
-
-viewPageLine : PageLine -> Html Msg
-viewPageLine ( margin, content ) =
-    div
-        [ class "page-line" ]
-        [ div
-            [ class "margin" ]
-            [ margin ]
-        , div
-            [ class "line-content" ]
-            [ content ]
-        ]
-
-
-viewEmptyLine : Html Msg
-viewEmptyLine =
-    div
-        [ class "page-line" ]
-        [ div
-            [ class "margin" ]
-            [ emptyDiv ]
-        , div
-            [ class "line-content" ]
-            [ emptyDiv ]
-        ]
-
-
-viewPageLines : PageLines -> PageLine -> Html Msg
-viewPageLines lines footer =
-    div
-        [ class "page-lines" ]
-        (List.map viewPageLine
-            (lines
-                ++ [ footer ]
+                    _ ->
+                        JD.succeed NoModal
             )
-        )
-
-
-viewPageFooter : PageConfig -> PageState -> PageLines -> Html Msg
-viewPageFooter { nLines } { pageNumber } lines =
-    div
-        [ class "page-foot" ]
-        [ div
-            [ class "margin" ]
-            (if pageNumber > 0 then
-                [ button
-                    [ class "add-habit", onClick (ChangePage (pageNumber - 1)) ]
-                    [ text "<" ]
-                ]
-
-             else
-                []
-            )
-        , div
-            [ class "line-content" ]
-            (if List.length lines > nLines then
-                [ button
-                    [ class "add-habit", onClick (ChangePage (pageNumber + 1)) ]
-                    [ text ">" ]
-                ]
-
-             else
-                []
-            )
-        ]
-
-
-viewPage : PageConfig -> PageState -> PageLines -> Html Msg
-viewPage config state lines =
-    let
-        culledLines =
-            cullPageLines config state lines
-
-        nEmptyLines =
-            config.nLines - List.length culledLines
-    in
-    div
-        [ class "page" ]
-        [ div
-            [ class "page-head" ]
-            [ div
-                [ class "margin" ]
-                (if config.showOptions then
-                    [ button
-                        [ class "add-habit", onClick OpenEditOptions ]
-                        [ text "-" ]
-                    ]
-
-                 else
-                    []
-                )
-            , div
-                [ class "line-content" ]
-                [ text config.title ]
-            ]
-        , viewPageLines (cullPageLines config state lines) config.footer
-        , div
-            []
-            (List.range 1 nEmptyLines |> List.map (\i -> viewEmptyLine))
-        , viewPageFooter config state lines
-        ]
 
 
 

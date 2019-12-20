@@ -321,9 +321,9 @@ body {
 }
 
 .intro-modal {
-  padding: 1em 1em;
+  padding: 5em 1em;
   color: white;
-  max-width: 500px;
+  max-width: 300px;
 }
 
 .notvisible {
