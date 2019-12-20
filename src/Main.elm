@@ -614,7 +614,7 @@ update msg model =
                 Just id ->
                     let
                         newStore =
-                            addHabitDeltas model.habits model.time id screen.deltas
+                            addHabitDeltas model.habits (Period.minusFromPosix (Minutes 1) model.time) id screen.deltas
                                 |> applyDeltas model.habits
                     in
                     ( { model
@@ -1280,8 +1280,13 @@ habitSelectLine selected habit =
 
 isDueSoon : Model -> Habit -> Bool
 isDueSoon { time, options } habit =
+    isDue (addToPosix options.upcoming time) habit
+
+
+isDue : Posix -> Habit -> Bool
+isDue time habit =
     posixToMillis habit.nextDue
-        < posixToMillis (addToPosix options.upcoming time)
+        < posixToMillis time
 
 
 isRecentlyDone : Model -> Habit -> Bool
@@ -1296,8 +1301,11 @@ shouldBeMarkedAsDone model habit =
     if Habit.isBlocked habit then
         True
 
-    else
+    else if Period.toMillis habit.period > Period.toMillis model.options.upcoming then
         not (isDueSoon model habit)
+
+    else
+        not (isDue model.time habit)
 
 
 viewHabitFilter : Model -> Habit -> Bool

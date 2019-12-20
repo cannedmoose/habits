@@ -1,4 +1,4 @@
-module Period exposing (..)
+module Period exposing (Period(..), addS, addToPosix, decoder, encode, fromString, minusFromPosix, parse, periodParser, periodUnitParser, toMillis, toString)
 
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as Encode
@@ -117,8 +117,8 @@ periodUnitParser : Int -> Parser Period
 periodUnitParser amount =
     Parser.oneOf
         [ succeed (Weeks amount) |. Parser.oneOf [ Parser.token "week", Parser.token "weeks" ]
-        , succeed (Months amount) |. Parser.oneOf [ Parser.token "month", Parser.token "months" ]
         , succeed (Minutes amount) |. Parser.oneOf [ Parser.token "minute", Parser.token "minutes" ]
+        , succeed (Months amount) |. Parser.oneOf [ Parser.token "month", Parser.token "months" ]
         , succeed (Hours amount) |. Parser.oneOf [ Parser.token "hour", Parser.token "hours" ]
         , succeed (Days amount) |. Parser.oneOf [ Parser.token "day", Parser.token "days" ]
         ]
