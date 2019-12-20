@@ -24,4 +24,5 @@ release:
 	git merge $(BRANCH)
 	make clean
 	make elm.js
+	git commit -a -m "release"
 	git push
