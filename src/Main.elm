@@ -19,7 +19,7 @@ import Period exposing (Period(..), addToPosix, minusFromPosix)
 import Random
 import Random.Char
 import Random.String
-import Set exposing (..)
+import Set
 import Task
 import Time exposing (Posix, posixToMillis)
 
@@ -47,7 +47,7 @@ init flags =
 
         _ =
             case storage of
-                Err err ->
+                Err _ ->
                     ""
 
                 -- Debug.log "Decode error " err |> (\_ -> "")
@@ -128,6 +128,10 @@ defaultOptions =
     }
 
 
+
+-- Screens
+
+
 type Screen
     = HabitList HabitListScreen
     | EditHabit EditHabitScreen
@@ -188,18 +192,18 @@ type alias EditOptionsScreen =
     }
 
 
-type TransitionDirection
-    = TransitionIn
-    | TransitionOut
-
-
-type alias PageScreen a =
+type alias ScreenModel a =
     { a
         | time : Posix
         , habits : Dict HabitId Habit
         , options : Options
         , screen : Screen
     }
+
+
+type TransitionDirection
+    = TransitionIn
+    | TransitionOut
 
 
 type ScreenTransition
@@ -226,7 +230,7 @@ animationSubscription model =
 
 
 timeSubscription : Model -> Sub Msg
-timeSubscription model =
+timeSubscription _ =
     Time.every 1000 Tick
 
 
@@ -288,89 +292,6 @@ type Msg
     | PageAction PageMessage
     | DoClearData
     | DoToggleHelp
-
-
-afterModalModelUpdate : Modal -> Model -> Model
-afterModalModelUpdate modal model =
-    case ( model.screen, modal ) of
-        ( NoScreen, IntroModal ) ->
-            { model | screen = HabitList { page = 0 } } |> slideFromTopTransition NoScreen
-
-        ( _, _ ) ->
-            model
-
-
-afterTransitionModalUpdate : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-afterTransitionModalUpdate ( model, cmd ) =
-    let
-        options =
-            model.options
-    in
-    case model.screen of
-        HabitList _ ->
-            if not (List.member FirstHabitModal options.seenModals) then
-                ( { model | modal = FirstHabitModal, options = { options | seenModals = FirstHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
-
-            else if not (List.member DoHabitModal options.seenModals) && not (Dict.isEmpty model.habits) then
-                ( { model | modal = DoHabitModal, options = { options | seenModals = DoHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
-
-            else
-                ( model, cmd )
-
-        CreateHabit _ ->
-            if not (List.member AddingHabitModal options.seenModals) then
-                ( { model | modal = AddingHabitModal, options = { options | seenModals = AddingHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
-
-            else
-                ( model, cmd )
-
-        _ ->
-            ( model, cmd )
-
-
-afterDoHabitModalUpdate : Model -> Model
-afterDoHabitModalUpdate model =
-    let
-        options =
-            model.options
-    in
-    if not (List.member OpenOptionsModal options.seenModals) then
-        { model | modal = OpenOptionsModal, options = { options | seenModals = OpenOptionsModal :: options.seenModals } } |> modalInTransition
-
-    else
-        model
-
-
-habitToFields : Habit -> FormFields
-habitToFields habit =
-    let
-        blocker =
-            Habit.blockerId habit
-                |> Maybe.map (\id -> ( "block", id ))
-                |> Maybe.map List.singleton
-                |> Maybe.withDefault []
-    in
-    Dict.fromList
-        ([ ( "description", habit.description )
-         , ( "tag", habit.tag )
-         , ( "period", Period.toString habit.period )
-         ]
-            ++ blocker
-        )
-
-
-editHabitScreen : Model -> HabitId -> Maybe Screen
-editHabitScreen model habitId =
-    Dict.get habitId model.habits
-        |> Maybe.map
-            (\habit ->
-                EditHabit
-                    { habitId = habitId
-                    , parent = model.screen
-                    , deltas = []
-                    , fields = habitToFields habit
-                    }
-            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -435,7 +356,6 @@ update msg model =
             )
 
         ( _, ClearTransition ) ->
-            -- TODO CHECK FOR MODAL OPENING
             ( { model | screenTransition = Nothing }
             , Cmd.none
             )
@@ -738,6 +658,38 @@ update msg model =
             ( model, Cmd.none )
 
 
+habitToFields : Habit -> FormFields
+habitToFields habit =
+    let
+        blocker =
+            Habit.blockerId habit
+                |> Maybe.map (\id -> ( "block", id ))
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
+    in
+    Dict.fromList
+        ([ ( "description", habit.description )
+         , ( "tag", habit.tag )
+         , ( "period", Period.toString habit.period )
+         ]
+            ++ blocker
+        )
+
+
+editHabitScreen : Model -> HabitId -> Maybe Screen
+editHabitScreen model habitId =
+    Dict.get habitId model.habits
+        |> Maybe.map
+            (\habit ->
+                EditHabit
+                    { habitId = habitId
+                    , parent = model.screen
+                    , deltas = []
+                    , fields = habitToFields habit
+                    }
+            )
+
+
 updateHabitFormFields : HabitForm a -> String -> String -> HabitForm a
 updateHabitFormFields page field val =
     case field of
@@ -772,19 +724,55 @@ updateHabitFormFields page field val =
             page
 
 
-habitOrderer : PageScreen a -> Habit -> Int
-habitOrderer model habit =
-    if shouldBeMarkedAsDone model habit then
-        Maybe.withDefault model.time habit.lastDone
-            |> Time.posixToMillis
+afterModalModelUpdate : Modal -> Model -> Model
+afterModalModelUpdate modal model =
+    case ( model.screen, modal ) of
+        ( NoScreen, IntroModal ) ->
+            { model | screen = HabitList { page = 0 } } |> slideFromTopTransition NoScreen
+
+        ( _, _ ) ->
+            model
+
+
+afterTransitionModalUpdate : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+afterTransitionModalUpdate ( model, cmd ) =
+    let
+        options =
+            model.options
+    in
+    case model.screen of
+        HabitList _ ->
+            if not (List.member FirstHabitModal options.seenModals) then
+                ( { model | modal = FirstHabitModal, options = { options | seenModals = FirstHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
+
+            else if not (List.member DoHabitModal options.seenModals) && not (Dict.isEmpty model.habits) then
+                ( { model | modal = DoHabitModal, options = { options | seenModals = DoHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
+
+            else
+                ( model, cmd )
+
+        CreateHabit _ ->
+            if not (List.member AddingHabitModal options.seenModals) then
+                ( { model | modal = AddingHabitModal, options = { options | seenModals = AddingHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
+
+            else
+                ( model, cmd )
+
+        _ ->
+            ( model, cmd )
+
+
+afterDoHabitModalUpdate : Model -> Model
+afterDoHabitModalUpdate model =
+    let
+        options =
+            model.options
+    in
+    if not (List.member OpenOptionsModal options.seenModals) then
+        { model | modal = OpenOptionsModal, options = { options | seenModals = OpenOptionsModal :: options.seenModals } } |> modalInTransition
 
     else
-        -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
-
-
-visibleHabits : PageScreen a -> Dict HabitId Habit
-visibleHabits model =
-    Dict.filter (\_ v -> viewHabitFilter model v) model.habits
+        model
 
 
 
@@ -830,22 +818,17 @@ maybeViewTransition model =
                 [ class "static-page" ]
                 [ viewScreen model ]
 
-        Just transition ->
-            viewScreenTransition model transition
+        Just (ScreenTransition transition) ->
+            case transition.direction of
+                TransitionIn ->
+                    viewScreenTransition model model transition
+
+                TransitionOut ->
+                    viewScreenTransition model transition model
 
 
-viewScreenTransition : Model -> ScreenTransition -> Html Msg
-viewScreenTransition model (ScreenTransition transition) =
-    case transition.direction of
-        TransitionIn ->
-            viewScreenTransition2 model model transition
-
-        TransitionOut ->
-            viewScreenTransition2 model transition model
-
-
-viewScreenTransition2 : Model -> PageScreen a -> PageScreen b -> Html Msg
-viewScreenTransition2 model top bottom =
+viewScreenTransition : Model -> ScreenModel a -> ScreenModel b -> Html Msg
+viewScreenTransition model top bottom =
     div
         []
         [ div
@@ -859,7 +842,7 @@ viewScreenTransition2 model top bottom =
         ]
 
 
-viewScreen : PageScreen a -> Html Msg
+viewScreen : ScreenModel a -> Html Msg
 viewScreen model =
     case model.screen of
         HabitList habitList ->
@@ -881,49 +864,6 @@ viewScreen model =
             div [ class "notvisible" ] [ viewEmptyPage model ]
 
 
-viewModal : Model -> Html Msg
-viewModal model =
-    case model.modal of
-        NoModal ->
-            div [] []
-
-        IntroModal ->
-            div
-                [ class "intro-modal" ]
-                [ p [] [ text "habits is a way to keep track of repeating tasks." ]
-                , p [] [ text "It's like a todo list where things show up again a certain amount of time after you do them." ]
-                ]
-
-        FirstHabitModal ->
-            div
-                [ class "intro-modal" ]
-                [ p [] [ text "This is your due list, it's looking a little bare." ]
-                , p [] [ text "Add a habit with the + button." ]
-                ]
-
-        AddingHabitModal ->
-            div
-                [ class "intro-modal" ]
-                [ p [] [ text "A habit needs a name and a repeat period." ]
-                , p [] [ text "You can make the habit due after the last time you did it or after doing a different habit." ]
-                ]
-
-        DoHabitModal ->
-            div
-                [ class "intro-modal" ]
-                [ p [] [ text "That's looking better!" ]
-                , p [] [ text "Clicking a habit marks it as done, you can also edit habits by clicking the ..." ]
-                ]
-
-        OpenOptionsModal ->
-            div
-                [ class "intro-modal" ]
-                [ p [] [ text "🎉🎉🎉" ]
-                , p [] [ text "By defualt your list shows habits due within the next 12 hours or done within the last 12 hours." ]
-                , p [] [ text "You can access the view options by clicking the - button to change this." ]
-                ]
-
-
 
 -- HABITS VIEW
 
@@ -938,33 +878,36 @@ pageLines =
     18
 
 
-viewEmptyPage : PageScreen a -> Html Msg
-viewEmptyPage model =
+viewEmptyPage : ScreenModel a -> Html Msg
+viewEmptyPage _ =
     let
         pageConfig =
             { showOptions = False
             , title = ""
-            , footer =
-                ( emptyDiv
-                , emptyDiv
-                )
+            , footer = ( emptyDiv, emptyDiv )
             , nLines = pageLines
             , pageMsg = PageAction
             }
-
-        pageState =
-            { pageNumber = 0 }
-
-        { time, options, habits } =
-            model
-
-        lines =
-            []
     in
-    viewPage pageConfig pageState lines
+    viewPage pageConfig { pageNumber = 0 } []
 
 
-viewHabitsListPage : PageScreen a -> HabitListScreen -> Html Msg
+habitOrderer : ScreenModel a -> Habit -> Int
+habitOrderer model habit =
+    if shouldBeMarkedAsDone model habit then
+        Maybe.withDefault model.time habit.lastDone
+            |> Time.posixToMillis
+
+    else
+        -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
+
+
+visibleHabits : ScreenModel a -> Dict HabitId Habit
+visibleHabits model =
+    Dict.filter (\_ v -> viewHabitFilter model v) model.habits
+
+
+viewHabitsListPage : ScreenModel a -> HabitListScreen -> Html Msg
 viewHabitsListPage model habitListScreen =
     let
         pageConfig =
@@ -983,9 +926,6 @@ viewHabitsListPage model habitListScreen =
         pageState =
             { pageNumber = habitListScreen.page }
 
-        { time, options, habits } =
-            model
-
         lines =
             visibleHabits model
                 |> Dict.values
@@ -995,7 +935,7 @@ viewHabitsListPage model habitListScreen =
     viewPage pageConfig pageState lines
 
 
-habitViewLine : PageScreen a -> Habit -> PageLine Msg
+habitViewLine : ScreenModel a -> Habit -> PageLine Msg
 habitViewLine model habit =
     ( button
         [ class "habit-edit"
@@ -1027,7 +967,7 @@ habitViewLine model habit =
 -- EDIT VIEW
 
 
-viewEditingPage : PageScreen a -> EditHabitScreen -> Html Msg
+viewEditingPage : ScreenModel a -> EditHabitScreen -> Html Msg
 viewEditingPage model screen =
     let
         title =
@@ -1059,7 +999,7 @@ viewEditingPage model screen =
     viewPage pageConfig pageState lines
 
 
-editPagelines : PageScreen a -> EditHabitScreen -> PageLines Msg
+editPagelines : ScreenModel a -> EditHabitScreen -> PageLines Msg
 editPagelines model screen =
     habitFieldsView screen.fields (Dict.values model.habits) (Just screen.habitId)
 
@@ -1068,7 +1008,7 @@ editPagelines model screen =
 -- NEW VIEW
 
 
-viewNewPage : PageScreen a -> CreateHabitScreen -> Html Msg
+viewNewPage : ScreenModel a -> CreateHabitScreen -> Html Msg
 viewNewPage model screen =
     let
         pageConfig =
@@ -1095,18 +1035,18 @@ viewNewPage model screen =
     viewPage pageConfig pageState lines
 
 
-createPagelines : PageScreen a -> CreateHabitScreen -> PageLines Msg
+createPagelines : ScreenModel a -> CreateHabitScreen -> PageLines Msg
 createPagelines model screen =
     habitFieldsView screen.fields (Dict.values model.habits) Nothing
 
 
-getWithDefault : Dict String String -> String -> String -> String
+getWithDefault : FormFields -> String -> String -> String
 getWithDefault dict default key =
     Dict.get key dict |> Maybe.withDefault default
 
 
 habitFieldsView :
-    Dict String String
+    FormFields
     -> List Habit
     -> Maybe HabitId
     -> PageLines Msg
@@ -1187,7 +1127,7 @@ habitFieldsView fields habits maybeHabit =
 -- OPTIONS VIEW
 
 
-viewOptionsPage : PageScreen a -> EditOptionsScreen -> Html Msg
+viewOptionsPage : ScreenModel a -> EditOptionsScreen -> Html Msg
 viewOptionsPage model screen =
     let
         pageConfig =
@@ -1286,7 +1226,7 @@ periodOptionsView input for =
         (periodOptions periodUnit ++ periodOptions (periodUnit + 1))
 
 
-viewHabitSelectPage : PageScreen a -> SelectHabitScreen -> Html Msg
+viewHabitSelectPage : ScreenModel a -> SelectHabitScreen -> Html Msg
 viewHabitSelectPage model screen =
     let
         pageConfig =
@@ -1342,29 +1282,70 @@ habitSelectLine selected habit =
 
 
 
+-- Help Modals
+
+
+viewModal : Model -> Html Msg
+viewModal model =
+    case model.modal of
+        NoModal ->
+            div [] []
+
+        IntroModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "habits is a way to keep track of repeating tasks." ]
+                , p [] [ text "It's like a todo list where things show up again a certain amount of time after you do them." ]
+                ]
+
+        FirstHabitModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "This is your due list, it's looking a little bare." ]
+                , p [] [ text "Add a habit with the + button." ]
+                ]
+
+        AddingHabitModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "A habit needs a name and a repeat period." ]
+                , p [] [ text "You can make the habit due after the last time you did it or after doing a different habit." ]
+                ]
+
+        DoHabitModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "That's looking better!" ]
+                , p [] [ text "Clicking a habit marks it as done, you can also edit habits by clicking the ..." ]
+                ]
+
+        OpenOptionsModal ->
+            div
+                [ class "intro-modal" ]
+                [ p [] [ text "🎉🎉🎉" ]
+                , p [] [ text "By defualt your list shows habits due within the next 12 hours or done within the last 12 hours." ]
+                , p [] [ text "You can access the view options by clicking the - button to change this." ]
+                ]
+
+
+
 -- Due Helpers
 -- TODO move some of these into habit
 
 
-isDueSoon : PageScreen a -> Habit -> Bool
+isDueSoon : ScreenModel a -> Habit -> Bool
 isDueSoon { time, options } habit =
-    isDue (addToPosix options.upcoming time) habit
+    Habit.isDue (addToPosix options.upcoming time) habit
 
 
-isDue : Posix -> Habit -> Bool
-isDue time habit =
-    posixToMillis habit.nextDue
-        < posixToMillis time
-
-
-isRecentlyDone : PageScreen a -> Habit -> Bool
+isRecentlyDone : ScreenModel a -> Habit -> Bool
 isRecentlyDone { time, options } habit =
     habit.lastDone
         |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
         |> Maybe.withDefault False
 
 
-shouldBeMarkedAsDone : PageScreen a -> Habit -> Bool
+shouldBeMarkedAsDone : ScreenModel a -> Habit -> Bool
 shouldBeMarkedAsDone model habit =
     if Habit.isBlocked habit then
         True
@@ -1373,10 +1354,10 @@ shouldBeMarkedAsDone model habit =
         not (isDueSoon model habit)
 
     else
-        not (isDue model.time habit)
+        not (Habit.isDue model.time habit)
 
 
-viewHabitFilter : PageScreen a -> Habit -> Bool
+viewHabitFilter : ScreenModel a -> Habit -> Bool
 viewHabitFilter model habit =
     let
         due =
@@ -1537,8 +1518,6 @@ modalInTransition model =
 
 modalOutTransition : Model -> Model
 modalOutTransition model =
-    -- TODO we should really coordinate both animations and only
-    -- Clear once they're both done.
     { model
         | animations =
             Dict.update "modal-fg"

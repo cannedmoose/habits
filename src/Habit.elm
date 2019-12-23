@@ -1,9 +1,9 @@
-module Habit exposing (Block(..), Habit, HabitId, blockDecoder, blockJE, blockerId, doBlock, doUnblock, isBlocked, isBlocker)
+module Habit exposing (Block(..), Habit, HabitId, blockDecoder, blockJE, blockerId, doBlock, doUnblock, isBlocked, isBlocker, isDue)
 
 import Json.Decode as JD exposing (Decoder, field, string)
 import Json.Encode as JE
 import Period exposing (Period)
-import Time exposing (Posix)
+import Time exposing (Posix, posixToMillis)
 
 
 type alias Habit =
@@ -25,6 +25,12 @@ type alias HabitId =
 type Block
     = Blocker HabitId Bool
     | Unblocked
+
+
+isDue : Posix -> Habit -> Bool
+isDue time habit =
+    posixToMillis habit.nextDue
+        < posixToMillis time
 
 
 isBlocker : HabitId -> Habit -> Bool

@@ -11596,7 +11596,6 @@ var $author$project$Main$init = function (flags) {
 	var storage2 = A2($elm$core$Result$withDefault, $author$project$Main$defaultStorageModel, storage);
 	var _v0 = function () {
 		if (storage.$ === 'Err') {
-			var err = storage.a;
 			return '';
 		} else {
 			return '';
@@ -11964,7 +11963,7 @@ var $elm$time$Time$every = F2(
 		return $elm$time$Time$subscription(
 			A2($elm$time$Time$Every, interval, tagger));
 	});
-var $author$project$Main$timeSubscription = function (model) {
+var $author$project$Main$timeSubscription = function (_v0) {
 	return A2($elm$time$Time$every, 1000, $author$project$Main$Tick);
 };
 var $author$project$Main$subscriptions = function (model) {
@@ -15614,7 +15613,7 @@ var $author$project$Main$updateHabitFormFields = F3(
 				return page;
 		}
 	});
-var $author$project$Main$isDue = F2(
+var $author$project$Habit$isDue = F2(
 	function (time, habit) {
 		return _Utils_cmp(
 			$elm$time$Time$posixToMillis(habit.nextDue),
@@ -15625,7 +15624,7 @@ var $author$project$Main$isDueSoon = F2(
 		var time = _v0.time;
 		var options = _v0.options;
 		return A2(
-			$author$project$Main$isDue,
+			$author$project$Habit$isDue,
 			A2($author$project$Period$addToPosix, options.upcoming, time),
 			habit);
 	});
@@ -17373,8 +17372,7 @@ var $author$project$Main$viewEditingPage = F2(
 		var lines = A2($author$project$Main$editPagelines, model, screen);
 		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
-var $author$project$Main$viewEmptyPage = function (model) {
-	var pageState = {pageNumber: 0};
+var $author$project$Main$viewEmptyPage = function (_v0) {
 	var pageConfig = {
 		footer: _Utils_Tuple2($author$project$Main$emptyDiv, $author$project$Main$emptyDiv),
 		nLines: $author$project$Main$pageLines,
@@ -17382,12 +17380,11 @@ var $author$project$Main$viewEmptyPage = function (model) {
 		showOptions: false,
 		title: ''
 	};
-	var lines = _List_Nil;
-	var _v0 = model;
-	var time = _v0.time;
-	var options = _v0.options;
-	var habits = _v0.habits;
-	return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
+	return A3(
+		$author$project$Page$viewPage,
+		pageConfig,
+		{pageNumber: 0},
+		_List_Nil);
 };
 var $author$project$Main$DoSelectHabit = function (a) {
 	return {$: 'DoSelectHabit', a: a};
@@ -17494,7 +17491,7 @@ var $author$project$Main$shouldBeMarkedAsDone = F2(
 	function (model, habit) {
 		return $author$project$Habit$isBlocked(habit) ? true : ((_Utils_cmp(
 			$author$project$Period$toMillis(habit.period),
-			$author$project$Period$toMillis(model.options.upcoming)) > 0) ? (!A2($author$project$Main$isDueSoon, model, habit)) : (!A2($author$project$Main$isDue, model.time, habit)));
+			$author$project$Period$toMillis(model.options.upcoming)) > 0) ? (!A2($author$project$Main$isDueSoon, model, habit)) : (!A2($author$project$Habit$isDue, model.time, habit)));
 	});
 var $author$project$Main$habitOrderer = F2(
 	function (model, habit) {
@@ -17586,10 +17583,6 @@ var $author$project$Main$viewHabitsListPage = F2(
 				$author$project$Main$habitOrderer(model),
 				$elm$core$Dict$values(
 					$author$project$Main$visibleHabits(model))));
-		var _v0 = model;
-		var time = _v0.time;
-		var options = _v0.options;
-		var habits = _v0.habits;
 		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$createPagelines = F2(
@@ -17814,7 +17807,7 @@ var $author$project$Main$viewScreen = function (model) {
 					]));
 	}
 };
-var $author$project$Main$viewScreenTransition2 = F3(
+var $author$project$Main$viewScreenTransition = F3(
 	function (model, top, bottom) {
 		return A2(
 			$elm$html$Html$div,
@@ -17843,16 +17836,6 @@ var $author$project$Main$viewScreenTransition2 = F3(
 						]))
 				]));
 	});
-var $author$project$Main$viewScreenTransition = F2(
-	function (model, _v0) {
-		var transition = _v0.a;
-		var _v1 = transition.direction;
-		if (_v1.$ === 'TransitionIn') {
-			return A3($author$project$Main$viewScreenTransition2, model, model, transition);
-		} else {
-			return A3($author$project$Main$viewScreenTransition2, model, transition, model);
-		}
-	});
 var $author$project$Main$maybeViewTransition = function (model) {
 	var _v0 = model.screenTransition;
 	if (_v0.$ === 'Nothing') {
@@ -17867,8 +17850,13 @@ var $author$project$Main$maybeViewTransition = function (model) {
 					$author$project$Main$viewScreen(model)
 				]));
 	} else {
-		var transition = _v0.a;
-		return A2($author$project$Main$viewScreenTransition, model, transition);
+		var transition = _v0.a.a;
+		var _v1 = transition.direction;
+		if (_v1.$ === 'TransitionIn') {
+			return A3($author$project$Main$viewScreenTransition, model, model, transition);
+		} else {
+			return A3($author$project$Main$viewScreenTransition, model, transition, model);
+		}
 	}
 };
 var $author$project$Main$viewModal = function (model) {
