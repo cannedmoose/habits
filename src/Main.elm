@@ -523,25 +523,44 @@ update msg model =
 
         ( SelectHabit { parent }, DoSelectHabit maybeHabitId ) ->
             let
-                updateScreen screen =
-                    case maybeHabitId of
-                        Just habitId ->
-                            { screen
-                                | fields = Dict.insert "block" habitId screen.fields
-                                , deltas =
-                                    HabitStore.buildFieldChanges
-                                        screen.deltas
-                                        (HabitStore.BlockChange (Habit.Blocker habitId True))
-                            }
+                updatedFields fields =
+                    Dict.update "blocker" (\_ -> maybeHabitId) fields
 
-                        Nothing ->
-                            { screen
-                                | fields = Dict.remove "block" screen.fields
-                                , deltas =
-                                    HabitStore.buildFieldChanges
-                                        screen.deltas
-                                        (HabitStore.BlockChange Habit.Unblocked)
-                            }
+                isBlocked =
+                    case parent of
+                        EditHabit screen ->
+                            Dict.get screen.habitId model.habits
+                                |> Maybe.map .isBlocked
+                                |> Maybe.withDefault False
+
+                        CreateHabit _ ->
+                            True
+
+                        _ ->
+                            False
+
+                isBlockedDelta fields =
+                    case ( Dict.get "blocker" fields, maybeHabitId ) of
+                        ( Just _, Nothing ) ->
+                            HabitStore.IsBlockedChange False
+
+                        ( Just _, Just _ ) ->
+                            HabitStore.IsBlockedChange isBlocked
+
+                        ( Nothing, Just _ ) ->
+                            HabitStore.IsBlockedChange isBlocked
+
+                        ( _, _ ) ->
+                            HabitStore.IsBlockedChange False
+
+                updateScreen screen =
+                    { screen
+                        | fields = updatedFields screen.fields
+                        , deltas =
+                            screen.deltas
+                                |> HabitStore.buildFieldChanges (isBlockedDelta screen.fields)
+                                |> HabitStore.buildFieldChanges (HabitStore.BlockerChange maybeHabitId)
+                    }
             in
             ( case parent of
                 EditHabit screen ->
@@ -683,9 +702,7 @@ habitToFields : Habit -> FormFields
 habitToFields habit =
     let
         blocker =
-            Habit.blockerId habit
-                |> Maybe.map (\id -> ( "block", id ))
-                |> Maybe.map List.singleton
+            Maybe.map (\id -> [ ( "blocker", id ) ]) habit.blocker
                 |> Maybe.withDefault []
     in
     Dict.fromList
@@ -719,8 +736,8 @@ updateHabitFormFields page field val =
                 | fields = Dict.insert "description" val page.fields
                 , deltas =
                     HabitStore.buildFieldChanges
-                        page.deltas
                         (HabitStore.DescriptionChange val)
+                        page.deltas
             }
 
         "tag" ->
@@ -728,8 +745,8 @@ updateHabitFormFields page field val =
                 | fields = Dict.insert "tag" val page.fields
                 , deltas =
                     HabitStore.buildFieldChanges
-                        page.deltas
                         (HabitStore.TagChange val)
+                        page.deltas
             }
 
         "period" ->
@@ -737,8 +754,8 @@ updateHabitFormFields page field val =
                 | fields = Dict.insert "period" val page.fields
                 , deltas =
                     HabitStore.buildFieldChanges
-                        page.deltas
                         (HabitStore.PeriodChange (Period.parse val))
+                        page.deltas
             }
 
         _ ->
@@ -1123,7 +1140,7 @@ habitFieldsView forForm fields habits maybeHabit =
         -- TODO this should only change on blur of description field
         -- Should not be clickable if not filled out
         blockText =
-            case Dict.get "block" fields of
+            case Dict.get "blocker" fields of
                 Nothing ->
                     "last time"
 
@@ -1161,7 +1178,7 @@ habitFieldsView forForm fields habits maybeHabit =
             [ class "habit-button-select"
             , onClick
                 (OpenHabitSelect { id = maybeHabit, description = fieldGetter "description" }
-                    (Dict.get "block" fields)
+                    (Dict.get "blocker" fields)
                 )
             ]
             [ text blockText ]
@@ -1404,16 +1421,23 @@ isRecentlyDone { time, options } habit =
         |> Maybe.withDefault False
 
 
+isDoneWithin : Posix -> Period -> Habit -> Bool
+isDoneWithin time recent habit =
+    habit.lastDone
+        |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix recent time))
+        |> Maybe.withDefault False
+
+
 shouldBeMarkedAsDone : ScreenModel a -> Habit -> Bool
 shouldBeMarkedAsDone model habit =
-    if Habit.isBlocked habit then
+    if habit.isBlocked then
         True
 
     else if Period.toMillis habit.period > Period.toMillis model.options.upcoming then
         not (isDueSoon model habit)
 
     else
-        not (Habit.isDue model.time habit)
+        isDoneWithin model.time habit.period habit
 
 
 viewHabitFilter : ScreenModel a -> Habit -> Bool
@@ -1425,7 +1449,7 @@ viewHabitFilter model habit =
         recent =
             isRecentlyDone model habit
     in
-    if Habit.isBlocked habit then
+    if habit.isBlocked then
         recent
 
     else

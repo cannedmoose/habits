@@ -30,7 +30,8 @@ type HabitFieldChange
     | LastDoneChange Posix
     | NextDueChange Posix
     | DoneCountChange Int
-    | BlockChange Habit.Block
+    | IsBlockedChange Bool
+    | BlockerChange (Maybe HabitId)
 
 
 type HabitDelta
@@ -48,7 +49,7 @@ doHabitDeltas : Dict HabitId Habit -> Posix -> Habit -> List HabitDelta
 doHabitDeltas store time habit =
     let
         blockedHabits =
-            Dict.filter (\_ h -> Habit.isBlocker habit.id h && Habit.isBlocked h) store
+            Dict.filter (\_ h -> (h.blocker == Just habit.id) && h.isBlocked) store
                 |> Dict.toList
     in
     [ Group time ("do " ++ habit.id)
@@ -57,13 +58,18 @@ doHabitDeltas store time habit =
     , ChangeHabit habit.id (LastDoneChange time)
     , ChangeHabit habit.id (NextDueChange (Period.addToPosix habit.period time))
     , ChangeHabit habit.id (DoneCountChange (habit.doneCount + 1))
-    , ChangeHabit habit.id (BlockChange (Habit.doBlock habit.block))
-
-    -- Update Blocked habits
     ]
+        ++ (if habit.blocker /= Nothing then
+                [ ChangeHabit habit.id (IsBlockedChange True)
+                ]
+
+            else
+                []
+           )
+        -- Update Blocked habits
         ++ List.concatMap
             (\( hid, h ) ->
-                [ ChangeHabit hid (BlockChange (Habit.Blocker habit.id False))
+                [ ChangeHabit hid (IsBlockedChange False)
                 , ChangeHabit hid (NextDueChange (Period.addToPosix h.period time))
                 ]
             )
@@ -74,7 +80,7 @@ deleteHabitDeltas : Dict HabitId Habit -> Posix -> Habit.HabitId -> List HabitDe
 deleteHabitDeltas store time habitId =
     let
         blockedHabits =
-            Dict.filter (\k h -> Habit.isBlocker habitId h) store
+            Dict.filter (\_ h -> h.blocker == Just habitId) store
                 |> Dict.keys
     in
     [ Group time ("delete " ++ habitId)
@@ -85,12 +91,12 @@ deleteHabitDeltas store time habitId =
     -- Update Blocked habits
     ]
         ++ List.map
-            (\hid -> ChangeHabit hid (BlockChange Habit.Unblocked))
+            (\hid -> ChangeHabit hid (BlockerChange Nothing))
             blockedHabits
 
 
 editHabitDeltas : Dict HabitId Habit -> Posix -> Habit.HabitId -> List HabitFieldChange -> List HabitDelta
-editHabitDeltas store time habitId changes =
+editHabitDeltas _ time habitId changes =
     let
         changeDeltas =
             List.map (ChangeHabit habitId) changes
@@ -100,7 +106,7 @@ editHabitDeltas store time habitId changes =
 
 
 addHabitDeltas : Dict HabitId Habit -> Posix -> Habit.HabitId -> List HabitFieldChange -> List HabitDelta
-addHabitDeltas store time habitId changes =
+addHabitDeltas _ time habitId changes =
     let
         changeDeltas =
             List.map (ChangeHabit habitId) changes
@@ -114,8 +120,8 @@ addHabitDeltas store time habitId changes =
         ]
 
 
-buildFieldChanges : List HabitFieldChange -> HabitFieldChange -> List HabitFieldChange
-buildFieldChanges deltas delta =
+buildFieldChanges : HabitFieldChange -> List HabitFieldChange -> List HabitFieldChange
+buildFieldChanges delta deltas =
     {- Add a field change to a list replacing existing field chang if one exists -}
     case ( deltas, delta ) of
         ( (DescriptionChange _) :: xs, DescriptionChange _ ) ->
@@ -133,30 +139,28 @@ buildFieldChanges deltas delta =
         ( (DoneCountChange _) :: xs, DoneCountChange _ ) ->
             delta :: xs
 
-        ( (BlockChange _) :: xs, BlockChange _ ) ->
+        ( (BlockerChange _) :: xs, BlockerChange _ ) ->
+            delta :: xs
+
+        ( (IsBlockedChange _) :: xs, IsBlockedChange _ ) ->
             delta :: xs
 
         ( [], _ ) ->
             [ delta ]
 
         ( d :: xs, _ ) ->
-            d :: buildFieldChanges xs delta
+            d :: buildFieldChanges delta xs
 
 
 deltasFromHabit : HabitId -> Habit -> List HabitDelta
 deltasFromHabit id habit =
-    let
-        empty =
-            emptyHabit id
-
-        -- , ChangeHabit id (LastDoneChange habit.lastDone)
-    in
     [ AddHabit id
     , ChangeHabit id (DescriptionChange habit.description)
     , ChangeHabit id (TagChange habit.tag)
     , ChangeHabit id (NextDueChange habit.nextDue)
     , ChangeHabit id (DoneCountChange habit.doneCount)
-    , ChangeHabit id (BlockChange habit.block)
+    , ChangeHabit id (BlockerChange habit.blocker)
+    , ChangeHabit id (IsBlockedChange habit.isBlocked)
     , ChangeHabit id (PeriodChange habit.period)
     ]
         ++ (case habit.lastDone of
@@ -200,7 +204,7 @@ applyDelta delta store =
         ChangeHabit id change ->
             Dict.update id (applyFieldChange change) store
 
-        Group time _ ->
+        Group _ _ ->
             store
 
 
@@ -213,7 +217,8 @@ emptyHabit id =
     , lastDone = Nothing
     , nextDue = Time.millisToPosix 0
     , doneCount = 0
-    , block = Habit.Unblocked
+    , blocker = Nothing
+    , isBlocked = False
     }
 
 
@@ -235,8 +240,11 @@ applyFieldChange change maybeHabit =
         ( Just habit, DoneCountChange c ) ->
             Just { habit | doneCount = c }
 
-        ( Just habit, BlockChange c ) ->
-            Just { habit | block = c }
+        ( Just habit, BlockerChange c ) ->
+            Just { habit | blocker = c }
+
+        ( Just habit, IsBlockedChange c ) ->
+            Just { habit | isBlocked = c }
 
         ( Just habit, PeriodChange c ) ->
             Just { habit | period = c }
@@ -312,7 +320,10 @@ fieldChangeDecoder =
                         JD.map PeriodChange (JD.field "val" Period.decoder)
 
                     6 ->
-                        JD.map BlockChange (JD.field "val" Habit.blockDecoder)
+                        JD.map BlockerChange (JD.field "val" (JD.nullable JD.string))
+
+                    7 ->
+                        JD.map IsBlockedChange (JD.field "val" JD.bool)
 
                     x ->
                         JD.fail ("Unknown field type " ++ String.fromInt x)
@@ -366,8 +377,21 @@ fieldChangeEncode change =
         PeriodChange c ->
             JE.object [ ( "type", JE.int 5 ), ( "val", Period.encode c ) ]
 
-        BlockChange c ->
-            JE.object [ ( "type", JE.int 6 ), ( "val", Habit.blockJE c ) ]
+        BlockerChange c ->
+            JE.object
+                [ ( "type", JE.int 6 )
+                , ( "val"
+                  , case c of
+                        Nothing ->
+                            JE.null
+
+                        Just id ->
+                            JE.string id
+                  )
+                ]
+
+        IsBlockedChange c ->
+            JE.object [ ( "type", JE.int 7 ), ( "val", JE.bool c ) ]
 
 
 posixEncode : Posix -> JE.Value
