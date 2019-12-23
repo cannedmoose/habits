@@ -305,9 +305,18 @@ update msg model =
                 updatedModel =
                     { model | time = time }
 
+                oldVisible =
+                    visibleHabits model
+                        |> Dict.values
+                        |> List.sortBy (habitOrderer model)
+
+                newVisible =
+                    visibleHabits updatedModel
+                        |> Dict.values
+                        |> List.sortBy (habitOrderer model)
+
                 shouldFade =
-                    -- TODO this should be based on order as well...
-                    visibleHabits updatedModel /= visibleHabits model
+                    oldVisible /= newVisible
             in
             ( if shouldFade then
                 fadeTransition model |> (\m -> { m | time = time })
@@ -1000,6 +1009,11 @@ habitViewLine model habit =
 -- EDIT VIEW
 
 
+onClickNoDefault : msg -> Html.Attribute msg
+onClickNoDefault message =
+    Html.Events.custom "click" (JD.succeed { message = message, stopPropagation = True, preventDefault = True })
+
+
 viewEditingPage : ScreenModel a -> EditHabitScreen -> Html Msg
 viewEditingPage model screen =
     let
@@ -1011,10 +1025,14 @@ viewEditingPage model screen =
             { showOptions = False
             , title = "edit \"" ++ title ++ "\""
             , footer =
-                ( emptyDiv
+                ( Html.form [ id "editForm" ] []
                 , div
                     [ class "button-line" ]
-                    [ button [ onClick DoEditHabit ] [ text "Save" ]
+                    [ button
+                        [ onClickNoDefault DoEditHabit
+                        , Html.Attributes.form "editForm"
+                        ]
+                        [ text "Save" ]
                     , button [ onClick DoDeleteHabit ] [ text "Delete" ]
                     , button [ onClick Cancel ] [ text "Cancel" ]
                     ]
@@ -1034,7 +1052,7 @@ viewEditingPage model screen =
 
 editPagelines : ScreenModel a -> EditHabitScreen -> PageLines Msg
 editPagelines model screen =
-    habitFieldsView screen.fields (Dict.values model.habits) (Just screen.habitId)
+    habitFieldsView "editForm" screen.fields (Dict.values model.habits) (Just screen.habitId)
 
 
 
@@ -1048,10 +1066,14 @@ viewNewPage model screen =
             { showOptions = False
             , title = "new habit"
             , footer =
-                ( emptyDiv
+                ( Html.form [ id "createForm" ] []
                 , div
                     [ class "button-line" ]
-                    [ button [ onClick (DoCreateHabit Nothing) ] [ text "Create" ]
+                    [ button
+                        [ onClickNoDefault (DoCreateHabit Nothing)
+                        , Html.Attributes.form "createForm"
+                        ]
+                        [ text "Create" ]
                     , button [ onClick Cancel ] [ text "Cancel" ]
                     ]
                 )
@@ -1070,7 +1092,7 @@ viewNewPage model screen =
 
 createPagelines : ScreenModel a -> CreateHabitScreen -> PageLines Msg
 createPagelines model screen =
-    habitFieldsView screen.fields (Dict.values model.habits) Nothing
+    habitFieldsView "createForm" screen.fields (Dict.values model.habits) Nothing
 
 
 getWithDefault : FormFields -> String -> String -> String
@@ -1079,11 +1101,12 @@ getWithDefault dict default key =
 
 
 habitFieldsView :
-    FormFields
+    String
+    -> FormFields
     -> List Habit
     -> Maybe HabitId
     -> PageLines Msg
-habitFieldsView fields habits maybeHabit =
+habitFieldsView forForm fields habits maybeHabit =
     let
         tagOption tag =
             option [ value tag ] [ text tag ]
@@ -1116,6 +1139,7 @@ habitFieldsView fields habits maybeHabit =
             [ placeholder "Do Something"
             , value (fieldGetter "description")
             , onInput (ChangeFormField "description")
+            , Html.Attributes.form forForm
             ]
             []
       )
@@ -1127,6 +1151,7 @@ habitFieldsView fields habits maybeHabit =
             , value (fieldGetter "period")
             , list "period-list"
             , onInput (ChangeFormField "period")
+            , Html.Attributes.form forForm
             ]
             []
       )
@@ -1150,6 +1175,7 @@ habitFieldsView fields habits maybeHabit =
             , value (fieldGetter "tag")
             , list "tag-list"
             , onInput (ChangeFormField "tag")
+            , Html.Attributes.form forForm
             ]
             []
       )

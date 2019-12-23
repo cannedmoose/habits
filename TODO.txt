@@ -1,18 +1,8 @@
-P1 Version number in options menu (to see what release we're at)
-
-P1 add fade for lines (maybe)
-  Should fade when done clicked even if not changing location so there's some visual feedback
-
-P1 page animation finishing, inputs lose focus (should refocus on top input?)
-
-P1 add help button to menu 
-
 P1 Add manifest for offline support
 
-P2 Keyboard support
-  Esc -> cancel button equiv
-  Enter -> save button equiv
-  Tab -> Next field
+P1 Version number in options menu (to see what release we're at)
+
+P2 Esc -> cancel button equiv
 
 P2 Add error modal
   P2 Expose decode failure as an error
