@@ -306,6 +306,7 @@ update msg model =
                     { model | time = time }
 
                 shouldFade =
+                    -- TODO this should be based on order as well...
                     visibleHabits updatedModel /= visibleHabits model
             in
             ( if shouldFade then
