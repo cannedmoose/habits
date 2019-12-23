@@ -740,7 +740,7 @@ afterModalModelUpdate : Modal -> Model -> Model
 afterModalModelUpdate modal model =
     case ( model.screen, modal ) of
         ( NoScreen, IntroModal ) ->
-            { model | screen = HabitList { page = 0 } } |> slideFromTopTransition NoScreen
+            slideFromTopTransition (HabitList { page = 0 }) model
 
         ( _, _ ) ->
             model
@@ -755,17 +755,38 @@ afterTransitionModalUpdate ( model, cmd ) =
     case model.screen of
         HabitList _ ->
             if not (List.member FirstHabitModal options.seenModals) then
-                ( { model | modal = FirstHabitModal, options = { options | seenModals = FirstHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
+                ( { model
+                    | modal = FirstHabitModal
+                    , options = { options | seenModals = FirstHabitModal :: options.seenModals }
+                  }
+                    |> modalInTransition
+                , cmd
+                )
+                    |> storeModel
 
             else if not (List.member DoHabitModal options.seenModals) && not (Dict.isEmpty model.habits) then
-                ( { model | modal = DoHabitModal, options = { options | seenModals = DoHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
+                ( { model
+                    | modal = DoHabitModal
+                    , options = { options | seenModals = DoHabitModal :: options.seenModals }
+                  }
+                    |> modalInTransition
+                , cmd
+                )
+                    |> storeModel
 
             else
                 ( model, cmd )
 
         CreateHabit _ ->
             if not (List.member AddingHabitModal options.seenModals) then
-                ( { model | modal = AddingHabitModal, options = { options | seenModals = AddingHabitModal :: options.seenModals } } |> modalInTransition, cmd ) |> storeModel
+                ( { model
+                    | modal = AddingHabitModal
+                    , options = { options | seenModals = AddingHabitModal :: options.seenModals }
+                  }
+                    |> modalInTransition
+                , cmd
+                )
+                    |> storeModel
 
             else
                 ( model, cmd )

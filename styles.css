@@ -320,6 +320,8 @@ body {
   z-index: 5;
 
   background-color: rgba(0, 0, 0, 0.85);
+
+  user-select: none;
 }
 
 .intro-modal {
