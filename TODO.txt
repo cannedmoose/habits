@@ -1,3 +1,5 @@
+P1 Make an interface for telling if a task is blocked and setting blocked
+
 P1 Add manifest for offline support
 
 P1 Version number in options menu (to see what release we're at)
@@ -10,8 +12,6 @@ P2 Add error modal
   P2 Expose invalid period as error/change to valid on blur
 
 P2 Online sync
-
-P2 Pause
 
 P2 More styling - need to come up with style guide...
 
