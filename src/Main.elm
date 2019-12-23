@@ -138,7 +138,12 @@ type Screen
     | CreateHabit CreateHabitScreen
     | SelectHabit SelectHabitScreen
     | EditOptions EditOptionsScreen
+    | ManageHabits ManageHabitsScreen
     | NoScreen
+
+
+type alias ManageHabitsScreen =
+    { page : Int, parent : Screen }
 
 
 type alias HabitListScreen =
@@ -292,6 +297,7 @@ type Msg
     | PageAction PageMessage
     | DoClearData
     | DoToggleHelp
+    | OpenManageHabits
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -360,6 +366,9 @@ update msg model =
 
                         SelectHabit { parent } ->
                             parent
+
+                        ManageHabits { parent } ->
+                            parent
             in
             ( flipOffRight prev model
             , Cmd.none
@@ -414,8 +423,19 @@ update msg model =
         ( _, OpenHabitCreate ) ->
             ( slideFromTopTransition
                 (CreateHabit
-                    { fields = habitToFields (HabitStore.emptyHabit "")
+                    { fields = habitToFields model (HabitStore.emptyHabit "")
                     , deltas = []
+                    , parent = model.screen
+                    }
+                )
+                model
+            , Cmd.none
+            )
+
+        ( _, OpenManageHabits ) ->
+            ( flipOn
+                (ManageHabits
+                    { page = 0
                     , parent = model.screen
                     }
                 )
@@ -617,12 +637,12 @@ update msg model =
                 |> storeModel
 
         ( EditHabit page, ChangeFormField field val ) ->
-            ( { model | screen = EditHabit (updateHabitFormFields page field val) }
+            ( { model | screen = EditHabit (updateHabitFormFields model page field val) }
             , Cmd.none
             )
 
         ( CreateHabit page, ChangeFormField field val ) ->
-            ( { model | screen = CreateHabit (updateHabitFormFields page field val) }
+            ( { model | screen = CreateHabit (updateHabitFormFields model page field val) }
             , Cmd.none
             )
 
@@ -698,8 +718,8 @@ update msg model =
             ( model, Cmd.none )
 
 
-habitToFields : Habit -> FormFields
-habitToFields habit =
+habitToFields : Model -> Habit -> FormFields
+habitToFields model habit =
     let
         blocker =
             Maybe.map (\id -> [ ( "blocker", id ) ]) habit.blocker
@@ -709,6 +729,7 @@ habitToFields habit =
         ([ ( "description", habit.description )
          , ( "tag", habit.tag )
          , ( "period", Period.toString habit.period )
+         , ( "due", Period.toString (Period.fromDelta model.time habit.nextDue) )
          ]
             ++ blocker
         )
@@ -723,13 +744,13 @@ editHabitScreen model habitId =
                     { habitId = habitId
                     , parent = model.screen
                     , deltas = []
-                    , fields = habitToFields habit
+                    , fields = habitToFields model habit
                     }
             )
 
 
-updateHabitFormFields : HabitForm a -> String -> String -> HabitForm a
-updateHabitFormFields page field val =
+updateHabitFormFields : Model -> HabitForm a -> String -> String -> HabitForm a
+updateHabitFormFields model page field val =
     case field of
         "description" ->
             { page
@@ -755,6 +776,15 @@ updateHabitFormFields page field val =
                 , deltas =
                     HabitStore.buildFieldChanges
                         (HabitStore.PeriodChange (Period.parse val))
+                        page.deltas
+            }
+
+        "due" ->
+            { page
+                | fields = Dict.insert "due" val page.fields
+                , deltas =
+                    HabitStore.buildFieldChanges
+                        (HabitStore.NextDueChange (Period.addToPosix (Period.parse val) model.time))
                         page.deltas
             }
 
@@ -919,6 +949,9 @@ viewScreen model =
         SelectHabit habitSelect ->
             viewHabitSelectPage model habitSelect
 
+        ManageHabits manageHabits ->
+            viewManageHabits model manageHabits
+
         NoScreen ->
             div [ class "notvisible" ] [ viewEmptyPage model ]
 
@@ -1042,7 +1075,7 @@ viewEditingPage model screen =
             { showOptions = False
             , title = "edit \"" ++ title ++ "\""
             , footer =
-                ( Html.form [ id "editForm" ] []
+                ( emptyDiv
                 , div
                     [ class "button-line" ]
                     [ button
@@ -1161,7 +1194,7 @@ habitFieldsView forForm fields habits maybeHabit =
             []
       )
     , ( emptyDiv, label [] [ text "every" ] )
-    , ( periodOptionsView (fieldGetter "period") "period-list"
+    , ( periodOptionsView False (fieldGetter "period") "period-list"
       , input
             -- TODO Select entire description when clicked
             [ placeholder "Day"
@@ -1196,6 +1229,17 @@ habitFieldsView forForm fields habits maybeHabit =
             ]
             []
       )
+    , ( emptyDiv, label [] [ text "Due" ] )
+    , ( periodOptionsView True (fieldGetter "due") "due-list"
+      , input
+            [ placeholder "Now"
+            , value (fieldGetter "due")
+            , list "due-list"
+            , onInput (ChangeFormField "due")
+            , Html.Attributes.form forForm
+            ]
+            []
+      )
     ]
 
 
@@ -1225,13 +1269,13 @@ viewOptionsPage model screen =
 
         lines =
             [ ( emptyDiv, label [] [ text "Show upcoming" ] )
-            , ( periodOptionsView screen.upcoming "upcoming-list"
+            , ( periodOptionsView False screen.upcoming "upcoming-list"
               , input
                     [ value screen.upcoming, list "upcoming-list", onInput (ChangeFormField "upcoming") ]
                     []
               )
             , ( emptyDiv, label [] [ text "Show recently done" ] )
-            , ( periodOptionsView screen.recent "recent-list"
+            , ( periodOptionsView False screen.recent "recent-list"
               , input
                     [ value screen.recent, list "recent-list", onInput (ChangeFormField "recent") ]
                     []
@@ -1241,6 +1285,14 @@ viewOptionsPage model screen =
                     [ class "button-line" ]
                     [ button [ onClick DoSaveOptions ] [ text "Save" ]
                     , button [ onClick Cancel ] [ text "Cancel" ]
+                    ]
+              )
+            , ( emptyDiv, emptyDiv )
+            , ( emptyDiv, emptyDiv )
+            , ( emptyDiv
+              , div
+                    [ class "button-line" ]
+                    [ button [ onClick OpenManageHabits ] [ text "Manage Habits" ]
                     ]
               )
             , ( emptyDiv, emptyDiv )
@@ -1259,8 +1311,6 @@ viewOptionsPage model screen =
                         ]
                     ]
               )
-            , ( emptyDiv, emptyDiv )
-            , ( emptyDiv, emptyDiv )
             , ( emptyDiv
               , div
                     [ class "button-line" ]
@@ -1276,8 +1326,8 @@ viewOptionsPage model screen =
 -- Other helpers
 
 
-periodOptionsView : String -> String -> Html Msg
-periodOptionsView input for =
+periodOptionsView : Bool -> String -> String -> Html Msg
+periodOptionsView showNow input for =
     let
         periodUnit =
             Result.withDefault
@@ -1299,7 +1349,15 @@ periodOptionsView input for =
     in
     datalist
         [ id for ]
-        (periodOptions periodUnit ++ periodOptions (periodUnit + 1))
+        (periodOptions periodUnit
+            ++ periodOptions (periodUnit + 1)
+            ++ (if showNow then
+                    [ periodOption Immediate ]
+
+                else
+                    []
+               )
+        )
 
 
 viewHabitSelectPage : ScreenModel a -> SelectHabitScreen -> Html Msg
@@ -1352,6 +1410,51 @@ habitSelectLine selected habit =
               else
                 class "not-selected"
             ]
+            [ text habit.description ]
+        ]
+    )
+
+
+viewManageHabits : ScreenModel a -> ManageHabitsScreen -> Html Msg
+viewManageHabits model screen =
+    let
+        pageConfig =
+            { showOptions = False
+            , title = "manage habits"
+            , footer =
+                ( emptyDiv
+                , div
+                    [ class "button-line" ]
+                    [ button [ onClick Cancel ] [ text "Close" ]
+                    ]
+                )
+            , nLines = pageLines
+            , pageMsg = PageAction
+            }
+
+        pageState =
+            { pageNumber = screen.page }
+
+        { habits } =
+            model
+
+        lines =
+            Dict.values habits
+                |> List.sortBy .description
+                |> List.map manageHabitsLine
+    in
+    viewPage pageConfig pageState lines
+
+
+manageHabitsLine : Habit -> PageLine Msg
+manageHabitsLine habit =
+    ( emptyDiv
+    , button
+        [ class "habit-button"
+        , onClick (OpenHabitEdit habit.id)
+        ]
+        [ span
+            [ class "habit-description" ]
             [ text habit.description ]
         ]
     )
@@ -1579,6 +1682,13 @@ slideEase2 =
         }
 
 
+fadeEase =
+    Animation.easing
+        { duration = 1500
+        , ease = Ease.outExpo
+        }
+
+
 modalInTransition : Model -> Model
 modalInTransition model =
     { model
@@ -1641,7 +1751,7 @@ fadeTransition model =
         , animations =
             Dict.insert "page-transition"
                 (Animation.interrupt
-                    [ Animation.to [ Animation.opacity 1 ]
+                    [ Animation.toWith fadeEase [ Animation.opacity 1 ]
                     , Animation.Messenger.send ClearTransition
                     ]
                     (Animation.style
