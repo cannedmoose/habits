@@ -18,17 +18,6 @@ serve:
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-.PHONY : tester
-tester:
-	echo $(BRANCH)
-	git checkout master
-	echo $(BRANCH)
-	
-.PHONY : tester2
-tester2:
-	git checkout master
-	echo $(BRANCH)
-
 .PHONY: release
 release:
 	git checkout master
