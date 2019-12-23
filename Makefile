@@ -20,9 +20,9 @@ BRANCH := $(git rev-parse --abbrev-ref HEAD)
 
 .PHONY : tester
 tester:
-	echo $(BRANCH)
+	$(BRANCH)
 	git checkout master
-	echo $(BRANCH)
+	$(BRANCH)
 	
 .PHONY : tester2
 tester2:
