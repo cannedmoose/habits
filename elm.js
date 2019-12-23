@@ -12880,12 +12880,17 @@ var $mdgriffith$elm_style_animation$Animation$top = function (_v0) {
 		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
 };
 var $author$project$Main$slideFromTopTransition = F2(
-	function (previous, model) {
-		var _v0 = model.pageElement;
-		if (_v0.$ === 'Nothing') {
+	function (newScreen, model) {
+		var _v0 = model;
+		var habits = _v0.habits;
+		var time = _v0.time;
+		var screen = _v0.screen;
+		var options = _v0.options;
+		var _v1 = model.pageElement;
+		if (_v1.$ === 'Nothing') {
 			return model;
 		} else {
-			var el = _v0.a;
+			var el = _v1.a;
 			var top = (-1) * (el.element.y + el.element.height);
 			return _Utils_update(
 				model,
@@ -12914,9 +12919,10 @@ var $author$project$Main$slideFromTopTransition = F2(
 										$mdgriffith$elm_style_animation$Animation$px(top))
 									]))),
 						model.animations),
+					screen: newScreen,
 					screenTransition: $elm$core$Maybe$Just(
 						$author$project$Main$ScreenTransition(
-							{direction: $author$project$Main$TransitionIn, previous: previous}))
+							{direction: $author$project$Main$TransitionIn, habits: habits, options: options, screen: screen, time: time}))
 				});
 		}
 	});
@@ -13687,6 +13693,49 @@ var $author$project$Main$editHabitScreen = F2(
 			},
 			A2($elm$core$Dict$get, habitId, model.habits));
 	});
+var $mdgriffith$elm_style_animation$Animation$Model$To = function (a) {
+	return {$: 'To', a: a};
+};
+var $mdgriffith$elm_style_animation$Animation$to = function (props) {
+	return $mdgriffith$elm_style_animation$Animation$Model$To(props);
+};
+var $author$project$Main$fadeTransition = function (model) {
+	var _v0 = model;
+	var habits = _v0.habits;
+	var time = _v0.time;
+	var screen = _v0.screen;
+	var options = _v0.options;
+	return _Utils_update(
+		model,
+		{
+			animations: A3(
+				$elm$core$Dict$insert,
+				'page-transition',
+				A2(
+					$mdgriffith$elm_style_animation$Animation$interrupt,
+					_List_fromArray(
+						[
+							$mdgriffith$elm_style_animation$Animation$to(
+							_List_fromArray(
+								[
+									$mdgriffith$elm_style_animation$Animation$opacity(1)
+								])),
+							$mdgriffith$elm_style_animation$Animation$Messenger$send($author$project$Main$ClearTransition)
+						]),
+					$mdgriffith$elm_style_animation$Animation$style(
+						_List_fromArray(
+							[
+								$mdgriffith$elm_style_animation$Animation$opacity(0),
+								$mdgriffith$elm_style_animation$Animation$top(
+								$mdgriffith$elm_style_animation$Animation$px(0))
+							]))),
+				model.animations),
+			screen: model.screen,
+			screenTransition: $elm$core$Maybe$Just(
+				$author$project$Main$ScreenTransition(
+					{direction: $author$project$Main$TransitionIn, habits: habits, options: options, screen: screen, time: time}))
+		});
+};
 var $author$project$Main$TransitionOut = {$: 'TransitionOut'};
 var $mdgriffith$elm_style_animation$Animation$exactly = F2(
 	function (name, value) {
@@ -13708,12 +13757,17 @@ var $mdgriffith$elm_style_animation$Animation$set = function (props) {
 	return $mdgriffith$elm_style_animation$Animation$Model$Set(props);
 };
 var $author$project$Main$flipOffRight = F2(
-	function (previous, model) {
-		var _v0 = model.pageElement;
-		if (_v0.$ === 'Nothing') {
+	function (newScreen, model) {
+		var _v0 = model;
+		var habits = _v0.habits;
+		var time = _v0.time;
+		var screen = _v0.screen;
+		var options = _v0.options;
+		var _v1 = model.pageElement;
+		if (_v1.$ === 'Nothing') {
 			return model;
 		} else {
-			var el = _v0.a;
+			var el = _v1.a;
 			var left = el.element.width;
 			return _Utils_update(
 				model,
@@ -13758,9 +13812,10 @@ var $author$project$Main$flipOffRight = F2(
 										A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '2')
 									]))),
 						model.animations),
+					screen: newScreen,
 					screenTransition: $elm$core$Maybe$Just(
 						$author$project$Main$ScreenTransition(
-							{direction: $author$project$Main$TransitionOut, previous: previous}))
+							{direction: $author$project$Main$TransitionOut, habits: habits, options: options, screen: screen, time: time}))
 				});
 		}
 	});
@@ -13774,12 +13829,17 @@ var $mdgriffith$elm_style_animation$Animation$right = function (_v0) {
 		$mdgriffith$elm_style_animation$Animation$lengthUnitName(len));
 };
 var $author$project$Main$flipOn = F2(
-	function (previous, model) {
-		var _v0 = model.pageElement;
-		if (_v0.$ === 'Nothing') {
+	function (newScreen, model) {
+		var _v0 = model;
+		var habits = _v0.habits;
+		var time = _v0.time;
+		var screen = _v0.screen;
+		var options = _v0.options;
+		var _v1 = model.pageElement;
+		if (_v1.$ === 'Nothing') {
 			return model;
 		} else {
-			var el = _v0.a;
+			var el = _v1.a;
 			var right = el.element.width;
 			return _Utils_update(
 				model,
@@ -13824,9 +13884,10 @@ var $author$project$Main$flipOn = F2(
 										A2($mdgriffith$elm_style_animation$Animation$exactly, 'z-index', '1')
 									]))),
 						model.animations),
+					screen: newScreen,
 					screenTransition: $elm$core$Maybe$Just(
 						$author$project$Main$ScreenTransition(
-							{direction: $author$project$Main$TransitionIn, previous: previous}))
+							{direction: $author$project$Main$TransitionIn, habits: habits, options: options, screen: screen, time: time}))
 				});
 		}
 	});
@@ -13932,12 +13993,17 @@ var $author$project$Main$modalOutTransition = function (model) {
 		});
 };
 var $author$project$Main$slideOffbottom = F2(
-	function (previous, model) {
-		var _v0 = model.pageElement;
-		if (_v0.$ === 'Nothing') {
+	function (newScreen, model) {
+		var _v0 = model;
+		var habits = _v0.habits;
+		var time = _v0.time;
+		var screen = _v0.screen;
+		var options = _v0.options;
+		var _v1 = model.pageElement;
+		if (_v1.$ === 'Nothing') {
 			return model;
 		} else {
-			var el = _v0.a;
+			var el = _v1.a;
 			var top = el.viewport.height + (el.element.y * 2);
 			return _Utils_update(
 				model,
@@ -13966,9 +14032,10 @@ var $author$project$Main$slideOffbottom = F2(
 										$mdgriffith$elm_style_animation$Animation$px(0))
 									]))),
 						model.animations),
+					screen: newScreen,
 					screenTransition: $elm$core$Maybe$Just(
 						$author$project$Main$ScreenTransition(
-							{direction: $author$project$Main$TransitionOut, previous: previous}))
+							{direction: $author$project$Main$TransitionOut, habits: habits, options: options, screen: screen, time: time}))
 				});
 		}
 	});
@@ -15547,6 +15614,53 @@ var $author$project$Main$updateHabitFormFields = F3(
 				return page;
 		}
 	});
+var $author$project$Main$isDue = F2(
+	function (time, habit) {
+		return _Utils_cmp(
+			$elm$time$Time$posixToMillis(habit.nextDue),
+			$elm$time$Time$posixToMillis(time)) < 0;
+	});
+var $author$project$Main$isDueSoon = F2(
+	function (_v0, habit) {
+		var time = _v0.time;
+		var options = _v0.options;
+		return A2(
+			$author$project$Main$isDue,
+			A2($author$project$Period$addToPosix, options.upcoming, time),
+			habit);
+	});
+var $author$project$Main$isRecentlyDone = F2(
+	function (_v0, habit) {
+		var time = _v0.time;
+		var options = _v0.options;
+		return A2(
+			$elm$core$Maybe$withDefault,
+			false,
+			A2(
+				$elm$core$Maybe$map,
+				function (l) {
+					return _Utils_cmp(
+						$elm$time$Time$posixToMillis(l),
+						$elm$time$Time$posixToMillis(
+							A2($author$project$Period$minusFromPosix, options.recent, time))) > 0;
+				},
+				habit.lastDone));
+	});
+var $author$project$Main$viewHabitFilter = F2(
+	function (model, habit) {
+		var recent = A2($author$project$Main$isRecentlyDone, model, habit);
+		var due = A2($author$project$Main$isDueSoon, model, habit);
+		return $author$project$Habit$isBlocked(habit) ? recent : (due || recent);
+	});
+var $author$project$Main$visibleHabits = function (model) {
+	return A2(
+		$elm$core$Dict$filter,
+		F2(
+			function (_v0, v) {
+				return A2($author$project$Main$viewHabitFilter, model, v);
+			}),
+		model.habits);
+};
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		var _v0 = _Utils_Tuple2(model.screen, msg);
@@ -15558,10 +15672,19 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				case 'Tick':
 					var time = _v0.b.a;
+					var updatedModel = _Utils_update(
+						model,
+						{time: time});
+					var shouldFade = !_Utils_eq(
+						$author$project$Main$visibleHabits(updatedModel),
+						$author$project$Main$visibleHabits(model));
 					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{time: time}),
+						shouldFade ? function (m) {
+							return _Utils_update(
+								m,
+								{time: time});
+						}(
+							$author$project$Main$fadeTransition(model)) : updatedModel,
 						$elm$core$Platform$Cmd$none);
 				case 'AnimateScreen':
 					var animMsg = _v0.b.a;
@@ -15612,12 +15735,7 @@ var $author$project$Main$update = F2(
 						}
 					}();
 					return _Utils_Tuple2(
-						A2(
-							$author$project$Main$flipOffRight,
-							model.screen,
-							_Utils_update(
-								model,
-								{screen: prev})),
+						A2($author$project$Main$flipOffRight, prev, model),
 						$elm$core$Platform$Cmd$none);
 				case 'ClearTransition':
 					var _v6 = _v0.b;
@@ -15629,6 +15747,7 @@ var $author$project$Main$update = F2(
 							$elm$core$Platform$Cmd$none));
 				case 'DoHabit':
 					var habitId = _v0.b.a;
+					var transitionModel = $author$project$Main$fadeTransition(model);
 					var newStore = A2(
 						$elm$core$Maybe$withDefault,
 						model.habits,
@@ -15643,7 +15762,7 @@ var $author$project$Main$update = F2(
 						_Utils_Tuple2(
 							$author$project$Main$afterDoHabitModalUpdate(
 								_Utils_update(
-									model,
+									transitionModel,
 									{habits: newStore})),
 							$elm$core$Platform$Cmd$none));
 				case 'OpenHabitEdit':
@@ -15654,12 +15773,7 @@ var $author$project$Main$update = F2(
 					} else {
 						var newScreen = maybeScreen.a;
 						return _Utils_Tuple2(
-							A2(
-								$author$project$Main$flipOn,
-								model.screen,
-								_Utils_update(
-									model,
-									{screen: newScreen})),
+							A2($author$project$Main$flipOn, newScreen, model),
 							$elm$core$Platform$Cmd$none);
 					}
 				case 'OpenHabitSelect':
@@ -15669,31 +15783,23 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(
 						A2(
 							$author$project$Main$flipOn,
-							model.screen,
-							_Utils_update(
-								model,
-								{
-									screen: $author$project$Main$SelectHabit(
-										{forHabit: forHabit, page: 0, parent: model.screen, selected: selected})
-								})),
+							$author$project$Main$SelectHabit(
+								{forHabit: forHabit, page: 0, parent: model.screen, selected: selected}),
+							model),
 						$elm$core$Platform$Cmd$none);
 				case 'OpenHabitCreate':
 					var _v9 = _v0.b;
 					return _Utils_Tuple2(
 						A2(
 							$author$project$Main$slideFromTopTransition,
-							model.screen,
-							_Utils_update(
-								model,
+							$author$project$Main$CreateHabit(
 								{
-									screen: $author$project$Main$CreateHabit(
-										{
-											deltas: _List_Nil,
-											fields: $author$project$Main$habitToFields(
-												$author$project$HabitStore$emptyHabit('')),
-											parent: model.screen
-										})
-								})),
+									deltas: _List_Nil,
+									fields: $author$project$Main$habitToFields(
+										$author$project$HabitStore$emptyHabit('')),
+									parent: model.screen
+								}),
+							model),
 						$elm$core$Platform$Cmd$none);
 				case 'NewPageElement':
 					if (_v0.b.a.$ === 'Ok') {
@@ -15718,13 +15824,12 @@ var $author$project$Main$update = F2(
 								$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 								A2(
 									$author$project$Main$slideFromTopTransition,
-									$author$project$Main$NoScreen,
+									$author$project$Main$HabitList(
+										{page: 0}),
 									_Utils_update(
 										model,
 										{
-											pageElement: $elm$core$Maybe$Just(el),
-											screen: $author$project$Main$HabitList(
-												{page: 0})
+											pageElement: $elm$core$Maybe$Just(el)
 										})),
 								$elm$core$Platform$Cmd$none);
 						} else {
@@ -15777,10 +15882,10 @@ var $author$project$Main$update = F2(
 							_Utils_Tuple2(
 								A2(
 									$author$project$Main$slideOffbottom,
-									model.screen,
+									screen.parent,
 									_Utils_update(
 										model,
-										{habits: newStore, screen: screen.parent})),
+										{habits: newStore})),
 								$elm$core$Platform$Cmd$none));
 					} else {
 						break _v0$27;
@@ -15797,10 +15902,10 @@ var $author$project$Main$update = F2(
 							_Utils_Tuple2(
 								A2(
 									$author$project$Main$flipOffRight,
-									model.screen,
+									screen.parent,
 									_Utils_update(
 										model,
-										{habits: newStore, screen: screen.parent})),
+										{habits: newStore})),
 								$elm$core$Platform$Cmd$none));
 					} else {
 						break _v0$27;
@@ -15835,27 +15940,26 @@ var $author$project$Main$update = F2(
 							}
 						};
 						return _Utils_Tuple2(
-							A2(
-								$author$project$Main$flipOffRight,
-								model.screen,
-								_Utils_update(
-									model,
-									{
-										screen: function () {
-											switch (parent.$) {
-												case 'EditHabit':
-													var screen = parent.a;
-													return $author$project$Main$EditHabit(
-														updateScreen(screen));
-												case 'CreateHabit':
-													var screen = parent.a;
-													return $author$project$Main$CreateHabit(
-														updateScreen(screen));
-												default:
-													return parent;
-											}
-										}()
-									})),
+							function () {
+								switch (parent.$) {
+									case 'EditHabit':
+										var screen = parent.a;
+										return A2(
+											$author$project$Main$flipOffRight,
+											$author$project$Main$EditHabit(
+												updateScreen(screen)),
+											model);
+									case 'CreateHabit':
+										var screen = parent.a;
+										return A2(
+											$author$project$Main$flipOffRight,
+											$author$project$Main$CreateHabit(
+												updateScreen(screen)),
+											model);
+									default:
+										return A2($author$project$Main$flipOffRight, parent, model);
+								}
+							}(),
 							$elm$core$Platform$Cmd$none);
 					} else {
 						break _v0$27;
@@ -15890,10 +15994,10 @@ var $author$project$Main$update = F2(
 								_Utils_Tuple2(
 									A2(
 										$author$project$Main$flipOffRight,
-										model.screen,
+										screen.parent,
 										_Utils_update(
 											model,
-											{habits: newStore, screen: screen.parent})),
+											{habits: newStore})),
 									$elm$core$Platform$Cmd$none));
 						}
 					} else {
@@ -15914,10 +16018,10 @@ var $author$project$Main$update = F2(
 							_Utils_Tuple2(
 								A2(
 									$author$project$Main$flipOffRight,
-									model.screen,
+									screen.parent,
 									_Utils_update(
 										model,
-										{options: updatedOptions, screen: screen.parent})),
+										{options: updatedOptions})),
 								$elm$core$Platform$Cmd$none));
 					} else {
 						break _v0$27;
@@ -15990,17 +16094,13 @@ var $author$project$Main$update = F2(
 						return _Utils_Tuple2(
 							A2(
 								$author$project$Main$slideFromTopTransition,
-								model.screen,
-								_Utils_update(
-									model,
+								$author$project$Main$EditOptions(
 									{
-										screen: $author$project$Main$EditOptions(
-											{
-												parent: model.screen,
-												recent: $author$project$Period$toString(model.options.recent),
-												upcoming: $author$project$Period$toString(model.options.upcoming)
-											})
-									})),
+										parent: model.screen,
+										recent: $author$project$Period$toString(model.options.recent),
+										upcoming: $author$project$Period$toString(model.options.upcoming)
+									}),
+								model),
 							$elm$core$Platform$Cmd$none);
 					} else {
 						switch (_v0.a.$) {
@@ -16008,29 +16108,37 @@ var $author$project$Main$update = F2(
 								var screen = _v0.a.a;
 								var page = _v0.b.a.a;
 								return _Utils_Tuple2(
-									((_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model.screen) : $author$project$Main$flipOn(model.screen))(
-										_Utils_update(
-											model,
-											{
-												screen: $author$project$Main$HabitList(
-													_Utils_update(
-														screen,
-														{page: page}))
-											})),
+									(_Utils_cmp(page, screen.page) < 0) ? A2(
+										$author$project$Main$flipOffRight,
+										$author$project$Main$HabitList(
+											_Utils_update(
+												screen,
+												{page: page})),
+										model) : A2(
+										$author$project$Main$flipOn,
+										$author$project$Main$HabitList(
+											_Utils_update(
+												screen,
+												{page: page})),
+										model),
 									$elm$core$Platform$Cmd$none);
 							case 'SelectHabit':
 								var screen = _v0.a.a;
 								var page = _v0.b.a.a;
 								return _Utils_Tuple2(
-									((_Utils_cmp(page, screen.page) < 0) ? $author$project$Main$flipOffRight(model.screen) : $author$project$Main$flipOn(model.screen))(
-										_Utils_update(
-											model,
-											{
-												screen: $author$project$Main$SelectHabit(
-													_Utils_update(
-														screen,
-														{page: page}))
-											})),
+									(_Utils_cmp(page, screen.page) < 0) ? A2(
+										$author$project$Main$flipOffRight,
+										$author$project$Main$SelectHabit(
+											_Utils_update(
+												screen,
+												{page: page})),
+										model) : A2(
+										$author$project$Main$flipOn,
+										$author$project$Main$SelectHabit(
+											_Utils_update(
+												screen,
+												{page: page})),
+										model),
 									$elm$core$Platform$Cmd$none);
 							default:
 								break _v0$27;
@@ -16044,10 +16152,10 @@ var $author$project$Main$update = F2(
 							_Utils_Tuple2(
 								A2(
 									$author$project$Main$flipOffRight,
-									model.screen,
+									screen.parent,
 									_Utils_update(
 										model,
-										{habits: $elm$core$Dict$empty, screen: screen.parent})),
+										{habits: $elm$core$Dict$empty})),
 								$elm$core$Platform$Cmd$none));
 					} else {
 						break _v0$27;
@@ -17382,21 +17490,6 @@ var $author$project$Main$viewHabitSelectPage = F2(
 		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
 var $author$project$Main$OpenHabitCreate = {$: 'OpenHabitCreate'};
-var $author$project$Main$isDue = F2(
-	function (time, habit) {
-		return _Utils_cmp(
-			$elm$time$Time$posixToMillis(habit.nextDue),
-			$elm$time$Time$posixToMillis(time)) < 0;
-	});
-var $author$project$Main$isDueSoon = F2(
-	function (_v0, habit) {
-		var time = _v0.time;
-		var options = _v0.options;
-		return A2(
-			$author$project$Main$isDue,
-			A2($author$project$Period$addToPosix, options.upcoming, time),
-			habit);
-	});
 var $author$project$Main$shouldBeMarkedAsDone = F2(
 	function (model, habit) {
 		return $author$project$Habit$isBlocked(habit) ? true : ((_Utils_cmp(
@@ -17463,38 +17556,6 @@ var $author$project$Main$habitViewLine = F2(
 							]))
 					])));
 	});
-var $author$project$Main$isRecentlyDone = F2(
-	function (_v0, habit) {
-		var time = _v0.time;
-		var options = _v0.options;
-		return A2(
-			$elm$core$Maybe$withDefault,
-			false,
-			A2(
-				$elm$core$Maybe$map,
-				function (l) {
-					return _Utils_cmp(
-						$elm$time$Time$posixToMillis(l),
-						$elm$time$Time$posixToMillis(
-							A2($author$project$Period$minusFromPosix, options.recent, time))) > 0;
-				},
-				habit.lastDone));
-	});
-var $author$project$Main$viewHabitFilter = F2(
-	function (model, habit) {
-		var recent = A2($author$project$Main$isRecentlyDone, model, habit);
-		var due = A2($author$project$Main$isDueSoon, model, habit);
-		return $author$project$Habit$isBlocked(habit) ? recent : (due || recent);
-	});
-var $author$project$Main$visibleHabits = function (model) {
-	return A2(
-		$elm$core$Dict$filter,
-		F2(
-			function (k, v) {
-				return A2($author$project$Main$viewHabitFilter, model, v);
-			}),
-		model.habits);
-};
 var $author$project$Main$viewHabitsListPage = F2(
 	function (model, habitListScreen) {
 		var pageState = {pageNumber: habitListScreen.page};
@@ -17722,50 +17783,39 @@ var $author$project$Main$viewOptionsPage = F2(
 			]);
 		return A3($author$project$Page$viewPage, pageConfig, pageState, lines);
 	});
-var $author$project$Main$viewScreen = F2(
-	function (model, page) {
-		switch (page.$) {
-			case 'HabitList':
-				var habitList = page.a;
-				return A2($author$project$Main$viewHabitsListPage, model, habitList);
-			case 'EditHabit':
-				var editPage = page.a;
-				return A2($author$project$Main$viewEditingPage, model, editPage);
-			case 'CreateHabit':
-				var newPage = page.a;
-				return A2($author$project$Main$viewNewPage, model, newPage);
-			case 'EditOptions':
-				var optionsPage = page.a;
-				return A2($author$project$Main$viewOptionsPage, model, optionsPage);
-			case 'SelectHabit':
-				var habitSelect = page.a;
-				return A2($author$project$Main$viewHabitSelectPage, model, habitSelect);
-			default:
-				return A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('notvisible')
-						]),
-					_List_fromArray(
-						[
-							$author$project$Main$viewEmptyPage(model)
-						]));
-		}
-	});
-var $author$project$Main$viewScreenTransition = F2(
-	function (model, _v0) {
-		var transition = _v0.a;
-		var _v1 = function () {
-			var _v2 = transition.direction;
-			if (_v2.$ === 'TransitionIn') {
-				return _Utils_Tuple2(model.screen, transition.previous);
-			} else {
-				return _Utils_Tuple2(transition.previous, model.screen);
-			}
-		}();
-		var top = _v1.a;
-		var bottom = _v1.b;
+var $author$project$Main$viewScreen = function (model) {
+	var _v0 = model.screen;
+	switch (_v0.$) {
+		case 'HabitList':
+			var habitList = _v0.a;
+			return A2($author$project$Main$viewHabitsListPage, model, habitList);
+		case 'EditHabit':
+			var editPage = _v0.a;
+			return A2($author$project$Main$viewEditingPage, model, editPage);
+		case 'CreateHabit':
+			var newPage = _v0.a;
+			return A2($author$project$Main$viewNewPage, model, newPage);
+		case 'EditOptions':
+			var optionsPage = _v0.a;
+			return A2($author$project$Main$viewOptionsPage, model, optionsPage);
+		case 'SelectHabit':
+			var habitSelect = _v0.a;
+			return A2($author$project$Main$viewHabitSelectPage, model, habitSelect);
+		default:
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('notvisible')
+					]),
+				_List_fromArray(
+					[
+						$author$project$Main$viewEmptyPage(model)
+					]));
+	}
+};
+var $author$project$Main$viewScreenTransition2 = F3(
+	function (model, top, bottom) {
 		return A2(
 			$elm$html$Html$div,
 			_List_Nil,
@@ -17779,7 +17829,7 @@ var $author$project$Main$viewScreenTransition = F2(
 						]),
 					_List_fromArray(
 						[
-							A2($author$project$Main$viewScreen, model, bottom)
+							$author$project$Main$viewScreen(bottom)
 						])),
 					A2(
 					$elm$html$Html$div,
@@ -17789,9 +17839,19 @@ var $author$project$Main$viewScreenTransition = F2(
 						A2($author$project$Main$animationAttribs, model, 'page-transition')),
 					_List_fromArray(
 						[
-							A2($author$project$Main$viewScreen, model, top)
+							$author$project$Main$viewScreen(top)
 						]))
 				]));
+	});
+var $author$project$Main$viewScreenTransition = F2(
+	function (model, _v0) {
+		var transition = _v0.a;
+		var _v1 = transition.direction;
+		if (_v1.$ === 'TransitionIn') {
+			return A3($author$project$Main$viewScreenTransition2, model, model, transition);
+		} else {
+			return A3($author$project$Main$viewScreenTransition2, model, transition, model);
+		}
 	});
 var $author$project$Main$maybeViewTransition = function (model) {
 	var _v0 = model.screenTransition;
@@ -17804,7 +17864,7 @@ var $author$project$Main$maybeViewTransition = function (model) {
 				]),
 			_List_fromArray(
 				[
-					A2($author$project$Main$viewScreen, model, model.screen)
+					$author$project$Main$viewScreen(model)
 				]));
 	} else {
 		var transition = _v0.a;

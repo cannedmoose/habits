@@ -193,9 +193,21 @@ type TransitionDirection
     | TransitionOut
 
 
+type alias PageScreen a =
+    { a
+        | time : Posix
+        , habits : Dict HabitId Habit
+        , options : Options
+        , screen : Screen
+    }
+
+
 type ScreenTransition
     = ScreenTransition
-        { previous : Screen
+        { time : Posix
+        , habits : Dict HabitId Habit
+        , options : Options
+        , screen : Screen
         , direction : TransitionDirection
         }
 
@@ -368,7 +380,18 @@ update msg model =
             ( model, Cmd.none )
 
         ( _, Tick time ) ->
-            ( { model | time = time }
+            let
+                updatedModel =
+                    { model | time = time }
+
+                shouldFade =
+                    visibleHabits updatedModel /= visibleHabits model
+            in
+            ( if shouldFade then
+                fadeTransition model |> (\m -> { m | time = time })
+
+              else
+                updatedModel
             , Cmd.none
             )
 
@@ -407,10 +430,7 @@ update msg model =
                         SelectHabit { parent } ->
                             parent
             in
-            ( { model
-                | screen = prev
-              }
-                |> flipOffRight model.screen
+            ( flipOffRight prev model
             , Cmd.none
             )
 
@@ -428,8 +448,11 @@ update msg model =
                         |> Maybe.map (doHabitDeltas model.habits model.time)
                         |> Maybe.map (applyDeltas model.habits)
                         |> Maybe.withDefault model.habits
+
+                transitionModel =
+                    fadeTransition model
             in
-            ( { model | habits = newStore } |> afterDoHabitModalUpdate, Cmd.none ) |> storeModel
+            ( { transitionModel | habits = newStore } |> afterDoHabitModalUpdate, Cmd.none ) |> storeModel
 
         ( _, OpenHabitEdit habitId ) ->
             let
@@ -441,50 +464,44 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just newScreen ->
-                    ( { model
-                        | screen = newScreen
-                      }
-                        |> flipOn model.screen
+                    ( flipOn newScreen model
                     , Cmd.none
                     )
 
         ( _, OpenHabitSelect forHabit selected ) ->
-            ( { model
-                | screen =
-                    SelectHabit
-                        { page = 0
-                        , selected = selected
-                        , forHabit = forHabit
-                        , parent = model.screen
-                        }
-              }
-                |> flipOn model.screen
+            ( flipOn
+                (SelectHabit
+                    { page = 0
+                    , selected = selected
+                    , forHabit = forHabit
+                    , parent = model.screen
+                    }
+                )
+                model
             , Cmd.none
             )
 
         ( _, OpenHabitCreate ) ->
-            ( { model
-                | screen =
-                    CreateHabit
-                        { fields = habitToFields (HabitStore.emptyHabit "")
-                        , deltas = []
-                        , parent = model.screen
-                        }
-              }
-                |> slideFromTopTransition model.screen
+            ( slideFromTopTransition
+                (CreateHabit
+                    { fields = habitToFields (HabitStore.emptyHabit "")
+                    , deltas = []
+                    , parent = model.screen
+                    }
+                )
+                model
             , Cmd.none
             )
 
         ( _, PageAction OpenOptions ) ->
-            ( { model
-                | screen =
-                    EditOptions
-                        { upcoming = Period.toString model.options.upcoming
-                        , recent = Period.toString model.options.recent
-                        , parent = model.screen
-                        }
-              }
-                |> slideFromTopTransition model.screen
+            ( slideFromTopTransition
+                (EditOptions
+                    { upcoming = Period.toString model.options.upcoming
+                    , recent = Period.toString model.options.recent
+                    , parent = model.screen
+                    }
+                )
+                model
             , Cmd.none
             )
 
@@ -508,10 +525,9 @@ update msg model =
 
             else
                 ( { model
-                    | screen = HabitList { page = 0 }
-                    , pageElement = Just el
+                    | pageElement = Just el
                   }
-                    |> slideFromTopTransition NoScreen
+                    |> slideFromTopTransition (HabitList { page = 0 })
                 , Cmd.none
                 )
 
@@ -544,9 +560,8 @@ update msg model =
             in
             ( { model
                 | habits = newStore
-                , screen = screen.parent
               }
-                |> slideOffbottom model.screen
+                |> slideOffbottom screen.parent
             , Cmd.none
             )
                 |> storeModel
@@ -559,9 +574,8 @@ update msg model =
             in
             ( { model
                 | habits = newStore
-                , screen = screen.parent
               }
-                |> flipOffRight model.screen
+                |> flipOffRight screen.parent
             , Cmd.none
             )
                 |> storeModel
@@ -588,19 +602,15 @@ update msg model =
                                         (HabitStore.BlockChange Habit.Unblocked)
                             }
             in
-            ( { model
-                | screen =
-                    case parent of
-                        EditHabit screen ->
-                            EditHabit (updateScreen screen)
+            ( case parent of
+                EditHabit screen ->
+                    flipOffRight (EditHabit (updateScreen screen)) model
 
-                        CreateHabit screen ->
-                            CreateHabit (updateScreen screen)
+                CreateHabit screen ->
+                    flipOffRight (CreateHabit (updateScreen screen)) model
 
-                        _ ->
-                            parent
-              }
-                |> flipOffRight model.screen
+                _ ->
+                    flipOffRight parent model
             , Cmd.none
             )
 
@@ -621,9 +631,8 @@ update msg model =
                     in
                     ( { model
                         | habits = newStore
-                        , screen = screen.parent
                       }
-                        |> flipOffRight model.screen
+                        |> flipOffRight screen.parent
                     , Cmd.none
                     )
                         |> storeModel
@@ -641,9 +650,8 @@ update msg model =
             in
             ( { model
                 | options = updatedOptions
-                , screen = screen.parent
               }
-                |> flipOffRight model.screen
+                |> flipOffRight screen.parent
             , Cmd.none
             )
                 |> storeModel
@@ -674,33 +682,29 @@ update msg model =
                     ( model, Cmd.none )
 
         ( HabitList screen, PageAction (ChangePage page) ) ->
-            ( { model
-                | screen = HabitList { screen | page = page }
-              }
-                |> (if page < screen.page then
-                        flipOffRight model.screen
+            ( if page < screen.page then
+                flipOffRight (HabitList { screen | page = page }) model
 
-                    else
-                        flipOn model.screen
-                   )
+              else
+                flipOn (HabitList { screen | page = page }) model
             , Cmd.none
             )
 
         ( SelectHabit screen, PageAction (ChangePage page) ) ->
-            ( { model
-                | screen = SelectHabit { screen | page = page }
-              }
-                |> (if page < screen.page then
-                        flipOffRight model.screen
+            ( if page < screen.page then
+                flipOffRight (SelectHabit { screen | page = page }) model
 
-                    else
-                        flipOn model.screen
-                   )
+              else
+                flipOn (SelectHabit { screen | page = page }) model
             , Cmd.none
             )
 
         ( EditOptions screen, DoClearData ) ->
-            ( { model | habits = Dict.empty, screen = screen.parent } |> flipOffRight model.screen, Cmd.none ) |> storeModel
+            ( { model | habits = Dict.empty }
+                |> flipOffRight screen.parent
+            , Cmd.none
+            )
+                |> storeModel
 
         ( _, DoToggleHelp ) ->
             let
@@ -768,7 +772,7 @@ updateHabitFormFields page field val =
             page
 
 
-habitOrderer : Model -> Habit -> Int
+habitOrderer : PageScreen a -> Habit -> Int
 habitOrderer model habit =
     if shouldBeMarkedAsDone model habit then
         Maybe.withDefault model.time habit.lastDone
@@ -778,9 +782,9 @@ habitOrderer model habit =
         -1 * (Time.posixToMillis habit.nextDue - Time.posixToMillis model.time)
 
 
-visibleHabits : Model -> Dict HabitId Habit
+visibleHabits : PageScreen a -> Dict HabitId Habit
 visibleHabits model =
-    Dict.filter (\k v -> viewHabitFilter model v) model.habits
+    Dict.filter (\_ v -> viewHabitFilter model v) model.habits
 
 
 
@@ -816,6 +820,65 @@ view model =
           else
             div [] []
         ]
+
+
+maybeViewTransition : Model -> Html Msg
+maybeViewTransition model =
+    case model.screenTransition of
+        Nothing ->
+            div
+                [ class "static-page" ]
+                [ viewScreen model ]
+
+        Just transition ->
+            viewScreenTransition model transition
+
+
+viewScreenTransition : Model -> ScreenTransition -> Html Msg
+viewScreenTransition model (ScreenTransition transition) =
+    case transition.direction of
+        TransitionIn ->
+            viewScreenTransition2 model model transition
+
+        TransitionOut ->
+            viewScreenTransition2 model transition model
+
+
+viewScreenTransition2 : Model -> PageScreen a -> PageScreen b -> Html Msg
+viewScreenTransition2 model top bottom =
+    div
+        []
+        [ div
+            [ class "static-page" ]
+            [ viewScreen bottom ]
+        , div
+            (class "transition-page"
+                :: animationAttribs model "page-transition"
+            )
+            [ viewScreen top ]
+        ]
+
+
+viewScreen : PageScreen a -> Html Msg
+viewScreen model =
+    case model.screen of
+        HabitList habitList ->
+            viewHabitsListPage model habitList
+
+        EditHabit editPage ->
+            viewEditingPage model editPage
+
+        CreateHabit newPage ->
+            viewNewPage model newPage
+
+        EditOptions optionsPage ->
+            viewOptionsPage model optionsPage
+
+        SelectHabit habitSelect ->
+            viewHabitSelectPage model habitSelect
+
+        NoScreen ->
+            div [ class "notvisible" ] [ viewEmptyPage model ]
 
 
 viewModal : Model -> Html Msg
@@ -861,64 +924,6 @@ viewModal model =
                 ]
 
 
-maybeViewTransition : Model -> Html Msg
-maybeViewTransition model =
-    case model.screenTransition of
-        Nothing ->
-            div
-                [ class "static-page" ]
-                [ viewScreen model model.screen ]
-
-        Just transition ->
-            viewScreenTransition model transition
-
-
-viewScreenTransition : Model -> ScreenTransition -> Html Msg
-viewScreenTransition model (ScreenTransition transition) =
-    let
-        ( top, bottom ) =
-            case transition.direction of
-                TransitionIn ->
-                    ( model.screen, transition.previous )
-
-                TransitionOut ->
-                    ( transition.previous, model.screen )
-    in
-    div
-        []
-        [ div
-            [ class "static-page" ]
-            [ viewScreen model bottom ]
-        , div
-            (class "transition-page"
-                :: animationAttribs model "page-transition"
-            )
-            [ viewScreen model top ]
-        ]
-
-
-viewScreen : Model -> Screen -> Html Msg
-viewScreen model page =
-    case page of
-        HabitList habitList ->
-            viewHabitsListPage model habitList
-
-        EditHabit editPage ->
-            viewEditingPage model editPage
-
-        CreateHabit newPage ->
-            viewNewPage model newPage
-
-        EditOptions optionsPage ->
-            viewOptionsPage model optionsPage
-
-        SelectHabit habitSelect ->
-            viewHabitSelectPage model habitSelect
-
-        NoScreen ->
-            div [ class "notvisible" ] [ viewEmptyPage model ]
-
-
 
 -- HABITS VIEW
 
@@ -933,7 +938,7 @@ pageLines =
     18
 
 
-viewEmptyPage : Model -> Html Msg
+viewEmptyPage : PageScreen a -> Html Msg
 viewEmptyPage model =
     let
         pageConfig =
@@ -959,7 +964,7 @@ viewEmptyPage model =
     viewPage pageConfig pageState lines
 
 
-viewHabitsListPage : Model -> HabitListScreen -> Html Msg
+viewHabitsListPage : PageScreen a -> HabitListScreen -> Html Msg
 viewHabitsListPage model habitListScreen =
     let
         pageConfig =
@@ -990,7 +995,7 @@ viewHabitsListPage model habitListScreen =
     viewPage pageConfig pageState lines
 
 
-habitViewLine : Model -> Habit -> PageLine Msg
+habitViewLine : PageScreen a -> Habit -> PageLine Msg
 habitViewLine model habit =
     ( button
         [ class "habit-edit"
@@ -1022,7 +1027,7 @@ habitViewLine model habit =
 -- EDIT VIEW
 
 
-viewEditingPage : Model -> EditHabitScreen -> Html Msg
+viewEditingPage : PageScreen a -> EditHabitScreen -> Html Msg
 viewEditingPage model screen =
     let
         title =
@@ -1054,7 +1059,7 @@ viewEditingPage model screen =
     viewPage pageConfig pageState lines
 
 
-editPagelines : Model -> EditHabitScreen -> PageLines Msg
+editPagelines : PageScreen a -> EditHabitScreen -> PageLines Msg
 editPagelines model screen =
     habitFieldsView screen.fields (Dict.values model.habits) (Just screen.habitId)
 
@@ -1063,7 +1068,7 @@ editPagelines model screen =
 -- NEW VIEW
 
 
-viewNewPage : Model -> CreateHabitScreen -> Html Msg
+viewNewPage : PageScreen a -> CreateHabitScreen -> Html Msg
 viewNewPage model screen =
     let
         pageConfig =
@@ -1090,7 +1095,7 @@ viewNewPage model screen =
     viewPage pageConfig pageState lines
 
 
-createPagelines : Model -> CreateHabitScreen -> PageLines Msg
+createPagelines : PageScreen a -> CreateHabitScreen -> PageLines Msg
 createPagelines model screen =
     habitFieldsView screen.fields (Dict.values model.habits) Nothing
 
@@ -1182,7 +1187,7 @@ habitFieldsView fields habits maybeHabit =
 -- OPTIONS VIEW
 
 
-viewOptionsPage : Model -> EditOptionsScreen -> Html Msg
+viewOptionsPage : PageScreen a -> EditOptionsScreen -> Html Msg
 viewOptionsPage model screen =
     let
         pageConfig =
@@ -1281,7 +1286,7 @@ periodOptionsView input for =
         (periodOptions periodUnit ++ periodOptions (periodUnit + 1))
 
 
-viewHabitSelectPage : Model -> SelectHabitScreen -> Html Msg
+viewHabitSelectPage : PageScreen a -> SelectHabitScreen -> Html Msg
 viewHabitSelectPage model screen =
     let
         pageConfig =
@@ -1341,7 +1346,7 @@ habitSelectLine selected habit =
 -- TODO move some of these into habit
 
 
-isDueSoon : Model -> Habit -> Bool
+isDueSoon : PageScreen a -> Habit -> Bool
 isDueSoon { time, options } habit =
     isDue (addToPosix options.upcoming time) habit
 
@@ -1352,14 +1357,14 @@ isDue time habit =
         < posixToMillis time
 
 
-isRecentlyDone : Model -> Habit -> Bool
+isRecentlyDone : PageScreen a -> Habit -> Bool
 isRecentlyDone { time, options } habit =
     habit.lastDone
         |> Maybe.map (\l -> posixToMillis l > posixToMillis (minusFromPosix options.recent time))
         |> Maybe.withDefault False
 
 
-shouldBeMarkedAsDone : Model -> Habit -> Bool
+shouldBeMarkedAsDone : PageScreen a -> Habit -> Bool
 shouldBeMarkedAsDone model habit =
     if Habit.isBlocked habit then
         True
@@ -1371,7 +1376,7 @@ shouldBeMarkedAsDone model habit =
         not (isDue model.time habit)
 
 
-viewHabitFilter : Model -> Habit -> Bool
+viewHabitFilter : PageScreen a -> Habit -> Bool
 viewHabitFilter model habit =
     let
         due =
@@ -1553,8 +1558,44 @@ modalOutTransition model =
     }
 
 
+fadeTransition : Model -> Model
+fadeTransition model =
+    let
+        { habits, time, screen, options } =
+            model
+    in
+    { model
+        | screenTransition =
+            Just
+                (ScreenTransition
+                    { habits = habits
+                    , time = time
+                    , screen = screen
+                    , options = options
+                    , direction = TransitionIn
+                    }
+                )
+        , screen = model.screen
+        , animations =
+            Dict.insert "page-transition"
+                (Animation.interrupt
+                    [ Animation.to [ Animation.opacity 1 ]
+                    , Animation.Messenger.send ClearTransition
+                    ]
+                    (Animation.style
+                        [ Animation.opacity 0, Animation.top (Animation.px 0) ]
+                    )
+                )
+                model.animations
+    }
+
+
 slideFromTopTransition : Screen -> Model -> Model
-slideFromTopTransition previous model =
+slideFromTopTransition newScreen model =
+    let
+        { habits, time, screen, options } =
+            model
+    in
     case model.pageElement of
         Nothing ->
             model
@@ -1568,10 +1609,14 @@ slideFromTopTransition previous model =
                 | screenTransition =
                     Just
                         (ScreenTransition
-                            { previous = previous
+                            { habits = habits
+                            , time = time
+                            , screen = screen
+                            , options = options
                             , direction = TransitionIn
                             }
                         )
+                , screen = newScreen
                 , animations =
                     Dict.insert "page-transition"
                         (Animation.interrupt
@@ -1588,7 +1633,11 @@ slideFromTopTransition previous model =
 
 
 slideOffbottom : Screen -> Model -> Model
-slideOffbottom previous model =
+slideOffbottom newScreen model =
+    let
+        { habits, time, screen, options } =
+            model
+    in
     case model.pageElement of
         Nothing ->
             model
@@ -1602,10 +1651,14 @@ slideOffbottom previous model =
                 | screenTransition =
                     Just
                         (ScreenTransition
-                            { previous = previous
+                            { habits = habits
+                            , time = time
+                            , screen = screen
+                            , options = options
                             , direction = TransitionOut
                             }
                         )
+                , screen = newScreen
                 , animations =
                     Dict.insert "page-transition"
                         (Animation.interrupt
@@ -1622,7 +1675,11 @@ slideOffbottom previous model =
 
 
 flipOffRight : Screen -> Model -> Model
-flipOffRight previous model =
+flipOffRight newScreen model =
+    let
+        { habits, time, screen, options } =
+            model
+    in
     case model.pageElement of
         Nothing ->
             model
@@ -1636,10 +1693,14 @@ flipOffRight previous model =
                 | screenTransition =
                     Just
                         (ScreenTransition
-                            { previous = previous
+                            { habits = habits
+                            , time = time
+                            , screen = screen
+                            , options = options
                             , direction = TransitionOut
                             }
                         )
+                , screen = newScreen
                 , animations =
                     Dict.insert "page-transition"
                         (Animation.interrupt
@@ -1664,7 +1725,11 @@ flipOffRight previous model =
 
 
 flipOn : Screen -> Model -> Model
-flipOn previous model =
+flipOn newScreen model =
+    let
+        { habits, time, screen, options } =
+            model
+    in
     case model.pageElement of
         Nothing ->
             model
@@ -1678,10 +1743,14 @@ flipOn previous model =
                 | screenTransition =
                     Just
                         (ScreenTransition
-                            { previous = previous
+                            { habits = habits
+                            , time = time
+                            , screen = screen
+                            , options = options
                             , direction = TransitionIn
                             }
                         )
+                , screen = newScreen
                 , animations =
                     Dict.insert "page-transition"
                         (Animation.interrupt
