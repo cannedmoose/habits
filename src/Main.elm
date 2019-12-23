@@ -372,14 +372,14 @@ update msg model =
                 transitionModel =
                     fadeTransition model
             in
-            ( { transitionModel | habits = newStore } |> afterDoHabitModalUpdate, Cmd.none ) |> storeModel
+            ( { transitionModel | habits = newStore }
+                |> afterDoHabitModalUpdate
+            , Cmd.none
+            )
+                |> storeModel
 
         ( _, OpenHabitEdit habitId ) ->
-            let
-                maybeScreen =
-                    editHabitScreen model habitId
-            in
-            case maybeScreen of
+            case editHabitScreen model habitId of
                 Nothing ->
                     ( model, Cmd.none )
 
@@ -451,22 +451,26 @@ update msg model =
                 , Cmd.none
                 )
 
-        ( _, NewPageElement (Ok el) ) ->
-            ( { model | pageElement = Just el }, Cmd.none )
+        ( _, NewPageElement elResult ) ->
+            case elResult of
+                Ok el ->
+                    ( { model | pageElement = Just el }, Cmd.none )
 
-        ( _, NewPageElement _ ) ->
-            ( { model | pageElement = Nothing }, Cmd.none )
+                _ ->
+                    ( { model | pageElement = Nothing }, Cmd.none )
 
         ( _, CloseModal ) ->
-            ( model
-                |> modalOutTransition
+            ( modalOutTransition model
             , Cmd.none
             )
 
         ( _, ClearModal ) ->
             ( { model
                 | modal = NoModal
-                , animations = Dict.remove "modal-fg" model.animations |> Dict.remove "modal-bg"
+                , animations =
+                    model.animations
+                        |> Dict.remove "modal-fg"
+                        |> Dict.remove "modal-bg"
               }
                 |> afterModalModelUpdate model.modal
             , Cmd.none
@@ -475,7 +479,10 @@ update msg model =
         ( EditHabit screen, DoDeleteHabit ) ->
             let
                 newStore =
-                    deleteHabitDeltas model.habits model.time screen.habitId
+                    deleteHabitDeltas
+                        model.habits
+                        model.time
+                        screen.habitId
                         |> applyDeltas model.habits
             in
             ( { model
@@ -489,7 +496,11 @@ update msg model =
         ( EditHabit screen, DoEditHabit ) ->
             let
                 newStore =
-                    editHabitDeltas model.habits model.time screen.habitId screen.deltas
+                    editHabitDeltas
+                        model.habits
+                        model.time
+                        screen.habitId
+                        screen.deltas
                         |> applyDeltas model.habits
             in
             ( { model
@@ -546,12 +557,14 @@ update msg model =
                 Just id ->
                     let
                         newStore =
-                            addHabitDeltas model.habits (Period.minusFromPosix (Minutes 1) model.time) id screen.deltas
+                            addHabitDeltas
+                                model.habits
+                                (Period.minusFromPosix (Minutes 1) model.time)
+                                id
+                                screen.deltas
                                 |> applyDeltas model.habits
                     in
-                    ( { model
-                        | habits = newStore
-                      }
+                    ( { model | habits = newStore }
                         |> flipOffRight screen.parent
                     , Cmd.none
                     )
@@ -559,8 +572,8 @@ update msg model =
 
         ( EditOptions screen, DoSaveOptions ) ->
             let
-                options =
-                    model.options
+                { options } =
+                    model
 
                 updatedOptions =
                     { options
@@ -568,9 +581,7 @@ update msg model =
                         , upcoming = Period.parse screen.upcoming
                     }
             in
-            ( { model
-                | options = updatedOptions
-              }
+            ( { model | options = updatedOptions }
                 |> flipOffRight screen.parent
             , Cmd.none
             )

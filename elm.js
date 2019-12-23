@@ -15663,7 +15663,7 @@ var $author$project$Main$visibleHabits = function (model) {
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		var _v0 = _Utils_Tuple2(model.screen, msg);
-		_v0$27:
+		_v0$26:
 		while (true) {
 			switch (_v0.b.$) {
 				case 'NoOp':
@@ -15766,11 +15766,11 @@ var $author$project$Main$update = F2(
 							$elm$core$Platform$Cmd$none));
 				case 'OpenHabitEdit':
 					var habitId = _v0.b.a;
-					var maybeScreen = A2($author$project$Main$editHabitScreen, model, habitId);
-					if (maybeScreen.$ === 'Nothing') {
+					var _v7 = A2($author$project$Main$editHabitScreen, model, habitId);
+					if (_v7.$ === 'Nothing') {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					} else {
-						var newScreen = maybeScreen.a;
+						var newScreen = _v7.a;
 						return _Utils_Tuple2(
 							A2($author$project$Main$flipOn, newScreen, model),
 							$elm$core$Platform$Cmd$none);
@@ -15801,38 +15801,39 @@ var $author$project$Main$update = F2(
 							model),
 						$elm$core$Platform$Cmd$none);
 				case 'NewPageElement':
-					if (_v0.b.a.$ === 'Ok') {
-						if (_v0.a.$ === 'NoScreen') {
-							var _v11 = _v0.a;
-							var el = _v0.b.a.a;
-							var showModal = !A2($elm$core$List$member, $author$project$Main$IntroModal, model.options.seenModals);
-							var options = model.options;
-							return showModal ? _Utils_Tuple2(
-								$author$project$Main$modalInTransition(
-									_Utils_update(
-										model,
-										{
-											modal: $author$project$Main$IntroModal,
-											options: _Utils_update(
-												options,
-												{
-													seenModals: A2($elm$core$List$cons, $author$project$Main$IntroModal, options.seenModals)
-												}),
-											pageElement: $elm$core$Maybe$Just(el)
-										})),
-								$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-								A2(
-									$author$project$Main$slideFromTopTransition,
-									$author$project$Main$HabitList(
-										{page: 0}),
-									_Utils_update(
-										model,
-										{
-											pageElement: $elm$core$Maybe$Just(el)
-										})),
-								$elm$core$Platform$Cmd$none);
-						} else {
-							var el = _v0.b.a.a;
+					if ((_v0.a.$ === 'NoScreen') && (_v0.b.a.$ === 'Ok')) {
+						var _v11 = _v0.a;
+						var el = _v0.b.a.a;
+						var showModal = !A2($elm$core$List$member, $author$project$Main$IntroModal, model.options.seenModals);
+						var options = model.options;
+						return showModal ? _Utils_Tuple2(
+							$author$project$Main$modalInTransition(
+								_Utils_update(
+									model,
+									{
+										modal: $author$project$Main$IntroModal,
+										options: _Utils_update(
+											options,
+											{
+												seenModals: A2($elm$core$List$cons, $author$project$Main$IntroModal, options.seenModals)
+											}),
+										pageElement: $elm$core$Maybe$Just(el)
+									})),
+							$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+							A2(
+								$author$project$Main$slideFromTopTransition,
+								$author$project$Main$HabitList(
+									{page: 0}),
+								_Utils_update(
+									model,
+									{
+										pageElement: $elm$core$Maybe$Just(el)
+									})),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						var elResult = _v0.b.a;
+						if (elResult.$ === 'Ok') {
+							var el = elResult.a;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -15840,21 +15841,21 @@ var $author$project$Main$update = F2(
 										pageElement: $elm$core$Maybe$Just(el)
 									}),
 								$elm$core$Platform$Cmd$none);
+						} else {
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{pageElement: $elm$core$Maybe$Nothing}),
+								$elm$core$Platform$Cmd$none);
 						}
-					} else {
-						return _Utils_Tuple2(
-							_Utils_update(
-								model,
-								{pageElement: $elm$core$Maybe$Nothing}),
-							$elm$core$Platform$Cmd$none);
 					}
 				case 'CloseModal':
-					var _v12 = _v0.b;
+					var _v13 = _v0.b;
 					return _Utils_Tuple2(
 						$author$project$Main$modalOutTransition(model),
 						$elm$core$Platform$Cmd$none);
 				case 'ClearModal':
-					var _v13 = _v0.b;
+					var _v14 = _v0.b;
 					return _Utils_Tuple2(
 						A2(
 							$author$project$Main$afterModalModelUpdate,
@@ -15872,7 +15873,7 @@ var $author$project$Main$update = F2(
 				case 'DoDeleteHabit':
 					if (_v0.a.$ === 'EditHabit') {
 						var screen = _v0.a.a;
-						var _v14 = _v0.b;
+						var _v15 = _v0.b;
 						var newStore = A2(
 							$author$project$HabitStore$applyDeltas,
 							model.habits,
@@ -15887,12 +15888,12 @@ var $author$project$Main$update = F2(
 										{habits: newStore})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$27;
+						break _v0$26;
 					}
 				case 'DoEditHabit':
 					if (_v0.a.$ === 'EditHabit') {
 						var screen = _v0.a.a;
-						var _v15 = _v0.b;
+						var _v16 = _v0.b;
 						var newStore = A2(
 							$author$project$HabitStore$applyDeltas,
 							model.habits,
@@ -15907,7 +15908,7 @@ var $author$project$Main$update = F2(
 										{habits: newStore})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$27;
+						break _v0$26;
 					}
 				case 'DoSelectHabit':
 					if (_v0.a.$ === 'SelectHabit') {
@@ -15961,7 +15962,7 @@ var $author$project$Main$update = F2(
 							}(),
 							$elm$core$Platform$Cmd$none);
 					} else {
-						break _v0$27;
+						break _v0$26;
 					}
 				case 'DoCreateHabit':
 					if (_v0.a.$ === 'CreateHabit') {
@@ -16000,13 +16001,14 @@ var $author$project$Main$update = F2(
 									$elm$core$Platform$Cmd$none));
 						}
 					} else {
-						break _v0$27;
+						break _v0$26;
 					}
 				case 'DoSaveOptions':
 					if (_v0.a.$ === 'EditOptions') {
 						var screen = _v0.a.a;
-						var _v19 = _v0.b;
-						var options = model.options;
+						var _v20 = _v0.b;
+						var _v21 = model;
+						var options = _v21.options;
 						var updatedOptions = _Utils_update(
 							options,
 							{
@@ -16023,15 +16025,15 @@ var $author$project$Main$update = F2(
 										{options: updatedOptions})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$27;
+						break _v0$26;
 					}
 				case 'ChangeFormField':
 					switch (_v0.a.$) {
 						case 'EditHabit':
 							var page = _v0.a.a;
-							var _v20 = _v0.b;
-							var field = _v20.a;
-							var val = _v20.b;
+							var _v22 = _v0.b;
+							var field = _v22.a;
+							var val = _v22.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -16042,9 +16044,9 @@ var $author$project$Main$update = F2(
 								$elm$core$Platform$Cmd$none);
 						case 'CreateHabit':
 							var page = _v0.a.a;
-							var _v21 = _v0.b;
-							var field = _v21.a;
-							var val = _v21.b;
+							var _v23 = _v0.b;
+							var field = _v23.a;
+							var val = _v23.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -16055,9 +16057,9 @@ var $author$project$Main$update = F2(
 								$elm$core$Platform$Cmd$none);
 						case 'EditOptions':
 							var page = _v0.a.a;
-							var _v22 = _v0.b;
-							var field = _v22.a;
-							var val = _v22.b;
+							var _v24 = _v0.b;
+							var field = _v24.a;
+							var val = _v24.b;
 							switch (field) {
 								case 'recent':
 									return _Utils_Tuple2(
@@ -16085,7 +16087,7 @@ var $author$project$Main$update = F2(
 									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							}
 						default:
-							break _v0$27;
+							break _v0$26;
 					}
 				case 'PageAction':
 					if (_v0.b.a.$ === 'OpenOptions') {
@@ -16140,13 +16142,13 @@ var $author$project$Main$update = F2(
 										model),
 									$elm$core$Platform$Cmd$none);
 							default:
-								break _v0$27;
+								break _v0$26;
 						}
 					}
 				case 'DoClearData':
 					if (_v0.a.$ === 'EditOptions') {
 						var screen = _v0.a.a;
-						var _v24 = _v0.b;
+						var _v26 = _v0.b;
 						return $author$project$Main$storeModel(
 							_Utils_Tuple2(
 								A2(
@@ -16157,10 +16159,10 @@ var $author$project$Main$update = F2(
 										{habits: $elm$core$Dict$empty})),
 								$elm$core$Platform$Cmd$none));
 					} else {
-						break _v0$27;
+						break _v0$26;
 					}
 				case 'DoToggleHelp':
-					var _v25 = _v0.b;
+					var _v27 = _v0.b;
 					var options = model.options;
 					var seenAllHelp = $elm$core$List$length(options.seenModals) === 5;
 					return seenAllHelp ? $author$project$Main$storeModel(
@@ -16189,7 +16191,7 @@ var $author$project$Main$update = F2(
 								}),
 							$elm$core$Platform$Cmd$none));
 				default:
-					break _v0$27;
+					break _v0$26;
 			}
 		}
 		return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
