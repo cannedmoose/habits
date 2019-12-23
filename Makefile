@@ -16,7 +16,7 @@ serve:
 	make elm.js
 	python3 -m http.server
 
-BRANCH := $(git branch)
+BRANCH := $(git rev-parse --abbrev-ref HEAD)
 
 .PHONY : tester
 tester:
