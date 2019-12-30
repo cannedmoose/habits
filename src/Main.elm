@@ -275,6 +275,7 @@ type Msg
     | ClearTransition
       -- From list screen
     | DoHabit HabitId
+    | UnDoHabit HabitId
       -- Habit Edit
     | OpenHabitEdit HabitId
     | DoDeleteHabit
@@ -393,6 +394,22 @@ update msg model =
             in
             ( { transitionModel | habits = newStore }
                 |> afterDoHabitModalUpdate
+            , Cmd.none
+            )
+                |> storeModel
+
+        ( _, UnDoHabit habitId ) ->
+            let
+                newStore =
+                    Dict.get habitId model.habits
+                        |> Maybe.map (undoHabitDeltas model.habits model.time)
+                        |> Maybe.map (applyDeltas model.habits)
+                        |> Maybe.withDefault model.habits
+
+                transitionModel =
+                    fadeTransition model
+            in
+            ( { transitionModel | habits = newStore }
             , Cmd.none
             )
                 |> storeModel
@@ -1029,6 +1046,10 @@ viewHabitsListPage model habitListScreen =
 
 habitViewLine : ScreenModel a -> Habit -> PageLine Msg
 habitViewLine model habit =
+    let
+        markedDone =
+            shouldBeMarkedAsDone model habit
+    in
     ( button
         [ class "habit-edit"
         , onClick (OpenHabitEdit habit.id)
@@ -1037,13 +1058,19 @@ habitViewLine model habit =
     , button
         [ class "habit-button"
         , class
-            (if shouldBeMarkedAsDone model habit then
+            (if markedDone then
                 "habit-done"
 
              else
                 "habit-todo"
             )
-        , onClick (DoHabit habit.id)
+        , onClick
+            (if markedDone then
+                UnDoHabit habit.id
+
+             else
+                DoHabit habit.id
+            )
         ]
         [ span
             [ class "habit-description" ]
@@ -1473,37 +1500,40 @@ viewModal model =
         IntroModal ->
             div
                 [ class "intro-modal" ]
-                [ p [] [ text "habits is a way to keep track of repeating tasks." ]
-                , p [] [ text "It's like a todo list where things show up again a certain amount of time after you do them." ]
+                [ p [] [ text "This app helps you create habits out of repeating tasks" ]
+                , p [] [ text "It's like a todo list where tasks show up again after you've done them" ]
                 ]
 
         FirstHabitModal ->
             div
                 [ class "intro-modal" ]
-                [ p [] [ text "This is your due list, it's looking a little bare." ]
-                , p [] [ text "Add a habit with the + button." ]
+                [ p [] [ text "This is your due list, it's looking a little bare" ]
+                , p [] [ text "Trying adding something with the '+'" ]
                 ]
 
         AddingHabitModal ->
             div
                 [ class "intro-modal" ]
-                [ p [] [ text "A habit needs a name and a repeat period." ]
-                , p [] [ text "You can make the habit due after the last time you did it or after doing a different habit." ]
+                [ p [] [ text "Give your task a name and say how long you want to wait before it repeats" ]
+                , p [] [ text "You can make it repeat after the last time you did it or after doing another task" ]
+                , p [] [ text "You can also set how long until it's first due" ]
                 ]
 
         DoHabitModal ->
             div
                 [ class "intro-modal" ]
-                [ p [] [ text "That's looking better!" ]
-                , p [] [ text "Clicking a habit marks it as done, you can also edit habits by clicking the ..." ]
+                [ p [] [ text "That's looking much better!" ]
+                , p [] [ text "Clicking a task marks it as done, it'll become due again after the period is up" ]
+                , p [] [ text "If you need to change a task after creation you can press the '...' next to it for editing" ]
                 ]
 
         OpenOptionsModal ->
             div
                 [ class "intro-modal" ]
-                [ p [] [ text "🎉🎉🎉" ]
-                , p [] [ text "By defualt your list shows habits due within the next 12 hours or done within the last 12 hours." ]
-                , p [] [ text "You can access the view options by clicking the - button to change this." ]
+                [ p [] [ text "🎉 done!" ]
+                , p [] [ text "If you made a mistake you can click the task again to make it redue" ]
+                , p [] [ text "Your list shows tasks due and completed within 12 hours" ]
+                , p [] [ text "You can change this in the options by clicking '-'" ]
                 ]
 
 
